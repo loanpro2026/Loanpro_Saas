@@ -18,16 +18,25 @@ import { createClient } from '@/lib/supabase/server'
 import { getSessionContext } from '@/lib/tenant'
 import { presignDownload } from '@/lib/r2'
 import { todayIST } from '@/lib/utils'
+import type { TableName } from '@/types/supabase'
 
 // Node runtime: this needs streams and the R2 SDK, neither of which works on
 // the edge runtime.
 export const runtime = 'nodejs'
 export const maxDuration = 300
 
-/** Pull a table in pages. A single select on a large shop would time out. */
+/**
+ * Pull a table in pages. A single select on a large shop would time out.
+ *
+ * `table` is the generated union of table names rather than `string`: the
+ * caller's list is `as const`, so a typo there becomes a compile error instead
+ * of a PostgREST 404 that this function would swallow into the log and hand
+ * back an empty file — an export missing a table it never mentions failing is
+ * about the worst outcome available here.
+ */
 async function fetchAll(
   supabase: Awaited<ReturnType<typeof createClient>>,
-  table: string,
+  table: TableName,
   orderBy = 'id'
 ): Promise<Record<string, unknown>[]> {
   const rows: Record<string, unknown>[] = []

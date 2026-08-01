@@ -4,11 +4,11 @@
     "no-restricted-syntax": [
       "error",
       {
-        "selector": "CallExpression[callee.property.name='split'][callee.object.callee.property.name='toISOString'][callee.object.callee.object.callee.name='Date']",
+        "selector": "CallExpression[callee.property.name='split'][callee.object.callee.property.name='toISOString'][callee.object.callee.object.callee.name='Date'][callee.object.callee.object.arguments.length=0]",
         "message": "new Date().toISOString().split('T')[0] is the UTC date. For a shop in India it returns TOMORROW between 18:30 and midnight UTC, so an evening entry is filed against the wrong day and vanishes from that day's report. Use todayIST() from @/lib/utils."
       },
       {
-        "selector": "CallExpression[callee.property.name='slice'][callee.object.callee.property.name='toISOString'][callee.object.callee.object.callee.name='Date']",
+        "selector": "CallExpression[callee.property.name='slice'][callee.object.callee.property.name='toISOString'][callee.object.callee.object.callee.name='Date'][callee.object.callee.object.arguments.length=0]",
         "message": "new Date().toISOString().slice(0, 10) is the UTC date — wrong for a shop in India after 18:30 UTC. Use todayIST() from @/lib/utils."
       }
     ],

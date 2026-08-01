@@ -43,7 +43,7 @@ export default async function DepositsPage() {
       {/* Stats */}
       <div className="grid grid-cols-2 gap-4">
         <div className="stat-card">
-          <span className="stat-label">Today's Collections</span>
+          <span className="stat-label">Today&apos;s Collections</span>
           <span className="stat-value text-emerald-600">{formatCurrency(todayTotal, true)}</span>
           <span className="stat-sub">{deposits?.filter(d => d.deposit_date === today).length ?? 0} payments</span>
         </div>

@@ -12,6 +12,7 @@ import toast from 'react-hot-toast'
 import { useRouter } from 'next/navigation'
 import { addDeposit } from '@/app/(app)/loans/actions'
 import { useOffline } from '@/components/offline/OfflineProvider'
+import { todayIST } from '@/lib/utils'
 
 const schema = z.object({
   loan_search:   z.string().min(1, 'Search for a customer'),
@@ -37,7 +38,7 @@ export function AddDepositButton({ tenantId }: Props) {
     resolver: zodResolver(schema),
     // IST, not UTC: after 18:30 UTC a shop in India is already on the next day.
     defaultValues: {
-      deposit_date: new Date(Date.now() + 5.5 * 3600_000).toISOString().slice(0, 10),
+      deposit_date: todayIST(),
     },
   })
 

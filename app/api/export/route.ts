@@ -17,6 +17,7 @@ import { PassThrough, Readable } from 'node:stream'
 import { createClient } from '@/lib/supabase/server'
 import { getSessionContext } from '@/lib/tenant'
 import { presignDownload } from '@/lib/r2'
+import { todayIST } from '@/lib/utils'
 
 // Node runtime: this needs streams and the R2 SDK, neither of which works on
 // the edge runtime.
@@ -140,7 +141,9 @@ export async function GET() {
     }
   })()
 
-  const stamp = new Date(Date.now() + 5.5 * 3600_000).toISOString().slice(0, 10)
+  // Filename stamp in IST, so an export taken at 9pm in Indore is named for
+  // the day the shopkeeper thinks it is, not tomorrow.
+  const stamp = todayIST()
   const safeName = (tenant?.shop_name ?? 'loanpro')
     .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'loanpro'
 

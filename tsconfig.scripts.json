@@ -1,0 +1,27 @@
+{
+  // Type-checking for the local CLI tools in scripts/.
+  //
+  //     npm run typecheck:scripts
+  //
+  // These are excluded from the main tsconfig because they are not part of the
+  // deployed application. They run on your machine through `tsx`, they import
+  // `mysql2` (a devDependency that has no business in a production bundle), and
+  // they touch a shop's real books during migration.
+  //
+  // Vercel type-checking a local migration CLI adds failure modes that have
+  // nothing to do with the website — a build should not break because a tool
+  // you run by hand once per customer has a type error in it.
+  //
+  // Excluded is not the same as unchecked, though. Migration code is the last
+  // place to be loose about types, so it gets its own strict pass here, run as
+  // part of `npm test`.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "types": ["node"]
+  },
+  "include": ["scripts/**/*.ts", "lib/**/*.ts", "types/**/*.ts"],
+  "exclude": ["node_modules", ".next"]
+}

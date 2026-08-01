@@ -25,6 +25,17 @@
  */
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
 import type { RowDataPacket } from 'mysql2'
+
+/**
+ * The live MySQL connection, typed from `connect()` rather than `any`.
+ *
+ * These were `conn: any`, which quietly disabled the type arguments on all
+ * fourteen `conn.query<RowDataPacket[]>(...)` calls — TypeScript refuses type
+ * arguments on an untyped call. The rows were `any` throughout the migration,
+ * which is the last place that is acceptable: this script reads a shop's real
+ * books and writes them somewhere new.
+ */
+type MySqlConn = Awaited<ReturnType<typeof connect>>
 import fs from 'node:fs'
 import path from 'node:path'
 import crypto from 'node:crypto'
@@ -409,13 +420,13 @@ function applyMapper(
   return kept
 }
 
-async function migrateLoans(conn: any, db: SupabaseClient, args: Args): Promise<number> {
+async function migrateLoans(conn: MySqlConn, db: SupabaseClient, args: Args): Promise<number> {
   const [rows] = await conn.query<RowDataPacket[]>('SELECT * FROM loans ORDER BY id')
   const mapped = applyMapper(rows, 'loan', r => mapLoan(r, args.tenant))
   return insertBatches(db, 'loans', mapped, args.batchSize)
 }
 
-async function migrateDeposits(conn: any, db: SupabaseClient, args: Args): Promise<number> {
+async function migrateDeposits(conn: MySqlConn, db: SupabaseClient, args: Args): Promise<number> {
   const [rows] = await conn.query<RowDataPacket[]>('SELECT * FROM deposits ORDER BY id')
   // A deposit whose loan was skipped would violate the composite FK, so it is
   // dropped here rather than aborting a 500-row batch.
@@ -424,20 +435,20 @@ async function migrateDeposits(conn: any, db: SupabaseClient, args: Args): Promi
   return insertBatches(db, 'deposits', mapped, args.batchSize)
 }
 
-async function migrateClosedDeposits(conn: any, db: SupabaseClient, args: Args): Promise<number> {
+async function migrateClosedDeposits(conn: MySqlConn, db: SupabaseClient, args: Args): Promise<number> {
   const [rows] = await conn.query<RowDataPacket[]>('SELECT * FROM closed_record_deposits ORDER BY id')
   const validLoans = await loadValidLoanIds(db, args.tenant)
   const mapped = applyMapper(rows, 'closed_deposit', r => mapClosedDeposit(r, args.tenant, validLoans))
   return insertBatches(db, 'closed_record_deposits', mapped, args.batchSize)
 }
 
-async function migrateCashSummary(conn: any, db: SupabaseClient, args: Args): Promise<number> {
+async function migrateCashSummary(conn: MySqlConn, db: SupabaseClient, args: Args): Promise<number> {
   const [rows] = await conn.query<RowDataPacket[]>('SELECT * FROM daily_cash_summary ORDER BY date')
   const mapped = applyMapper(rows, 'cash_summary', r => mapCashSummary(r, args.tenant))
   return insertBatches(db, 'daily_cash_summary', mapped, args.batchSize)
 }
 
-async function migrateCashTx(conn: any, db: SupabaseClient, args: Args): Promise<number> {
+async function migrateCashTx(conn: MySqlConn, db: SupabaseClient, args: Args): Promise<number> {
   // The MySQL table has no primary key, so there is no id to preserve and
   // therefore no way to deduplicate on re-run. Guard on emptiness instead.
   const { count } = await db.from('cash_transactions')
@@ -452,13 +463,13 @@ async function migrateCashTx(conn: any, db: SupabaseClient, args: Args): Promise
   return insertBatches(db, 'cash_transactions', mapped, args.batchSize)
 }
 
-async function migrateActivity(conn: any, db: SupabaseClient, args: Args): Promise<number> {
+async function migrateActivity(conn: MySqlConn, db: SupabaseClient, args: Args): Promise<number> {
   const [rows] = await conn.query<RowDataPacket[]>('SELECT * FROM activity_log ORDER BY id')
   const mapped = applyMapper(rows, 'activity', r => mapActivity(r, args.tenant))
   return insertBatches(db, 'activity_log', mapped, args.batchSize)
 }
 
-async function migrateAppState(conn: any, db: SupabaseClient, args: Args): Promise<number> {
+async function migrateAppState(conn: MySqlConn, db: SupabaseClient, args: Args): Promise<number> {
   const [rows] = await conn.query<RowDataPacket[]>('SELECT * FROM app_state')
   const mapped = applyMapper(rows, 'app_state', r => mapAppState(r, args.tenant))
   return insertBatches(db, 'app_state', mapped, args.batchSize)
@@ -471,7 +482,7 @@ async function migrateAppState(conn: any, db: SupabaseClient, args: Args): Promi
  * Both end up as R2 objects with a loan_photos row.
  */
 async function migratePhotos(
-  conn: any, db: SupabaseClient, args: Args, has: (t: string) => boolean
+  conn: MySqlConn, db: SupabaseClient, args: Args, has: (t: string) => boolean
 ): Promise<number> {
   const validLoans = await loadValidLoanIds(db, args.tenant)
   let done = 0

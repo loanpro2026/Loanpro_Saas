@@ -31,7 +31,8 @@
     "check:env": "node scripts/env.js",
     "check:sql": "node scripts/sql.js",
     "check:syntax": "node scripts/check.js && node scripts/imports.js && node --check public/sw.js",
-    "test": "npm run migrate:test && npm run test:cash && npm run test:reports && npm run test:interest && npm run test:offline && npm run test:plans && npm run check:rpc && npm run check:guard && npm run check:links && npm run check:parity && npm run check:deps && npm run check:syntax"
+    "test": "npm run migrate:test && npm run test:cash && npm run test:reports && npm run test:interest && npm run test:offline && npm run test:plans && npm run check:rpc && npm run check:guard && npm run check:links && npm run check:parity && npm run check:deps && npm run check:syntax && npm run typecheck:scripts",
+    "typecheck:scripts": "tsc -p tsconfig.scripts.json"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.750.0",

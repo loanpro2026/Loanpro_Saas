@@ -9,6 +9,7 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { getSessionContext } from '@/lib/tenant'
+import type { JsonObject } from '@/lib/json'
 
 export interface ActionResult<T = unknown> {
   ok: boolean
@@ -22,7 +23,13 @@ export async function createTicket(
   subject: string,
   body: string,
   category: string,
-  context: Record<string, unknown> = {}
+  /**
+   * Goes straight into a `jsonb` column, so it must be JSON-serialisable.
+   * `Record<string, unknown>` allowed anything — a Date, a Map, a function —
+   * which would have been silently mangled on the way to Postgres. JsonObject
+   * is the same shape the database actually accepts.
+   */
+  context: JsonObject = {}
 ): Promise<ActionResult<string>> {
   const ctx = await getSessionContext()
   if (!ctx) return fail('Not signed in') as ActionResult<string>

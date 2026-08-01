@@ -15,6 +15,8 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { getSessionContext } from '@/lib/tenant'
+import type { JsonObject } from '@/lib/json'
+import type { Updates } from '@/types/supabase'
 
 export interface ActionResult<T = unknown> {
   ok: boolean
@@ -54,7 +56,12 @@ function revalidateLoan(loanId?: number) {
 // ─── Creating ───────────────────────────────────────────────────────────────
 
 export async function createLoan(
-  loan: Record<string, unknown>
+  /**
+   * Goes into `create_loan(p_loan jsonb)`, so it must be JSON-serialisable.
+   * `Record<string, unknown>` would have accepted a Date or a Map and let
+   * Postgres receive something unintended.
+   */
+  loan: JsonObject
 ): Promise<ActionResult<number>> {
   const ctx = await getSessionContext()
   if (!ctx) return fail('Not signed in') as ActionResult<number>
@@ -195,7 +202,15 @@ export async function updateLoan(
   const { data: before } = await supabase
     .from('loans').select('issue_date, amount').eq('id', loanId).single()
 
-  const { error } = await supabase.from('loans').update(clean).eq('id', loanId)
+  // `clean` is assembled key by key from the EDITABLE whitelist above, so it
+  // cannot be expressed as the generated Update type without losing the loop.
+  // The whitelist — not this cast — is what stops a client patching tenant_id,
+  // status or closed_date; the cast only tells TypeScript what the loop already
+  // guarantees.
+  const { error } = await supabase
+    .from('loans')
+    .update(clean as Updates<'loans'>)
+    .eq('id', loanId)
   if (error) return fail(friendlyError(error))
 
   // Amount or issue date feed the daily investment total.
@@ -223,7 +238,8 @@ export async function updateLoan(
  */
 export async function updateClosedRecord(
   loanId: number,
-  patch: Record<string, unknown>
+  /** Applied by `update_closed_record(p_patch jsonb)` — JSON values only. */
+  patch: JsonObject
 ): Promise<ActionResult> {
   const ctx = await getSessionContext()
   if (!ctx) return fail('Not signed in')

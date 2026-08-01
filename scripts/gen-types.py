@@ -138,6 +138,15 @@ export type Json =
   | Json[]
 
 export type Database = {
+  /**
+   * Read by supabase-js to pick its PostgREST typing rules. Supabase hosts
+   * PostgREST 12. Leaving this out is not an error — the client assumes 12 —
+   * but stating it means an upgrade becomes a visible change here rather than
+   * a silent shift in how query results are typed.
+   */
+  __InternalSupabase: {
+    PostgrestVersion: '12'
+  }
   public: {
     Tables: {''')
 

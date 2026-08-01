@@ -118,13 +118,28 @@ export default async function DashboardPage() {
 
       <div className="grid gap-5 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-5">
-          <TrendChart rows={trend ?? []} />
+          {/* chart_data() and jewellery_breakdown() are RETURNS TABLE, so every
+              column is typed nullable — Postgres permits it even where these
+              particular functions COALESCE. Normalise here rather than loosening
+              the chart props, which would push the nulls into rendering. */}
+          <TrendChart
+            rows={(trend ?? []).map(r => ({
+              month:    r.month ?? '',
+              invested: r.invested ?? 0,
+              returned: r.returned ?? 0,
+              interest: r.interest ?? 0,
+            }))}
+          />
 
           <StockChart
             cost={cost}
             weight={weight}
             counts={counts}
-            goldBreakdown={goldBreakdown ?? []}
+            goldBreakdown={(goldBreakdown ?? []).map(b => ({
+              name:         b.name ?? 'Other',
+              total_amount: b.total_amount ?? 0,
+              percentage:   b.percentage ?? 0,
+            }))}
           />
 
           {/* Recent loans */}

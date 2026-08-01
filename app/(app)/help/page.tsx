@@ -29,7 +29,20 @@ export default async function HelpPage() {
         </div>
       </div>
 
-      <HelpWorkspace tickets={tickets ?? []} />
+      {/* my_tickets() is RETURNS TABLE — nullable columns. Normalise so the
+          workspace keeps its non-null Ticket type. */}
+      <HelpWorkspace
+        tickets={(tickets ?? []).map(t => ({
+          id:            t.id ?? '',
+          subject:       t.subject ?? '(no subject)',
+          category:      t.category ?? 'other',
+          status:        t.status ?? 'open',
+          created_at:    t.created_at ?? '',
+          updated_at:    t.updated_at ?? '',
+          message_count: t.message_count ?? 0,
+          awaiting_you:  t.awaiting_you ?? false,
+        }))}
+      />
     </div>
   )
 }

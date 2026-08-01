@@ -38,11 +38,20 @@ export default async function SettingsPage() {
         </div>
       </div>
 
+      {/* shop_members() is RETURNS TABLE, so every column types as nullable.
+          Normalised below so SettingsWorkspace keeps its non-null Member type. */}
       <SettingsWorkspace
         me={appUser}
         shopName={tenant?.shop_name ?? ''}
         plan={asObject(plan)}
-        members={members ?? []}
+        members={(members ?? []).map(mem => ({
+          id:         mem.id ?? '',
+          full_name:  mem.full_name ?? '',
+          email:      mem.email ?? '',
+          role:       mem.role ?? 'staff',
+          created_at: mem.created_at ?? '',
+          is_me:      mem.is_me ?? false,
+        }))}
         settings={withDefaults(settings)}
       />
     </div>

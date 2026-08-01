@@ -59,3 +59,66 @@ for(const f of files){
 console.log(`\nRPCs called:  ${[...usedRpc].sort().join(', ')}`);
 console.log(`Tables used:  ${[...usedTbl].sort().join(', ')}`);
 console.log(`\n${problems} problem(s)`);
+
+// ─── Required-argument check ────────────────────────────────────────────────
+//
+// PostgREST resolves a function by the *names* of the arguments you send. Omit
+// one that has no DEFAULT and it does not report a type error — it fails to
+// find the function at all, and you get a 404 that reads as though the
+// migration never ran. That is an expensive thing to debug from a shop's phone.
+//
+// The list is emitted by scripts/gen-types.py, so it always matches the
+// migrations rather than being maintained by hand.
+;(function checkRequiredArgs() {
+  const fs2 = require('fs'), path2 = require('path')
+  const listPath = path2.join(__dirname, 'rpc-required-args.json')
+  if (!fs2.existsSync(listPath)) {
+    console.log('\n\x1b[33m⚠ rpc-required-args.json missing — run: python scripts/gen-types.py\x1b[0m')
+    return
+  }
+  const required = JSON.parse(fs2.readFileSync(listPath, 'utf8'))
+
+  const files = []
+  ;(function walk(d) {
+    for (const e of fs2.readdirSync(d, { withFileTypes: true })) {
+      if (['node_modules', '.next', '.git'].includes(e.name)) continue
+      const p = path2.join(d, e.name)
+      if (e.isDirectory()) walk(p)
+      else if (/\.(ts|tsx)$/.test(e.name)) files.push(p)
+    }
+  })(path2.resolve(__dirname, '..'))
+
+  let problems = 0, checked = 0
+  for (const file of files) {
+    const src = fs2.readFileSync(file, 'utf8')
+    // .rpc('name', { ...args })  — capture the object literal's top-level keys.
+    const re = /\.rpc\(\s*'([a-z_0-9]+)'\s*(?:,\s*\{([\s\S]*?)\})?\s*\)/g
+    let m
+    while ((m = re.exec(src)) !== null) {
+      const [, fn, argsBlob] = m
+      const need = required[fn]
+      if (!need || need.length === 0) continue
+      checked++
+      const passed = new Set(
+        [...(argsBlob || '').matchAll(/(?:^|[,{])\s*([a-z_0-9]+)\s*:/g)].map(x => x[1])
+      )
+      const missing = need.filter(a => !passed.has(a))
+      if (missing.length) {
+        problems++
+        const line = src.slice(0, m.index).split('\n').length
+        const rel = path2.relative(path2.resolve(__dirname, '..'), file).replace(/\\/g, '/')
+        console.log(`\n\x1b[31m✗ ${fn}() missing required argument(s): ${missing.join(', ')}\x1b[0m`)
+        console.log(`     ${rel}:${line}`)
+        console.log('     These have no DEFAULT in the migration. PostgREST matches on')
+        console.log('     argument names, so this fails as "function not found", not as a')
+        console.log('     bad-argument error.')
+      }
+    }
+  }
+  console.log(
+    problems === 0
+      ? `\x1b[32m${checked} rpc call(s) pass all required arguments\x1b[0m`
+      : `\x1b[31m${problems} rpc call(s) missing required arguments\x1b[0m`
+  )
+  if (problems) process.exitCode = 1
+})()

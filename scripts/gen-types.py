@@ -162,12 +162,20 @@ for f in sorted(glob.glob('supabase/migrations/*.sql')):
                     tables[t][e.colname]={'ts':ts,'notnull':notnull,'hasdef':hasdef,'pk':False}
         elif isinstance(s, ast.CreateFunctionStmt):
             nm=s.funcname[-1].sval
-            args={}; tbl={}
+            args={}; tbl={}; required=[]
             for p in (s.parameters or []):
                 ts,base=tname(p.argType)
                 mode=str(p.mode)
-                if 'TABLE' in mode: tbl[p.name]=ts
-                elif 'OUT' not in mode: args[p.name]=ts
+                if 'TABLE' in mode:
+                    tbl[p.name]=ts
+                elif 'OUT' not in mode:
+                    args[p.name]=ts
+                    # No DEFAULT means the caller must supply it. PostgREST
+                    # resolves a function by its argument names, so omitting one
+                    # does not raise a type error at runtime — it fails to find
+                    # the function at all, surfacing as a confusing 404.
+                    if p.defexpr is None:
+                        required.append(p.name)
             rts,rbase = tname(s.returnType)
             setof = bool(s.returnType.setof)
             if tbl:
@@ -175,7 +183,7 @@ for f in sorted(glob.glob('supabase/migrations/*.sql')):
             elif rbase=='void': ret='undefined'
             elif setof: ret=rts+'[]'
             else: ret=rts
-            funcs[nm]={'args':args,'returns':ret}   # later definition wins
+            funcs[nm]={'args':args,'returns':ret,'required':required}
 
 def q(k): return k if re.fullmatch(r'[A-Za-z_$][A-Za-z0-9_$]*',k) else f'"{k}"'
 
@@ -273,7 +281,7 @@ w('    Functions: {')
 for n in sorted(funcs):
     fn=funcs[n]
     if fn['args']:
-        a='{ '+'; '.join(f'{q(k)}?: {v}' for k,v in fn['args'].items())+' }'
+        a='{ '+'; '.join(f'{q(k)}?: {v} | null' for k,v in fn['args'].items())+' }'
     else:
         a='Record<string, never>'
     w(f'      {q(n)}: {{')
@@ -300,4 +308,8 @@ w('export type TableName = keyof Database[\'public\'][\'Tables\']')
 w('')
 
 open('types/supabase.ts','w',encoding='utf-8').write('\n'.join(out))
+
+import json
+json.dump({n: f['required'] for n, f in sorted(funcs.items())},
+          open('scripts/rpc-required-args.json','w',encoding='utf-8'), indent=1)
 print(f"tables={len(tables)} functions={len(funcs)} lines={len(out)}")

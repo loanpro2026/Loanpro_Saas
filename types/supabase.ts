@@ -1115,19 +1115,19 @@ export type Database = {
     Views: { [_ in never]: never }
     Functions: {
       accept_invitation: {
-        Args: { p_token?: string }
+        Args: { p_token?: string | null }
         Returns: string
       }
       account_report: {
-        Args: { p_type?: string; p_start?: string; p_end?: string }
+        Args: { p_type?: string | null; p_start?: string | null; p_end?: string | null }
         Returns: { date: string | null; amount: number | null; count: number | null; avg_amount: number | null }[]
       }
       add_deposit: {
-        Args: { p_loan_id?: number; p_amount?: number; p_date?: string }
+        Args: { p_loan_id?: number | null; p_amount?: number | null; p_date?: string | null }
         Returns: Json
       }
       add_deposit_idem: {
-        Args: { p_loan_id?: number; p_amount?: number; p_date?: string; p_key?: string }
+        Args: { p_loan_id?: number | null; p_amount?: number | null; p_date?: string | null; p_key?: string | null }
         Returns: Json
       }
       assert_can_write: {
@@ -1135,15 +1135,15 @@ export type Database = {
         Returns: undefined
       }
       calculate_interest: {
-        Args: { p_principal?: number; p_issue_date?: string; p_as_of?: string }
+        Args: { p_principal?: number | null; p_issue_date?: string | null; p_as_of?: string | null }
         Returns: number
       }
       chart_data: {
-        Args: { p_months?: number }
+        Args: { p_months?: number | null }
         Returns: { month: string | null; invested: number | null; returned: number | null; interest: number | null }[]
       }
       clear_daily_deposits: {
-        Args: { p_date?: string }
+        Args: { p_date?: string | null }
         Returns: number
       }
       clear_photo_missing_flag: {
@@ -1151,35 +1151,35 @@ export type Database = {
         Returns: unknown
       }
       clear_removed_records: {
-        Args: { p_date?: string }
+        Args: { p_date?: string | null }
         Returns: number
       }
       close_loan: {
-        Args: { p_loan_id?: number; p_interest?: number; p_closed_date?: string }
+        Args: { p_loan_id?: number | null; p_interest?: number | null; p_closed_date?: string | null }
         Returns: Json
       }
       create_loan: {
-        Args: { p_loan?: Json }
+        Args: { p_loan?: Json | null }
         Returns: number
       }
       create_loan_idem: {
-        Args: { p_loan?: Json; p_key?: string }
+        Args: { p_loan?: Json | null; p_key?: string | null }
         Returns: number
       }
       create_ticket: {
-        Args: { p_subject?: string; p_body?: string; p_category?: string; p_context?: Json }
+        Args: { p_subject?: string | null; p_body?: string | null; p_category?: string | null; p_context?: Json | null }
         Returns: string
       }
       daily_deposits_report: {
-        Args: { p_date?: string }
+        Args: { p_date?: string | null }
         Returns: { id: number | null; loan_id: number | null; loan_name: string | null; father_name: string | null; location: string | null; loan_amount: number | null; detailed_type: string | null; weight: number | null; deposit_amount: number | null; deposit_date: string | null }[]
       }
       daily_report: {
-        Args: { p_date?: string }
+        Args: { p_date?: string | null }
         Returns: Json
       }
       dashboard_stats: {
-        Args: { p_period?: string }
+        Args: { p_period?: string | null }
         Returns: Json
       }
       default_settings: {
@@ -1187,7 +1187,7 @@ export type Database = {
         Returns: Json
       }
       delete_deposit: {
-        Args: { p_deposit_id?: number }
+        Args: { p_deposit_id?: number | null }
         Returns: Json
       }
       distinct_locations: {
@@ -1195,7 +1195,7 @@ export type Database = {
         Returns: { location: string | null; loan_count: number | null; active_amount: number | null }[]
       }
       field_suggestions: {
-        Args: { p_field?: string; p_prefix?: string; p_limit?: number }
+        Args: { p_field?: string | null; p_prefix?: string | null; p_limit?: number | null }
         Returns: { value: string | null; uses: number | null }[]
       }
       get_tenant_id: {
@@ -1207,15 +1207,15 @@ export type Database = {
         Returns: { category_type: string | null; item_type: string | null; item_count: number | null; total_amount: number | null; total_weight: number | null }[]
       }
       investment_report: {
-        Args: { p_date?: string }
+        Args: { p_date?: string | null }
         Returns: { id: number | null; name: string | null; father_name: string | null; location: string | null; amount: number | null; category_type: string | null; detailed_type: string | null; weight: number | null; issue_date: string | null; status: string | null; closed_date: string | null; has_photo: boolean | null }[]
       }
       invite_staff: {
-        Args: { p_email?: string; p_role?: string }
+        Args: { p_email?: string | null; p_role?: string | null }
         Returns: Json
       }
       jewellery_breakdown: {
-        Args: { p_category?: string; p_limit?: number }
+        Args: { p_category?: string | null; p_limit?: number | null }
         Returns: { name: string | null; total_amount: number | null; percentage: number | null }[]
       }
       jewellery_stock: {
@@ -1227,7 +1227,7 @@ export type Database = {
         Returns: Json
       }
       loan_detail: {
-        Args: { p_loan_id?: number }
+        Args: { p_loan_id?: number | null }
         Returns: Json
       }
       loans_missing_photo: {
@@ -1235,7 +1235,7 @@ export type Database = {
         Returns: { id: number | null; name: string | null; father_name: string | null; location: string | null; amount: number | null; issue_date: string | null }[]
       }
       location_report: {
-        Args: { p_locations?: string[]; p_start?: string; p_end?: string }
+        Args: { p_locations?: string[] | null; p_start?: string | null; p_end?: string | null }
         Returns: { location: string | null; loan_count: number | null; active_count: number | null; closed_count: number | null; total_amount: number | null; active_amount: number | null; total_weight: number | null; avg_amount: number | null }[]
       }
       my_plan: {
@@ -1251,19 +1251,19 @@ export type Database = {
         Returns: { id: string | null; subject: string | null; category: string | null; status: string | null; created_at: string | null; updated_at: string | null; message_count: number | null; last_message_at: string | null; awaiting_you: boolean | null }[]
       }
       normalize_item_type: {
-        Args: { p_type?: string }
+        Args: { p_type?: string | null }
         Returns: string
       }
       offline_snapshot: {
-        Args: { p_limit?: number }
+        Args: { p_limit?: number | null }
         Returns: Json
       }
       photo_required: {
-        Args: { p_stage?: string }
+        Args: { p_stage?: string | null }
         Returns: boolean
       }
       provision_tenant: {
-        Args: { p_shop_name?: string; p_full_name?: string }
+        Args: { p_shop_name?: string | null; p_full_name?: string | null }
         Returns: string
       }
       prune_enquiry_ips: {
@@ -1275,55 +1275,55 @@ export type Database = {
         Returns: undefined
       }
       recalculate_cash_summary: {
-        Args: { p_tenant_id?: string; p_from_date?: string; p_to_date?: string }
+        Args: { p_tenant_id?: string | null; p_from_date?: string | null; p_to_date?: string | null }
         Returns: undefined
       }
       recalculate_my_cash_summary: {
-        Args: { p_from_date?: string }
+        Args: { p_from_date?: string | null }
         Returns: undefined
       }
       record_cash_idem: {
-        Args: { p_type?: string; p_amount?: number; p_reason?: string; p_date?: string; p_key?: string }
+        Args: { p_type?: string | null; p_amount?: number | null; p_reason?: string | null; p_date?: string | null; p_key?: string | null }
         Returns: Json
       }
       record_cash_transaction: {
-        Args: { p_type?: string; p_amount?: number; p_reason?: string; p_date?: string }
+        Args: { p_type?: string | null; p_amount?: number | null; p_reason?: string | null; p_date?: string | null }
         Returns: Json
       }
       removed_records_report: {
-        Args: { p_date?: string }
+        Args: { p_date?: string | null }
         Returns: { id: number | null; loan_id: number | null; name: string | null; father_name: string | null; location: string | null; amount: number | null; detailed_type: string | null; weight: number | null; issue_date: string | null; closed_date: string | null; total_deposits: number | null; remarks: string | null }[]
       }
       reopen_loan: {
-        Args: { p_loan_id?: number }
+        Args: { p_loan_id?: number | null }
         Returns: Json
       }
       reply_to_ticket: {
-        Args: { p_ticket_id?: string; p_body?: string }
+        Args: { p_ticket_id?: string | null; p_body?: string | null }
         Returns: string
       }
       reset_sequences_for_tenant: {
-        Args: { p_tenant_id?: string }
+        Args: { p_tenant_id?: string | null }
         Returns: Json
       }
       returns_report: {
-        Args: { p_date?: string }
+        Args: { p_date?: string | null }
         Returns: { id: number | null; name: string | null; father_name: string | null; location: string | null; amount: number | null; category_type: string | null; detailed_type: string | null; weight: number | null; issue_date: string | null; closed_date: string | null; interest: number | null; total_return: number | null; deposits_collected: number | null; days_held: number | null }[]
       }
       revoke_staff: {
-        Args: { p_user_id?: string }
+        Args: { p_user_id?: string | null }
         Returns: undefined
       }
       search_loans: {
-        Args: { p_query?: string; p_status?: string; p_limit?: number }
+        Args: { p_query?: string | null; p_status?: string | null; p_limit?: number | null }
         Returns: { id: number | null; name: string | null; father_name: string | null; location: string | null; amount: number | null; category_type: string | null; detailed_type: string | null; weight: number | null; issue_date: string | null; status: string | null; closed_date: string | null; total_deposits: number | null; has_photo: boolean | null; rank: number | null }[]
       }
       seed_default_settings: {
-        Args: { p_tenant_id?: string }
+        Args: { p_tenant_id?: string | null }
         Returns: undefined
       }
       set_setting: {
-        Args: { p_key?: string; p_value?: Json }
+        Args: { p_key?: string | null; p_value?: Json | null }
         Returns: undefined
       }
       shop_members: {
@@ -1331,11 +1331,11 @@ export type Database = {
         Returns: { id: string | null; full_name: string | null; email: string | null; role: string | null; created_at: string | null; is_me: boolean | null }[]
       }
       tenant_totals: {
-        Args: { p_tenant_id?: string }
+        Args: { p_tenant_id?: string | null }
         Returns: Json
       }
       ticket_detail: {
-        Args: { p_ticket_id?: string }
+        Args: { p_ticket_id?: string | null }
         Returns: Json
       }
       trigger_set_updated_at: {
@@ -1343,11 +1343,11 @@ export type Database = {
         Returns: unknown
       }
       update_closed_record: {
-        Args: { p_loan_id?: number; p_patch?: Json }
+        Args: { p_loan_id?: number | null; p_patch?: Json | null }
         Returns: Json
       }
       update_deposit: {
-        Args: { p_deposit_id?: number; p_amount?: number; p_date?: string }
+        Args: { p_deposit_id?: number | null; p_amount?: number | null; p_date?: string | null }
         Returns: Json
       }
     }

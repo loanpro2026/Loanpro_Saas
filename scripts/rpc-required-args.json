@@ -1,0 +1,152 @@
+{
+ "accept_invitation": [
+  "p_token"
+ ],
+ "account_report": [
+  "p_type",
+  "p_start",
+  "p_end"
+ ],
+ "add_deposit": [
+  "p_loan_id",
+  "p_amount"
+ ],
+ "add_deposit_idem": [
+  "p_loan_id",
+  "p_amount",
+  "p_date",
+  "p_key"
+ ],
+ "assert_can_write": [],
+ "calculate_interest": [
+  "p_principal",
+  "p_issue_date"
+ ],
+ "chart_data": [],
+ "clear_daily_deposits": [
+  "p_date"
+ ],
+ "clear_photo_missing_flag": [],
+ "clear_removed_records": [
+  "p_date"
+ ],
+ "close_loan": [
+  "p_loan_id",
+  "p_interest"
+ ],
+ "create_loan": [
+  "p_loan"
+ ],
+ "create_loan_idem": [
+  "p_loan",
+  "p_key"
+ ],
+ "create_ticket": [
+  "p_subject",
+  "p_body"
+ ],
+ "daily_deposits_report": [],
+ "daily_report": [],
+ "dashboard_stats": [],
+ "default_settings": [],
+ "delete_deposit": [
+  "p_deposit_id"
+ ],
+ "distinct_locations": [],
+ "field_suggestions": [
+  "p_field"
+ ],
+ "get_tenant_id": [],
+ "inventory_report": [],
+ "investment_report": [],
+ "invite_staff": [
+  "p_email"
+ ],
+ "jewellery_breakdown": [
+  "p_category"
+ ],
+ "jewellery_stock": [],
+ "lending_metrics": [],
+ "loan_detail": [
+  "p_loan_id"
+ ],
+ "loans_missing_photo": [],
+ "location_report": [],
+ "my_plan": [],
+ "my_settings": [],
+ "my_tickets": [],
+ "normalize_item_type": [
+  "p_type"
+ ],
+ "offline_snapshot": [],
+ "photo_required": [
+  "p_stage"
+ ],
+ "provision_tenant": [
+  "p_shop_name",
+  "p_full_name"
+ ],
+ "prune_enquiry_ips": [],
+ "purge_daily_working_tables": [],
+ "recalculate_cash_summary": [
+  "p_tenant_id",
+  "p_from_date"
+ ],
+ "recalculate_my_cash_summary": [
+  "p_from_date"
+ ],
+ "record_cash_idem": [
+  "p_type",
+  "p_amount",
+  "p_reason",
+  "p_date",
+  "p_key"
+ ],
+ "record_cash_transaction": [
+  "p_type",
+  "p_amount",
+  "p_reason"
+ ],
+ "removed_records_report": [],
+ "reopen_loan": [
+  "p_loan_id"
+ ],
+ "reply_to_ticket": [
+  "p_ticket_id",
+  "p_body"
+ ],
+ "reset_sequences_for_tenant": [
+  "p_tenant_id"
+ ],
+ "returns_report": [],
+ "revoke_staff": [
+  "p_user_id"
+ ],
+ "search_loans": [
+  "p_query"
+ ],
+ "seed_default_settings": [
+  "p_tenant_id"
+ ],
+ "set_setting": [
+  "p_key",
+  "p_value"
+ ],
+ "shop_members": [],
+ "tenant_totals": [
+  "p_tenant_id"
+ ],
+ "ticket_detail": [
+  "p_ticket_id"
+ ],
+ "trigger_set_updated_at": [],
+ "update_closed_record": [
+  "p_loan_id",
+  "p_patch"
+ ],
+ "update_deposit": [
+  "p_deposit_id",
+  "p_amount",
+  "p_date"
+ ]
+}

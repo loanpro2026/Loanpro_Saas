@@ -1,0 +1,76 @@
+/**
+ * POST /api/photos/confirm
+ *
+ * Called after the browser has PUT the file to R2. Verifies the object really
+ * landed, then records it against the loan.
+ *
+ * The existence check matters: the client could call this without having
+ * uploaded anything, leaving a row that points at a missing object and an
+ * image that renders broken forever.
+ */
+import { NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
+import { getSessionContext } from '@/lib/tenant'
+import { keyBelongsToTenant, objectExists, deleteObject, MAX_PHOTO_BYTES } from '@/lib/r2'
+
+export async function POST(req: Request) {
+  const ctx = await getSessionContext()
+  if (!ctx) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const body = await req.json().catch(() => null)
+  const loanId = Number(body?.loan_id)
+  const key: string = body?.key ?? ''
+  const byteSize = Number(body?.byte_size ?? 0)
+  const mimeType: string = body?.mime_type || 'image/jpeg'
+
+  if (!Number.isInteger(loanId) || loanId <= 0 || !key) {
+    return NextResponse.json({ error: 'loan_id and key are required' }, { status: 400 })
+  }
+
+  // A client must never be able to attach an object from another tenant's
+  // prefix to its own loan.
+  if (!keyBelongsToTenant(key, ctx.tenantId)) {
+    return NextResponse.json({ error: 'Invalid key' }, { status: 403 })
+  }
+  if (byteSize > MAX_PHOTO_BYTES) {
+    return NextResponse.json({ error: 'Photo too large' }, { status: 413 })
+  }
+
+  if (!(await objectExists(key))) {
+    return NextResponse.json({ error: 'Upload not found in storage' }, { status: 409 })
+  }
+
+  const supabase = await createClient()
+
+  // Replacing an existing photo — remember the old key so we can clean it up.
+  const { data: existing } = await supabase
+    .from('loan_photos')
+    .select('r2_key')
+    .eq('loan_id', loanId)
+    .maybeSingle()
+
+  const { error } = await supabase
+    .from('loan_photos')
+    .upsert({
+      loan_id:     loanId,
+      tenant_id:   ctx.tenantId,
+      r2_key:      key,
+      byte_size:   byteSize,
+      mime_type:   mimeType,
+      captured_at: new Date().toISOString(),
+    }, { onConflict: 'loan_id' })
+
+  if (error) {
+    // The row did not save, so the uploaded object is now an orphan.
+    await deleteObject(key).catch(() => {})
+    console.error('[photos/confirm] insert failed', error)
+    return NextResponse.json({ error: 'Could not save photo' }, { status: 500 })
+  }
+
+  // Only now is it safe to drop the old object.
+  if (existing?.r2_key && existing.r2_key !== key) {
+    await deleteObject(existing.r2_key).catch(() => {})
+  }
+
+  return NextResponse.json({ success: true, key })
+}

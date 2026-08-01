@@ -1,0 +1,45 @@
+import type { Metadata, Viewport } from 'next'
+import './globals.css'
+
+export const metadata: Metadata = {
+  title: { default: 'LoanPro — Gold & Silver Loan Management', template: '%s | LoanPro' },
+  description: 'Manage your gold and silver pawn loans from any device. No installation required.',
+  keywords: ['loan management', 'gold loan', 'silver loan', 'pawn shop software', 'vyapar software'],
+  authors: [{ name: 'LoanPro' }],
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'LoanPro',
+  },
+  openGraph: {
+    type: 'website',
+    locale: 'en_IN',
+    title: 'LoanPro — Gold & Silver Loan Management',
+    description: 'Modern loan management for pawn shops. Works on web, mobile, and tablet.',
+    siteName: 'LoanPro',
+  },
+}
+
+export const viewport: Viewport = {
+  themeColor: '#312e81',
+  width: 'device-width',
+  initialScale: 1,
+  minimumScale: 1,
+}
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en-IN" suppressHydrationWarning>
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+      </head>
+      <body>{children}</body>
+    </html>
+  )
+}

@@ -1,0 +1,123 @@
+/**
+ * Shop settings — the desktop app's general-settings set, ported.
+ *
+ * Source: electron_app/backend/settingsManager.js DEFAULT_SETTINGS.
+ *
+ * The defaults here must match the desktop's exactly. A shop that migrates
+ * and finds the address field suddenly visible, or interest calculated
+ * differently, will reasonably conclude the migration went wrong — even
+ * though every record moved across correctly.
+ */
+
+export interface ShopSettings {
+  // Display
+  theme: 'light' | 'dark'
+  date_display_format: 'dd/mm/yyyy' | 'mm/dd/yyyy' | 'yyyy-mm-dd'
+  language: string
+
+  /** Annual percentage, applied shop-wide. NOT stored per loan. */
+  interest_percentage: number
+  interest_calculation_type: 'simple' | 'compound'
+  interest_calculation_period: 'yearly' | 'half-yearly' | 'quarterly'
+
+  // Identity verification
+  identity_verification_enabled: boolean
+  identity_mandatory_at_creation: boolean
+  identity_mandatory_at_closure: boolean
+  identity_allow_mobile_capture: boolean
+  identity_allow_multiple_mobile_devices: boolean
+
+  // Optional fields on the add-record form. Both OFF by default, as on the
+  // desktop — most shops do not collect an address for a pawn loan.
+  add_record_address_field_enabled: boolean
+  add_record_additional_information_field_enabled: boolean
+
+  // Misc
+  dashboard_division_factor: number
+  lock_after_minutes: number
+  default_category: 'Gold' | 'Silver'
+}
+
+/** Mirrors default_settings() in migration 012. */
+export const DEFAULT_SETTINGS: ShopSettings = {
+  theme: 'light',
+  date_display_format: 'dd/mm/yyyy',
+  language: 'en',
+
+  interest_percentage: 36,
+  interest_calculation_type: 'simple',
+  interest_calculation_period: 'yearly',
+
+  identity_verification_enabled: true,
+  identity_mandatory_at_creation: true,
+  identity_mandatory_at_closure: true,
+  identity_allow_mobile_capture: false,
+  identity_allow_multiple_mobile_devices: false,
+
+  add_record_address_field_enabled: false,
+  add_record_additional_information_field_enabled: false,
+
+  dashboard_division_factor: 1,
+  lock_after_minutes: 0,
+  default_category: 'Gold',
+}
+
+/**
+ * Keys the client may write. Anything outside this list is rejected server-side
+ * rather than letting tenant_settings become an untyped dumping ground.
+ */
+export const WRITABLE_SETTINGS = Object.keys(DEFAULT_SETTINGS) as Array<keyof ShopSettings>
+
+/** Fill in anything missing so callers never have to guess a default. */
+export function withDefaults(raw: Record<string, unknown> | null | undefined): ShopSettings {
+  return { ...DEFAULT_SETTINGS, ...(raw ?? {}) } as ShopSettings
+}
+
+/**
+ * Whether a photo is required before a loan can be saved or closed.
+ *
+ * `identity_verification_enabled` is the master switch — the "mandatory"
+ * flags mean nothing when the whole feature is off, and the desktop treats
+ * them the same way (`captureFeatureEnabled = identityEnabled && ...`).
+ */
+export function photoRequiredAtCreation(s: ShopSettings): boolean {
+  return s.identity_verification_enabled && s.identity_mandatory_at_creation
+}
+
+export function photoRequiredAtClosure(s: ShopSettings): boolean {
+  return s.identity_verification_enabled && s.identity_mandatory_at_closure
+}
+
+/**
+ * Date formatting per the shop's preference.
+ *
+ * Indian shops overwhelmingly read dd/mm/yyyy, and a printed report showing
+ * 03/01/2026 for the 1st of March would be misread as 3rd January.
+ */
+export function formatDateSetting(
+  date: string | Date,
+  format: ShopSettings['date_display_format'] = 'dd/mm/yyyy'
+): string {
+  const d = typeof date === 'string' ? new Date(date) : date
+  if (Number.isNaN(d.getTime())) return '—'
+
+  const dd = String(d.getDate()).padStart(2, '0')
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const yyyy = d.getFullYear()
+
+  switch (format) {
+    case 'mm/dd/yyyy': return `${mm}/${dd}/${yyyy}`
+    case 'yyyy-mm-dd': return `${yyyy}-${mm}-${dd}`
+    default:           return `${dd}/${mm}/${yyyy}`
+  }
+}
+
+/**
+ * The desktop's `dashboardDivisionFactor`: divides headline figures for
+ * display, so a shop working in lakhs can read 4.5 rather than 450000.
+ * A factor of 1 (the default) means no change.
+ */
+export function applyDivisionFactor(value: number, factor: number): number {
+  if (!factor || factor <= 1) return value
+  return value / factor
+}

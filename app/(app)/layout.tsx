@@ -1,0 +1,74 @@
+import { redirect } from 'next/navigation'
+import { createClient } from '@/lib/supabase/server'
+import { Sidebar } from '@/components/layout/Sidebar'
+import { BottomNav } from '@/components/layout/BottomNav'
+import { TopBar } from '@/components/layout/TopBar'
+import { Toaster } from 'react-hot-toast'
+import { DeviceRegistrationBridge } from '@/components/DeviceRegistrationBridge'
+import { OfflineProvider } from '@/components/offline/OfflineProvider'
+import { OfflineBanner } from '@/components/offline/OfflineBanner'
+import { ScreenLock } from '@/components/lock/ScreenLock'
+import { SettingsProvider } from '@/components/settings/SettingsProvider'
+
+export default async function AppLayout({ children }: { children: React.ReactNode }) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) redirect('/login')
+
+  const { data: appUser } = await supabase
+    .from('users')
+    .select('*, tenant:tenants(*)')
+    .eq('auth_id', user.id)
+    .single()
+
+  if (!appUser) redirect('/register')
+
+  const tenant = (appUser as any).tenant
+
+  // All shop settings in one call. Loaded here rather than per-component:
+  // the new-loan form, the closing dialog and the dashboard all need them,
+  // and three round trips per page load is wasteful on a shop's connection.
+  const { data: settings } = await supabase.rpc('my_settings')
+  const lockAfter = Number(settings?.lock_after_minutes ?? 0)
+
+  return (
+    <SettingsProvider settings={settings}>
+    <OfflineProvider>
+    <div className="flex min-h-dvh bg-surface">
+      <Sidebar tenant={tenant} user={appUser} />
+
+      <div className="flex-1 flex flex-col min-w-0">
+        <TopBar user={appUser} />
+        {/* Connection state sits directly under the top bar, above content —
+            a shop must never have to hunt for whether their entry saved. */}
+        <OfflineBanner />
+
+        <main className="flex-1 p-4 lg:p-6 pb-24 lg:pb-6">
+          {children}
+        </main>
+      </div>
+
+      <BottomNav />
+      {/* Renders over the app rather than redirecting, so a half-filled loan
+          form survives being locked and unlocked. */}
+      <ScreenLock timeoutMinutes={lockAfter} shopName={tenant?.shop_name ?? 'LoanPro'} />
+      {/* Silently registers Android FCM token / iOS push subscription when running inside native app */}
+      <DeviceRegistrationBridge />
+      <Toaster
+        position="top-center"
+        toastOptions={{
+          duration: 3500,
+          style: {
+            borderRadius: '12px',
+            background: '#0f172a',
+            color: '#f8fafc',
+            fontSize: '0.875rem',
+          },
+        }}
+      />
+    </div>
+    </OfflineProvider>
+    </SettingsProvider>
+  )
+}

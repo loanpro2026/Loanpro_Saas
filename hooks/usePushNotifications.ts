@@ -11,11 +11,24 @@
  */
 import { useState, useEffect, useCallback } from 'react'
 
-function urlBase64ToUint8Array(base64String: string): Uint8Array {
+/**
+ * Decode the URL-safe base64 VAPID public key into the byte array
+ * `pushManager.subscribe` expects.
+ *
+ * The return type is `Uint8Array<ArrayBuffer>`, not plain `Uint8Array`.
+ * TypeScript 5.7 made the typed arrays generic over their backing buffer, so a
+ * bare `Uint8Array` is `Uint8Array<ArrayBufferLike>` — which includes
+ * `SharedArrayBuffer` and therefore is not assignable to `BufferSource`.
+ * Allocating the buffer explicitly pins it to a real `ArrayBuffer`.
+ */
+function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
   const base64  = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
   const raw     = atob(base64)
-  return Uint8Array.from([...raw].map(c => c.charCodeAt(0)))
+
+  const bytes = new Uint8Array(new ArrayBuffer(raw.length))
+  for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i)
+  return bytes
 }
 
 interface PushState {

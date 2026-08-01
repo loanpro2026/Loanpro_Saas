@@ -261,16 +261,25 @@ BEGIN
 END $$;
 
 -- Schedule for 00:15 IST (18:45 UTC the previous day).
+--
+-- Checked with an IF rather than caught with an EXCEPTION. There is no
+-- PL/pgSQL condition named `undefined_schema` — the real one is
+-- `invalid_schema_name` — and naming a condition that does not exist is not a
+-- runtime error you can catch: Postgres rejects it at compile time with
+-- "unrecognized exception condition", which aborts the whole migration.
+--
+-- An explicit check is clearer anyway, and works whether or not pg_cron is
+-- installed.
 DO $$
 BEGIN
-  PERFORM cron.schedule(
-    'purge-daily-working-tables',
-    '45 18 * * *',
-    'SELECT purge_daily_working_tables()'
-  );
-EXCEPTION
-  WHEN undefined_schema THEN
-    RAISE NOTICE 'pg_cron not enabled — schedule purge_daily_working_tables() manually';
-  WHEN undefined_function THEN
-    RAISE NOTICE 'pg_cron not enabled — schedule purge_daily_working_tables() manually';
+  IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') THEN
+    PERFORM cron.schedule(
+      'purge-daily-working-tables',
+      '45 18 * * *',
+      'SELECT purge_daily_working_tables()'
+    );
+    RAISE NOTICE 'Scheduled nightly purge of the daily working tables.';
+  ELSE
+    RAISE NOTICE E'pg_cron is not enabled — the daily working tables will NOT be purged automatically.\nEnable it under Database → Extensions, then run:\n  SELECT cron.schedule(''purge-daily-working-tables'', ''45 18 * * *'', ''SELECT purge_daily_working_tables()'');';
+  END IF;
 END $$;

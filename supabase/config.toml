@@ -1,0 +1,60 @@
+# Supabase CLI project config.
+#
+# This exists so `supabase link` and `supabase gen types --linked` work. The
+# migrations in this folder were applied by hand through the SQL editor, so the
+# CLI is used here only for generating TypeScript types — not for pushing
+# schema changes.
+#
+# One-time setup:
+#     npx supabase login
+#     npx supabase link --project-ref <your-project-ref>
+#     npm run db:types
+#
+# The project ref is the subdomain of your Supabase URL:
+# https://abcdefghijklm.supabase.co  →  abcdefghijklm
+#
+# `supabase link` asks for the database password. That is the one you set when
+# creating the project, not your Supabase account password. If you no longer
+# have it, reset it under Settings → Database. Linking writes to supabase/.temp,
+# which is gitignored.
+
+project_id = "loanpro-saas"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+# Match the hosted project. Supabase provisions Postgres 15 on new projects;
+# if yours shows something else under Settings → Infrastructure, change this,
+# otherwise generated types can disagree with the real database.
+major_version = 15
+
+[studio]
+enabled = true
+port = 54323
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["http://localhost:3000"]
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+enable_signup = true
+
+[auth.email]
+enable_signup = true
+# Off locally so test signups do not need a mail round trip. This setting has
+# no effect on the hosted project — configure that under Authentication →
+# Providers, where it SHOULD be on.
+enable_confirmations = false
+
+[storage]
+# Photos live in Cloudflare R2, not Supabase Storage. Left off deliberately:
+# turning it on invites code that writes to the wrong bucket.
+enabled = false

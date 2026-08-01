@@ -15,6 +15,21 @@
 import { createClient as createServerClient, createServiceClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
+/**
+ * A row from `paired_devices`, narrowed to the two columns this route selects.
+ *
+ * Declared explicitly rather than inferred, because `types/supabase.ts` is
+ * still the loose placeholder: every `.select()` currently resolves to `any`,
+ * so a callback parameter destructured from one has no type at all and
+ * `noImplicitAny` rejects it. Annotating here keeps the route honest now and
+ * stays correct once the generated types land — at which point a mismatch
+ * against the real column types becomes a compile error, which is the point.
+ */
+type PairedDevice = {
+  device_type: string | null
+  push_subscription: unknown
+}
+
 // ─── Web Push (lazy init) ──────────────────────────────────────────────────
 async function sendWebPush(subscription: any, sessionKey: string, appUrl: string) {
   const webpush = (await import('web-push')).default
@@ -90,7 +105,7 @@ export async function POST(req: Request) {
   const errors: string[] = []
 
   await Promise.allSettled(
-    devices.map(async (device) => {
+    (devices as PairedDevice[]).map(async (device) => {
       try {
         // Web Push covers every browser we care about: Android Chrome,
         // iOS 16.4+ as an installed PWA, and desktop Chrome. FCM was only

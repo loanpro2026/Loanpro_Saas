@@ -20,7 +20,6 @@
   },
   "overrides": [
     {
-      "comment": "lib/utils.ts is where the correct IST helper is defined, so it must be allowed to do the underlying conversion.",
       "files": ["lib/utils.ts"],
       "rules": { "no-restricted-syntax": "off" }
     }

@@ -1,12 +1,20 @@
 -- ============================================================
 -- RLS regression tests
 --
--- Run against a local Supabase instance:
---     supabase start
---     supabase db reset                       # applies 001–005
+-- HOSTED PROJECT (what you have):
+--   Paste this whole file into the Supabase SQL editor and run it.
+--   The final statement is ROLLBACK, so nothing below is ever committed —
+--   the fixture shops, users and loans disappear when it finishes. It is
+--   safe to run against the same project you are about to put real data in,
+--   and worth re-running after any change to a policy or a GRANT.
+--
+--   Read the NOTICE output, not just "Success". Every check prints either
+--   `ok  <label>` or raises. One raise aborts the rest, so fix and re-run.
+--
+-- LOCAL (if you ever set up Docker):
+--     supabase db reset
 --     psql "$(supabase status -o json | jq -r .DB_URL)" -f supabase/tests/rls.test.sql
 --
--- Every check RAISEs on failure, so a clean run means everything passed.
 -- These exist because the original 001 schema shipped a policy that let any
 -- anon key holder read and overwrite every tenant's camera sessions. A test
 -- is the only thing that stops that reappearing.

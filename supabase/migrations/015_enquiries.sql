@@ -63,10 +63,15 @@ AS $$
    WHERE ip IS NOT NULL AND created_at < now() - INTERVAL '7 days';
 $$;
 
+-- See the note in migration 004: `undefined_schema` is not a real PL/pgSQL
+-- condition, and naming one that does not exist fails at compile time rather
+-- than being caught. Check for the extension instead.
 DO $$
 BEGIN
-  PERFORM cron.schedule('prune-enquiry-ips', '30 3 * * *', 'SELECT prune_enquiry_ips()');
-EXCEPTION
-  WHEN undefined_schema OR undefined_function THEN
-    RAISE NOTICE 'pg_cron not enabled — schedule prune_enquiry_ips() manually';
+  IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') THEN
+    PERFORM cron.schedule('prune-enquiry-ips', '30 3 * * *', 'SELECT prune_enquiry_ips()');
+    RAISE NOTICE 'Scheduled nightly pruning of enquiry IP addresses.';
+  ELSE
+    RAISE NOTICE E'pg_cron is not enabled — enquiry IP addresses will NOT be pruned automatically.\nEnable it under Database → Extensions, then run:\n  SELECT cron.schedule(''prune-enquiry-ips'', ''30 3 * * *'', ''SELECT prune_enquiry_ips()'');';
+  END IF;
 END $$;

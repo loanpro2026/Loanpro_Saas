@@ -472,8 +472,8 @@ export type Database = {
         Row: {
           loan_id: number
           tenant_id: string
-          photo_url: string
-          storage_path: string
+          photo_url: string | null
+          storage_path: string | null
           captured_at: string | null
           created_at: string
           updated_at: string
@@ -487,8 +487,8 @@ export type Database = {
         Insert: {
           loan_id: number
           tenant_id: string
-          photo_url: string
-          storage_path: string
+          photo_url?: string | null
+          storage_path?: string | null
           captured_at?: string | null
           created_at?: string
           updated_at?: string
@@ -502,8 +502,8 @@ export type Database = {
         Update: {
           loan_id?: number
           tenant_id?: string
-          photo_url?: string
-          storage_path?: string
+          photo_url?: string | null
+          storage_path?: string | null
           captured_at?: string | null
           created_at?: string
           updated_at?: string

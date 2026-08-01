@@ -152,6 +152,26 @@ for f in sorted(glob.glob('supabase/migrations/*.sql')):
                         u = check_union(cname, [c.def_])
                         if u: tables[t][cname]['ts'] = u
                     continue
+                # ALTER COLUMN ... DROP NOT NULL / SET NOT NULL / DROP COLUMN.
+                # Ignoring these means the generated type asserts a constraint
+                # the database does not have. Migration 004 relaxes
+                # loan_photos.photo_url and .storage_path this way when the
+                # storage backend moved to R2 — without this the types still
+                # demanded them and every insert failed to compile.
+                st = str(c.subtype)
+                if t in tables and c.name and c.name in tables[t]:
+                    if 'AT_DropNotNull' in st:
+                        tables[t][c.name]['notnull'] = False
+                        continue
+                    if 'AT_SetNotNull' in st:
+                        tables[t][c.name]['notnull'] = True
+                        continue
+                    if 'AT_ColumnDefault' in st:
+                        tables[t][c.name]['hasdef'] = c.def_ is not None
+                        continue
+                if 'AT_DropColumn' in st and t in tables and c.name in tables.get(t, {}):
+                    del tables[t][c.name]
+                    continue
                 if c.def_ is not None and isinstance(c.def_, ast.ColumnDef) and t in tables:
                     e=c.def_; ts,base=tname(e.typeName)
                     notnull=False; hasdef=is_serial(e.typeName)

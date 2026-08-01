@@ -11,14 +11,22 @@ import { useState, useTransition } from 'react'
 import toast from 'react-hot-toast'
 import { Send, CheckCircle2 } from 'lucide-react'
 import { submitEnquiry } from '@/app/(marketing)/support/actions'
+import type { Tables } from '@/types/supabase'
 
+/**
+ * `satisfies` ties these to the `enquiries.reason` CHECK constraint. Without
+ * it, adding an option here that SQL does not permit would compile fine and
+ * then be silently filed as "other" by the server action — the enquiry still
+ * arrives, but categorised wrongly, which is the sort of thing nobody notices
+ * for months.
+ */
 const REASONS = [
   { value: 'migration', label: 'I want my desktop records moved across' },
   { value: 'sales',     label: 'Question before I sign up' },
   { value: 'problem',   label: 'Something is not working' },
   { value: 'billing',   label: 'Billing or subscription' },
   { value: 'other',     label: 'Something else' },
-]
+] as const satisfies readonly { value: Tables<'enquiries'>['reason']; label: string }[]
 
 export function ContactForm() {
   const [pending, startTransition] = useTransition()

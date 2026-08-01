@@ -8,6 +8,7 @@
  */
 import { createServiceClient } from '@/lib/supabase/server'
 import { headers } from 'next/headers'
+import type { Tables } from '@/types/supabase'
 
 export interface EnquiryResult {
   ok: boolean
@@ -23,14 +24,28 @@ interface Enquiry {
   message: string
 }
 
-const REASONS = ['migration', 'sales', 'problem', 'billing', 'other']
+/**
+ * The reasons the `enquiries.reason` CHECK constraint permits.
+ *
+ * `satisfies` ties this list to the column: add a reason in SQL without adding
+ * it here and the two drift silently, with the form quietly filing everything
+ * new under "other". Written as a `const` tuple rather than `string[]` so that
+ * `isReason` can actually narrow — a plain array's `.includes()` returns a
+ * boolean that tells TypeScript nothing.
+ */
+type Reason = Tables<'enquiries'>['reason']
+
+const REASONS = ['migration', 'sales', 'problem', 'billing', 'other'] as const satisfies readonly Reason[]
+
+const isReason = (v: string): v is Reason =>
+  (REASONS as readonly string[]).includes(v)
 
 export async function submitEnquiry(data: Enquiry): Promise<EnquiryResult> {
   const name = data.name?.trim() ?? ''
   const email = data.email?.trim().toLowerCase() ?? ''
   const phone = data.phone?.trim() ?? ''
   const message = data.message?.trim() ?? ''
-  const reason = REASONS.includes(data.reason) ? data.reason : 'other'
+  const reason = isReason(data.reason) ? data.reason : 'other'
 
   if (!name) return { ok: false, error: 'Please tell us your name' }
   if (!email && !phone) {

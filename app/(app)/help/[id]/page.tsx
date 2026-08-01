@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import type { TicketDetailPayload } from '@/types/rpc'
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'

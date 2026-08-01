@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import type { Tables } from '@/types/supabase'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { formatCurrency, formatDate, getLoanAge } from '@/lib/utils'
@@ -18,6 +19,27 @@ interface Props {
  *  hard cap of 200 silently hid the rest with no indication anything was
  *  missing — which is worse than a slow page. */
 const PAGE_SIZE = 50
+
+/**
+ * Query-string values are whatever someone typed in the address bar, so they
+ * have to be checked against the values the column actually permits.
+ *
+ * `satisfies` ties these lists to the CHECK constraints in the migrations: if
+ * a status is ever added or renamed in SQL, the generated union changes and
+ * this stops compiling, rather than quietly filtering on a value the database
+ * will never contain.
+ */
+type LoanStatus = Tables<'loans'>['status']
+type Category   = Tables<'loans'>['category_type']
+
+const STATUSES   = ['active', 'closed'] as const satisfies readonly LoanStatus[]
+const CATEGORIES = ['Gold', 'Silver']   as const satisfies readonly Category[]
+
+const isStatus = (v?: string): v is LoanStatus =>
+  !!v && (STATUSES as readonly string[]).includes(v)
+
+const isCategory = (v?: string): v is Category =>
+  !!v && (CATEGORIES as readonly string[]).includes(v)
 
 export default async function LoansPage({ searchParams }: Props) {
   const params = await searchParams
@@ -44,13 +66,14 @@ export default async function LoansPage({ searchParams }: Props) {
     .order('id', { ascending: false })   // stable tiebreak; many loans share a date
     .range(from, from + PAGE_SIZE - 1)
 
-  if (params.status && params.status !== 'all') {
-    query = query.eq('status', params.status)
-  } else if (!params.status) {
-    query = query.eq('status', 'active')
+  // 'all' means no status filter at all. Anything unrecognised falls back to
+  // 'active' rather than being passed through — a stray ?status=deleted used to
+  // return an empty list that looked exactly like "this shop has no loans".
+  if (params.status !== 'all') {
+    query = query.eq('status', isStatus(params.status) ? params.status : 'active')
   }
 
-  if (params.category) {
+  if (isCategory(params.category)) {
     query = query.eq('category_type', params.category)
   }
 
@@ -59,7 +82,11 @@ export default async function LoansPage({ searchParams }: Props) {
   }
 
   const { data: loans, count } = await query
-  const activeStatus = params.status ?? 'active'
+  // Must mirror the filter actually applied above, or a stray ?status=junk
+  // shows "junk" selected in the toolbar while the list below is really the
+  // active loans.
+  const activeStatus =
+    params.status === 'all' ? 'all' : isStatus(params.status) ? params.status : 'active'
   const total = count ?? 0
   const lastPage = Math.max(1, Math.ceil(total / PAGE_SIZE))
 

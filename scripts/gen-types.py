@@ -46,8 +46,48 @@ def tname(tn):
 def is_serial(tn):
     return [x.sval for x in tn.names][-1] in SERIAL
 
+
+def check_union(colname, constraints):
+    """
+    `CHECK (col IN ('a','b'))` -> "'a' | 'b'".
+
+    The desktop app's statuses and categories are enforced this way rather than
+    with Postgres enums, so without this every one of them types as bare
+    `string` and a typo like 'Golde' compiles fine.
+    """
+    for c in (constraints or []):
+        if 'CHECK' not in str(c.contype) or c.raw_expr is None:
+            continue
+        e = c.raw_expr
+        if not isinstance(e, ast.A_Expr):
+            continue
+        if 'AEXPR_IN' not in str(e.kind):
+            continue
+        # Only when the check is on this very column.
+        lex = e.lexpr
+        if not (isinstance(lex, ast.ColumnRef) and lex.fields[-1].sval == colname):
+            continue
+        vals = []
+        for v in (e.rexpr or ()):
+            if isinstance(v, ast.A_Const) and getattr(v.val, 'sval', None) is not None:
+                vals.append(v.val.sval)
+        if vals:
+            return ' | '.join(f"'{v}'" for v in vals)
+    return None
+
+
+def fk_of(colname, constraints):
+    """Column-level `REFERENCES other(col)` -> (table, [cols])."""
+    for c in (constraints or []):
+        if 'FOREIGN' in str(c.contype) and c.pktable is not None:
+            cols = [x.sval for x in (c.pk_attrs or [])] or ['id']
+            return (c.pktable.relname, cols)
+    return None
+
+
 tables={}   # name -> dict(col -> dict(ts, notnull, hasdefault, pk))
 funcs={}    # name -> dict(args, returns)
+rels={}     # table -> list of relationship dicts
 
 for f in sorted(glob.glob('supabase/migrations/*.sql')):
     sql=open(f,encoding='utf-8').read()
@@ -66,17 +106,52 @@ for f in sorted(glob.glob('supabase/migrations/*.sql')):
                     if 'DEFAULT' in ct: hasdef=True
                     if 'PRIMARY' in ct: pk=True; notnull=True
                     if 'IDENTITY' in ct or 'GENERATED' in ct: hasdef=True
+                union = check_union(e.colname, e.constraints)
+                if union: ts = union
+                fk = fk_of(e.colname, e.constraints)
+                if fk:
+                    rels.setdefault(t, []).append({
+                        'name': f'{t}_{e.colname}_fkey',
+                        'cols': [e.colname],
+                        'one': False,
+                        'rel': fk[0],
+                        'refcols': fk[1],
+                    })
                 cols[e.colname]={'ts':ts,'notnull':notnull,'hasdef':hasdef,'pk':pk}
-            # table-level PRIMARY KEY (col, col)
+            # table-level PRIMARY KEY / CHECK / FOREIGN KEY
             for e in (s.tableElts or []):
-                if isinstance(e, ast.Constraint) and 'PRIMARY' in str(e.contype):
+                if not isinstance(e, ast.Constraint): continue
+                ct=str(e.contype)
+                if 'PRIMARY' in ct:
                     for k in (e.keys or []):
                         if k.sval in cols:
                             cols[k.sval]['pk']=True; cols[k.sval]['notnull']=True
+                elif 'CHECK' in ct:
+                    for cname in cols:
+                        u = check_union(cname, [e])
+                        if u: cols[cname]['ts'] = u
+                elif 'FOREIGN' in ct and e.pktable is not None:
+                    fcols=[x.sval for x in (e.fk_attrs or [])]
+                    rcols=[x.sval for x in (e.pk_attrs or [])] or ['id']
+                    if fcols:
+                        rels.setdefault(t, []).append({
+                            'name': f"{t}_{'_'.join(fcols)}_fkey",
+                            'cols': fcols, 'one': False,
+                            'rel': e.pktable.relname, 'refcols': rcols,
+                        })
             tables[t]=cols
         elif isinstance(s, ast.AlterTableStmt):
             t=s.relation.relname
             for c in (s.cmds or []):
+                # ALTER TABLE ... ADD CONSTRAINT ... CHECK (col IN (...)).
+                # Constraints added after the table was created are just as
+                # binding as inline ones, so the union must come from here too
+                # — migration 017 adds all the role/plan ones this way.
+                if isinstance(c.def_, ast.Constraint) and 'CHECK' in str(c.def_.contype) and t in tables:
+                    for cname in tables[t]:
+                        u = check_union(cname, [c.def_])
+                        if u: tables[t][cname]['ts'] = u
+                    continue
                 if c.def_ is not None and isinstance(c.def_, ast.ColumnDef) and t in tables:
                     e=c.def_; ts,base=tname(e.typeName)
                     notnull=False; hasdef=is_serial(e.typeName)
@@ -117,11 +192,18 @@ w('''/**
  * argument and return shape of all RPC functions. A typo in a column name is
  * now a compile error instead of a row of `undefined` at runtime.
  *
- * What it cannot know, because it reads DDL and not a live catalogue:
- *   - Relationships[] is empty, so nested `.select('*, loans(*)')` embeds are
- *     not typed. The queries still work; they are just not checked.
- *   - Views, enums and composite types are empty (this schema uses none).
+ * Derived from the DDL, so these are real rather than guessed:
+ *   - Relationships[], from every REFERENCES clause, which is what makes
+ *     nested selects like `.select('*, tenant:tenants(*)')` type-check.
+ *   - String unions from `CHECK (col IN (...))`, inline or added later by an
+ *     ALTER TABLE. This schema uses CHECK constraints instead of Postgres
+ *     enums, so without this every status and category would be bare `string`.
+ *
+ * What it still cannot know, because it reads DDL and not a live catalogue:
+ *   - Views and composite types (this schema uses none).
  *   - A function returning `record` without an OUT/TABLE list becomes Json.
+ *   - A CHECK written any way other than `col IN (...)` — a regex or a range
+ *     check, say — is not turned into a type.
  *
  * If the schema changes, re-run the generator, or replace this file wholesale
  * with `supabase gen types typescript --linked` if you ever want the CLI.
@@ -166,7 +248,24 @@ for t in sorted(tables):
     for c,m in cols.items():
         w(f"          {q(c)}?: {m['ts']}" + ('' if m['notnull'] else ' | null'))
     w('        }')
-    w('        Relationships: []')
+    rl = rels.get(t, [])
+    if not rl:
+        w('        Relationships: []')
+    else:
+        w('        Relationships: [')
+        seen=set()
+        for r in rl:
+            sig=(r['name'], tuple(r['cols']), r['rel'])
+            if sig in seen: continue
+            seen.add(sig)
+            w('          {')
+            w(f"            foreignKeyName: '{r['name']}'")
+            w(f"            columns: [{', '.join(repr(c).replace(chr(39), chr(39)) for c in r['cols'])}]")
+            w(f"            isOneToOne: {'true' if r['one'] else 'false'}")
+            w(f"            referencedRelation: '{r['rel']}'")
+            w(f"            referencedColumns: [{', '.join(repr(c) for c in r['refcols'])}]")
+            w('          },')
+        w('        ]')
     w('      }')
 w('    }')
 w('    Views: { [_ in never]: never }')

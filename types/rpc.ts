@@ -43,10 +43,25 @@ export interface LoanDetailPayload {
   suggested_interest: number
 }
 
-/** `ticket_detail(p_ticket_id)` — migration 016. */
+/**
+ * `ticket_detail(p_ticket_id)` — migration 016.
+ *
+ * `messages` is NOT a `support_messages` row. The SQL builds a narrower object
+ * per message and resolves the author's name through a subquery on `users`,
+ * because the raw row only carries `author_id` and the thread needs something
+ * to print. Do not "simplify" this to Row<'support_messages'> — it is a
+ * different shape on purpose.
+ */
 export interface TicketDetailPayload {
   ticket: Row<'support_tickets'> | null
-  messages: Row<'support_messages'>[]
+  messages: {
+    id: string
+    body: string
+    from_staff: boolean
+    created_at: string
+    /** users.full_name, or null if the author's account was removed. */
+    author: string | null
+  }[]
 }
 
 /** `my_plan()` — migration 011. */

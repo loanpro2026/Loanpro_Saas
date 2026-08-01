@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Plus, ArrowRight, Wallet, Landmark, Package, Coins } from 'lucide-react'
+import { asObject, asArray, objectAt, numberAt, stringAt } from '@/lib/json'
 import { formatCurrency, formatDate, getLoanAge } from '@/lib/utils'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
@@ -46,10 +47,25 @@ export default async function DashboardPage() {
     supabase.rpc('chart_data', { p_months: 12 }),
   ])
 
-  const m: Record<string, unknown> = metrics ?? {}
-  const cost = stock?.cost ?? { gold: 0, silver: 0 }
-  const weight = stock?.weight ?? { gold: 0, silver: 0, gold_unit: 'g', silver_unit: 'kg' }
-  const counts = stock?.count ?? { gold: 0, silver: 0 }
+  // lending_metrics() and jewellery_stock() are `RETURNS jsonb`, so their
+  // generated type is the full Json union. Narrow once here, with a runtime
+  // check, and hand concrete numbers to the components below — that way
+  // StockChart keeps its real prop types instead of accepting loose JSON.
+  const m = asObject(metrics)
+  const cost = {
+    gold:   numberAt(objectAt(stock, 'cost'), 'gold'),
+    silver: numberAt(objectAt(stock, 'cost'), 'silver'),
+  }
+  const weight = {
+    gold:        numberAt(objectAt(stock, 'weight'), 'gold'),
+    silver:      numberAt(objectAt(stock, 'weight'), 'silver'),
+    gold_unit:   stringAt(objectAt(stock, 'weight'), 'gold_unit', 'g'),
+    silver_unit: stringAt(objectAt(stock, 'weight'), 'silver_unit', 'kg'),
+  }
+  const counts = {
+    gold:   numberAt(objectAt(stock, 'count'), 'gold'),
+    silver: numberAt(objectAt(stock, 'count'), 'silver'),
+  }
 
   const firstName = (appUser.full_name ?? '').split(' ')[0]
 
@@ -61,8 +77,8 @@ export default async function DashboardPage() {
             {firstName ? `Hello, ${firstName}` : 'Dashboard'}
           </h1>
           <p className="page-subtitle">
-            {Number(m.active_loans ?? 0)} active loans ·{' '}
-            {formatCurrency(Number(m.active_principal ?? 0))} lent out
+            {numberAt(m, 'active_loans')} active loans ·{' '}
+            {formatCurrency(numberAt(m, 'active_principal'))} lent out
           </p>
         </div>
         <Link href="/loans/new">
@@ -75,27 +91,27 @@ export default async function DashboardPage() {
         <MetricCard
           icon={Wallet}
           label="Cash in hand"
-          value={formatCurrency(Number(m.cash_balance ?? 0))}
-          changePct={Number(m.cash_change_pct ?? 0)}
-          trend={(m.cash_trend as number[]) ?? []}
+          value={formatCurrency(numberAt(m, 'cash_balance'))}
+          changePct={numberAt(m, 'cash_change_pct')}
+          trend={asArray(m.cash_trend).map(Number)}
         />
         <MetricCard
           icon={Landmark}
           label="Lent out"
-          value={formatCurrency(Number(m.active_principal ?? 0))}
-          sub={`${Number(m.active_loans ?? 0)} active loans`}
+          value={formatCurrency(numberAt(m, 'active_principal'))}
+          sub={`${numberAt(m, 'active_loans')} active loans`}
         />
         <MetricCard
           icon={Coins}
           label="Deposits held"
-          value={formatCurrency(Number(m.total_deposits ?? 0))}
-          changePct={Number(m.deposits_change_pct ?? 0)}
-          trend={(m.deposits_trend as number[]) ?? []}
+          value={formatCurrency(numberAt(m, 'total_deposits'))}
+          changePct={numberAt(m, 'deposits_change_pct')}
+          trend={asArray(m.deposits_trend).map(Number)}
         />
         <MetricCard
           icon={Package}
           label="In the safe"
-          value={formatCurrency(Number(cost.gold) + Number(cost.silver))}
+          value={formatCurrency(cost.gold + cost.silver)}
           sub={`${counts.gold} gold · ${counts.silver} silver`}
         />
       </div>

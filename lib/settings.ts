@@ -8,6 +8,8 @@
  * differently, will reasonably conclude the migration went wrong — even
  * though every record moved across correctly.
  */
+import { asObject } from '@/lib/json'
+import type { Json } from '@/types/supabase'
 
 export interface ShopSettings {
   // Display
@@ -68,9 +70,19 @@ export const DEFAULT_SETTINGS: ShopSettings = {
  */
 export const WRITABLE_SETTINGS = Object.keys(DEFAULT_SETTINGS) as Array<keyof ShopSettings>
 
-/** Fill in anything missing so callers never have to guess a default. */
-export function withDefaults(raw: Record<string, unknown> | null | undefined): ShopSettings {
-  return { ...DEFAULT_SETTINGS, ...(raw ?? {}) } as ShopSettings
+/**
+ * Fill in anything missing so callers never have to guess a default.
+ *
+ * Accepts a raw `Json` because that is what `my_settings()` returns — it is
+ * declared `RETURNS jsonb`, so its generated type is the whole Json union.
+ * asObject() narrows it with a runtime check, which also means a null result
+ * (a tenant whose settings row has not been seeded yet) yields the defaults
+ * rather than throwing.
+ */
+export function withDefaults(
+  raw: Json | Record<string, unknown> | null | undefined
+): ShopSettings {
+  return { ...DEFAULT_SETTINGS, ...asObject(raw as Json) } as ShopSettings
 }
 
 /**

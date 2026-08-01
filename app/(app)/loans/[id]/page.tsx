@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import type { LoanDetailPayload } from '@/types/rpc'
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
@@ -29,7 +30,12 @@ export default async function LoanDetailPage({ params }: Props) {
 
   // One round trip for loan + deposits + archived deposits + photo (see
   // migration 008). RLS scopes it, so another shop's loan simply returns null.
-  const { data: detail } = await supabase.rpc('loan_detail', { p_loan_id: loanId })
+  const { data } = await supabase.rpc('loan_detail', { p_loan_id: loanId })
+
+  // loan_detail() is `RETURNS jsonb`, so its generated type is the Json union.
+  // The shape it builds is declared in types/rpc.ts, read off the
+  // jsonb_build_object() in migration 012.
+  const detail = (data ?? null) as LoanDetailPayload | null
   if (!detail?.loan) notFound()
 
   const loan = detail.loan

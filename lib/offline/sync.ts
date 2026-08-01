@@ -16,10 +16,11 @@
  *      someone closed on another device will never succeed. Retrying it every
  *      30 seconds forever just hides the problem — it gets surfaced instead.
  */
+import { asObject, asArray, numberAt } from '@/lib/json'
 import { createClient } from '@/lib/supabase/client'
 import {
   getQueue, markSynced, markFailed, dequeue, pruneSynced,
-  cacheLoans, setMeta, type QueuedWrite,
+  cacheLoans, setMeta, type QueuedWrite, type CachedLoan,
 } from './db'
 
 export interface SyncResult {
@@ -178,9 +179,13 @@ export async function refreshSnapshot(): Promise<boolean> {
     const { data, error } = await supabase.rpc('offline_snapshot', { p_limit: 2000 })
     if (error || !data) return false
 
-    await cacheLoans(data.loans ?? [])
+    // `RETURNS jsonb`, so narrow before reading. A malformed or null snapshot
+    // must not throw here — this runs in the background on reconnect, and an
+    // exception would leave the queue unflushed with no visible cause.
+    const snap = asObject(data)
+    await cacheLoans(asArray(snap.loans) as unknown as CachedLoan[])
     await setMeta('snapshot_at', Date.now())
-    await setMeta('cash_balance', data.cash_balance ?? 0)
+    await setMeta('cash_balance', numberAt(snap, 'cash_balance'))
     return true
   } catch {
     return false

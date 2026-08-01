@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { numberAt } from '@/lib/json'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { BottomNav } from '@/components/layout/BottomNav'
 import { TopBar } from '@/components/layout/TopBar'
@@ -30,7 +31,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // the new-loan form, the closing dialog and the dashboard all need them,
   // and three round trips per page load is wasteful on a shop's connection.
   const { data: settings } = await supabase.rpc('my_settings')
-  const lockAfter = Number(settings?.lock_after_minutes ?? 0)
+  const lockAfter = numberAt(settings, 'lock_after_minutes')
 
   return (
     <SettingsProvider settings={settings}>

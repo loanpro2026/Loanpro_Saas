@@ -20,7 +20,10 @@ export default async function TicketPage({
   if (!user) redirect('/login')
 
   // RLS scopes this — another shop's ticket simply comes back empty.
-  const { data: detail } = await supabase.rpc('ticket_detail', { p_ticket_id: id })
+  const { data } = await supabase.rpc('ticket_detail', { p_ticket_id: id })
+
+  // `RETURNS jsonb` — shape declared in types/rpc.ts from migration 016.
+  const detail = (data ?? null) as TicketDetailPayload | null
   if (!detail?.ticket) notFound()
 
   const t = detail.ticket

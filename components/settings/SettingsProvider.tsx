@@ -9,6 +9,7 @@
  */
 import { createContext, useContext, type ReactNode } from 'react'
 import { withDefaults, type ShopSettings } from '@/lib/settings'
+import type { Json } from '@/types/supabase'
 import { DEFAULT_SETTINGS } from '@/lib/settings'
 
 const Ctx = createContext<ShopSettings>(DEFAULT_SETTINGS)
@@ -19,7 +20,7 @@ export function SettingsProvider({
   settings,
   children,
 }: {
-  settings: Record<string, unknown> | null
+  settings: Json | Record<string, unknown> | null
   children: ReactNode
 }) {
   return <Ctx.Provider value={withDefaults(settings)}>{children}</Ctx.Provider>

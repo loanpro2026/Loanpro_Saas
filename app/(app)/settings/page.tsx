@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { asObject } from '@/lib/json'
 import { redirect } from 'next/navigation'
 import { SettingsWorkspace } from '@/components/settings/SettingsWorkspace'
 import { withDefaults } from '@/lib/settings'
@@ -40,7 +41,7 @@ export default async function SettingsPage() {
       <SettingsWorkspace
         me={appUser}
         shopName={tenant?.shop_name ?? ''}
-        plan={plan ?? {}}
+        plan={asObject(plan)}
         members={members ?? []}
         settings={withDefaults(settings)}
       />

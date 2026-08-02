@@ -223,7 +223,7 @@ export default async function DashboardPage() {
 
             {!recentLoans?.length ? (
               <EmptyState
-                icon="landmark"
+                icon={Landmark}
                 title="No loans yet"
                 description="Add your first loan to get started."
                 action={

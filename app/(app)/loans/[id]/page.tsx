@@ -55,7 +55,7 @@ export default async function LoanDetailPage({ params }: Props) {
     <div className="space-y-5">
       {/* Header */}
       <div className="flex items-start gap-3">
-        <Link href="/loans" className="btn-icon mt-1 shrink-0" aria-label="Back to loans">
+        <Link href="/view-records/active" className="btn-icon mt-1 shrink-0" aria-label="Back to records">
           <ArrowLeft className="h-4 w-4" />
         </Link>
         <div className="min-w-0 flex-1">

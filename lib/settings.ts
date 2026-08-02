@@ -74,7 +74,8 @@ export const DEFAULT_SETTINGS: ShopSettings = {
 
   dashboard_division_factor: 1,
   lock_after_minutes: 0,
-  default_category: 'Gold',
+  // Silver, matching the desktop's hardcoded form default. See migration 021.
+  default_category: 'Silver',
 }
 
 /**

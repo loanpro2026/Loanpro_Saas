@@ -1,10 +1,25 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { ReportsWorkspace } from '@/components/reports/ReportsWorkspace'
+import { REPORTS, type ReportKey } from '@/lib/reports'
 
 export const dynamic = 'force-dynamic'
 
-export default async function ReportsPage() {
+/**
+ * Validated against the real list rather than cast. The Quick Reports panel on
+ * the dashboard links here with ?key=inventory and ?key=location, and a bad or
+ * hand-typed key should fall back to the daily book, not select nothing.
+ */
+function reportKey(raw?: string): ReportKey {
+  return REPORTS.some(r => r.key === raw) ? (raw as ReportKey) : 'daily'
+}
+
+export default async function ReportsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ key?: string }>
+}) {
+  const { key } = await searchParams
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -26,7 +41,10 @@ export default async function ReportsPage() {
         </div>
       </div>
 
-      <ReportsWorkspace shopName={tenant?.shop_name ?? 'LoanPro'} />
+      <ReportsWorkspace
+        shopName={tenant?.shop_name ?? 'LoanPro'}
+        initialKey={reportKey(key)}
+      />
     </div>
   )
 }

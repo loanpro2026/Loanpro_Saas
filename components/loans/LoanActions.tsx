@@ -71,7 +71,7 @@ export function LoanActions({ loan, totalDeposits, daysHeld, suggestedInterest, 
 
   const onDelete = () => startTransition(async () => {
     const res = await deleteLoan(loan.id)
-    if (res.ok) { toast.success('Loan deleted'); router.push('/loans') }
+    if (res.ok) { toast.success('Loan deleted'); router.push('/view-records/active') }
     else toast.error(res.error ?? 'Could not delete')
   })
 

@@ -8,7 +8,9 @@ import { formatCurrency, formatDate, getLoanAge } from '@/lib/utils'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
-import { MetricCard } from '@/components/dashboard/MetricCard'
+import { PeriodCards } from '@/components/dashboard/PeriodCards'
+import { QuickActions } from '@/components/dashboard/QuickActions'
+import { QuickReports } from '@/components/dashboard/QuickReports'
 import { ActivityFeed } from '@/components/dashboard/ActivityFeed'
 import { StockChart } from '@/components/dashboard/StockChart'
 import { TrendChart } from '@/components/dashboard/TrendChart'
@@ -148,40 +150,17 @@ export default async function DashboardPage() {
             {formatCurrency(numberAt(m, 'active_principal'))} lent out
           </p>
         </div>
-        <Link href="/loans/new">
-          <Button size="sm"><Plus className="h-4 w-4" /> New Loan</Button>
+        <Link href="/add-record">
+          <Button size="sm"><Plus className="h-4 w-4" /> Add New Record</Button>
         </Link>
       </div>
 
-      {/* Headline numbers */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <MetricCard
-          icon="wallet"
-          label="Cash in hand"
-          value={formatCurrency(numberAt(m, 'cash_balance'))}
-          changePct={numberAt(m, 'cash_change_pct')}
-          trend={asArray(m.cash_trend).map(Number)}
-        />
-        <MetricCard
-          icon="landmark"
-          label="Lent out"
-          value={formatCurrency(numberAt(m, 'active_principal'))}
-          sub={`${numberAt(m, 'active_loans')} active loans`}
-        />
-        <MetricCard
-          icon="coins"
-          label="Deposits held"
-          value={formatCurrency(numberAt(m, 'total_deposits'))}
-          changePct={numberAt(m, 'deposits_change_pct')}
-          trend={asArray(m.deposits_trend).map(Number)}
-        />
-        <MetricCard
-          icon="package"
-          label="In the safe"
-          value={formatCurrency(cost.gold + cost.silver)}
-          sub={`${counts.gold} gold · ${counts.silver} silver`}
-        />
-      </div>
+      {/* The desktop's four cards, driven by the period selector on the row.
+          Replaces the balance-snapshot cards the web had invented. */}
+      <PeriodCards
+        activePrincipal={numberAt(m, 'active_principal')}
+        activeCount={numberAt(m, 'active_loans')}
+      />
 
       <div className="grid gap-5 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-5">
@@ -214,7 +193,7 @@ export default async function DashboardPage() {
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-sm font-semibold text-slate-900">Latest loans</h2>
               <Link
-                href="/loans"
+                href="/view-records/active"
                 className="text-xs text-primary-700 hover:underline inline-flex items-center gap-1"
               >
                 View all <ArrowRight className="h-3 w-3" />
@@ -227,8 +206,8 @@ export default async function DashboardPage() {
                 title="No loans yet"
                 description="Add your first loan to get started."
                 action={
-                  <Link href="/loans/new">
-                    <Button size="sm"><Plus className="h-4 w-4" /> Add loan</Button>
+                  <Link href="/add-record">
+                    <Button size="sm"><Plus className="h-4 w-4" /> Add record</Button>
                   </Link>
                 }
               />
@@ -263,7 +242,11 @@ export default async function DashboardPage() {
           </div>
         </div>
 
-        <ActivityFeed items={activity ?? []} />
+        <div className="space-y-5">
+          <QuickActions />
+          <QuickReports />
+          <ActivityFeed items={activity ?? []} />
+        </div>
       </div>
     </div>
   )

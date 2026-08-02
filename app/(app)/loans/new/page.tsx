@@ -51,7 +51,7 @@ export default function NewLoanPage() {
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
-      category_type: (settings.default_category ?? 'Gold') as 'Gold' | 'Silver',
+      category_type: (settings.default_category ?? 'Silver') as 'Gold' | 'Silver',
       // IST, not UTC: an evening entry must not be dated tomorrow.
       issue_date: todayIST(),
     },
@@ -113,16 +113,30 @@ export default function NewLoanPage() {
   return (
     <div className="max-w-2xl mx-auto space-y-5">
       <div className="flex items-center gap-3">
-        <Link href="/loans" className="btn-icon">
+        <Link href="/view-records/active" className="btn-icon">
           <ArrowLeft className="h-4 w-4" />
         </Link>
         <div>
-          <h1 className="page-title">New Loan</h1>
-          <p className="page-subtitle">Add a new gold or silver loan record</p>
+          <h1 className="page-title">Add New Record</h1>
+          <p className="page-subtitle">Take in a gold or silver loan</p>
         </div>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+        {/* Date leads, matching the desktop. It is prefilled with today, and
+            sits first because backdating an entry is something you decide
+            before typing the customer's name, not after. */}
+        <div className="card p-5">
+          <Input
+            label="Date"
+            required
+            type="date"
+            className="sm:max-w-xs"
+            error={errors.issue_date?.message}
+            {...register('issue_date')}
+          />
+        </div>
+
         {/* Customer info */}
         <div className="card p-5 space-y-4">
           <h2 className="font-semibold text-slate-900 text-sm uppercase tracking-wide text-slate-500">Customer</h2>
@@ -131,20 +145,20 @@ export default function NewLoanPage() {
                 families for years, and picking an existing spelling stops
                 "Ramesh Kumar" fragmenting across records. */}
             <AutoSuggest
-              field="name" label="Customer Name" required placeholder="Full name"
+              field="name" label="Name" required placeholder="Full name"
               error={errors.name?.message}
               value={watch('name') ?? ''}
               onChange={v => setValue('name', v, { shouldValidate: true })}
             />
             <AutoSuggest
-              field="father_name" label="Father's Name" placeholder="S/o ..."
+              field="father_name" label="Father" placeholder="S/o ..."
               value={watch('father_name') ?? ''}
               onChange={v => setValue('father_name', v)}
             />
           </div>
           <div className={showAddress ? 'grid sm:grid-cols-2 gap-4' : ''}>
             <AutoSuggest
-              field="location" label="Location / Village" placeholder="City or village"
+              field="location" label="Location" placeholder="City or village"
               value={watch('location') ?? ''}
               onChange={v => setValue('location', v)}
             />
@@ -164,36 +178,39 @@ export default function NewLoanPage() {
           )}
         </div>
 
-        {/* Collateral */}
+        {/* Amount, then the item. The desktop asks for the money first — the
+            figure is agreed across the counter before anyone writes down what
+            the chain weighs. */}
         <div className="card p-5 space-y-4">
-          <h2 className="text-sm uppercase tracking-wide text-slate-500 font-semibold">Collateral</h2>
+          <h2 className="text-sm uppercase tracking-wide text-slate-500 font-semibold">Loan</h2>
+          <Input
+            label="Amount (₹)"
+            required
+            type="number"
+            className="sm:max-w-xs"
+            placeholder="0"
+            error={errors.amount?.message}
+            {...register('amount')}
+          />
           <div className="grid sm:grid-cols-3 gap-4">
             <Select
-              label="Category"
+              label="Type"
               required
               options={[{ value: 'Gold', label: 'Gold' }, { value: 'Silver', label: 'Silver' }]}
               error={errors.category_type?.message}
               {...register('category_type')}
             />
-            <Input label="Item Type" placeholder="e.g. 22K Necklace" {...register('detailed_type')} />
+            <Input label="Jewellery" placeholder="e.g. 22K Necklace" {...register('detailed_type')} />
             <Input label="Weight (g)" type="number" step="0.001" placeholder="0.000" {...register('weight')} />
           </div>
         </div>
 
-        {/* Loan terms */}
-        <div className="card p-5 space-y-4">
-          <h2 className="text-sm uppercase tracking-wide text-slate-500 font-semibold">Loan Terms</h2>
-          <div className="grid sm:grid-cols-2 gap-4">
-            {/* No interest field — matching the desktop. Interest is not a
-                property of a loan; it is calculated at closing from the
-                shop-wide annual rate in Settings. */}
-            <Input label="Loan Amount (₹)" required type="number" placeholder="0" error={errors.amount?.message} {...register('amount')} />
-            <Input label="Issue Date" required type="date" error={errors.issue_date?.message} {...register('issue_date')} />
-          </div>
-          <div>
-            <label className="label">Remarks</label>
-            <textarea className="input h-16 resize-none" placeholder="Any notes about the loan…" {...register('remarks')} />
-          </div>
+        {/* No interest field, matching the desktop. Interest is not a property
+            of a loan; it is calculated at closing from the shop-wide annual
+            rate in Settings and written then. */}
+        <div className="card p-5">
+          <label className="label">Remarks</label>
+          <textarea className="input h-16 resize-none" placeholder="Any notes about the loan…" {...register('remarks')} />
         </div>
 
         {/* Photo capture */}
@@ -211,8 +228,8 @@ export default function NewLoanPage() {
         </div>
 
         <div className="flex gap-3">
-          <Link href="/loans"><Button variant="secondary">Cancel</Button></Link>
-          <Button type="submit" loading={loading} className="flex-1">Save Loan</Button>
+          <Link href="/view-records/active"><Button variant="secondary">Cancel</Button></Link>
+          <Button type="submit" loading={loading} className="flex-1">Save Record</Button>
         </div>
       </form>
     </div>

@@ -16,11 +16,30 @@ export function LoanFilters({ currentStatus, currentCategory, query }: Props) {
   const [, startTransition] = useTransition()
   const [search, setSearch] = useState(query ?? '')
 
+  /**
+   * Active and Closed are separate routes (matching the desktop), so on those
+   * pages the status buttons have to navigate rather than set ?status= — the
+   * page pins its own status and would ignore the parameter, leaving a control
+   * that looks live and does nothing.
+   */
+  const onRecordRoutes = pathname.startsWith('/view-records')
+
   const push = (params: Record<string, string | undefined>) => {
     const sp = new URLSearchParams()
     const merged = { status: currentStatus, category: currentCategory, q: search, ...params }
+
+    let target = pathname
+    if (onRecordRoutes && params.status) {
+      // 'all' has no screen of its own; the closest thing is the active list.
+      target = params.status === 'closed'
+        ? '/view-records/closed'
+        : '/view-records/active'
+      delete merged.status
+    }
+
     Object.entries(merged).forEach(([k, v]) => { if (v) sp.set(k, v) })
-    startTransition(() => router.push(`${pathname}?${sp.toString()}`))
+    const qs = sp.toString()
+    startTransition(() => router.push(qs ? `${target}?${qs}` : target))
   }
 
   const handleSearch = (e: React.FormEvent) => {
@@ -46,7 +65,7 @@ export function LoanFilters({ currentStatus, currentCategory, query }: Props) {
         {[
           { value: 'active', label: 'Active' },
           { value: 'closed', label: 'Closed' },
-          { value: 'all',    label: 'All'    },
+          ...(onRecordRoutes ? [] : [{ value: 'all', label: 'All' }]),
         ].map(s => (
           <button
             key={s.value}

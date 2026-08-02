@@ -1,25 +1,33 @@
 /**
  * Remove Record — /remove-record
  *
- * The desktop screen (Removerecord.tsx) is a search-and-settle workspace:
- * filters across the top (Search By, Amount Range, Loan Duration, Date Order),
- * then for the chosen record its deposit history, remarks, stored identity
- * photo and computed interest, with the settle action at the end.
- *
- * This route currently lists the active loans so the path works and leads to
- * the right records — the loan detail page carries the closing flow. Rebuilding
- * the desktop's single-screen version is the next piece of work, and is where
- * the collection-photo capture from migration 019 will live.
+ * Matches the desktop's Removerecord screen: filter down to a record, then
+ * settle it with everything about it visible on the same page.
  */
-import LoansPage from '../loans/page'
+import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
+import { RemoveRecordWorkspace } from '@/components/records/RemoveRecordWorkspace'
 
 export const dynamic = 'force-dynamic'
 
-export default async function RemoveRecordPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ category?: string; q?: string; page?: string }>
-}) {
-  const params = await searchParams
-  return LoansPage({ searchParams: Promise.resolve({ ...params, status: 'active' }) })
+export default async function RemoveRecordPage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const { data: appUser } = await supabase
+    .from('users').select('role').eq('auth_id', user.id).single()
+
+  return (
+    <div className="space-y-5">
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">Remove Record</h1>
+          <p className="page-subtitle">Find a loan and settle it</p>
+        </div>
+      </div>
+
+      <RemoveRecordWorkspace canDelete={appUser?.role === 'owner'} />
+    </div>
+  )
 }

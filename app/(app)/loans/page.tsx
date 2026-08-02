@@ -111,7 +111,7 @@ export default async function LoansPage({ searchParams }: Props) {
               : `${from + 1}–${Math.min(from + PAGE_SIZE, total)} of ${total}`}
           </p>
         </div>
-        <Link href="/loans/new">
+        <Link href="/add-record">
           <Button size="sm"><Plus className="h-4 w-4" /> New Loan</Button>
         </Link>
       </div>
@@ -123,7 +123,7 @@ export default async function LoansPage({ searchParams }: Props) {
           icon={FileText}
           title="No loans found"
           description={params.q ? `No loans matching "${params.q}"` : "No loans in this category yet."}
-          action={<Link href="/loans/new"><Button size="sm"><Plus className="h-4 w-4" /> Add Loan</Button></Link>}
+          action={<Link href="/add-record"><Button size="sm"><Plus className="h-4 w-4" /> Add Loan</Button></Link>}
         />
       ) : (
         <div className="table-container">

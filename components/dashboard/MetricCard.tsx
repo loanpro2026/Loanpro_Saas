@@ -6,11 +6,36 @@
  * library — four of these render on every dashboard load, and Recharts is a
  * heavy thing to mount for five data points.
  */
-import { TrendingUp, TrendingDown } from 'lucide-react'
+import {
+  TrendingUp, TrendingDown, Wallet, Landmark, Coins, Package,
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
 
+/**
+ * Icons are chosen by name, not passed in.
+ *
+ * The dashboard is a Server Component and this is a Client Component. A lucide
+ * icon is a forwardRef object — a function under the hood — and React refuses
+ * to send functions across that boundary:
+ *
+ *   "Functions cannot be passed directly to Client Components"
+ *
+ * That threw during the server render, so the whole dashboard fell through to
+ * the error boundary. Passing a string keeps the prop serialisable, and keeps
+ * the icon's sizing inside this card where it belongs. ActivityFeed already
+ * resolves its icons this way.
+ */
+const ICONS = {
+  wallet:   Wallet,
+  landmark: Landmark,
+  coins:    Coins,
+  package:  Package,
+} as const
+
+export type MetricIcon = keyof typeof ICONS
+
 interface Props {
-  icon: React.ElementType
+  icon: MetricIcon
   label: string
   value: string
   sub?: string
@@ -18,7 +43,8 @@ interface Props {
   trend?: number[]
 }
 
-export function MetricCard({ icon: Icon, label, value, sub, changePct, trend }: Props) {
+export function MetricCard({ icon, label, value, sub, changePct, trend }: Props) {
+  const Icon = ICONS[icon]
   const hasChange = changePct !== undefined && changePct !== 0 && Number.isFinite(changePct)
   const up = (changePct ?? 0) > 0
 

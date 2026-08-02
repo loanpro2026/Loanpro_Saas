@@ -21,6 +21,8 @@ export default function LoginPage() {
   const router = useRouter()
   const [showPass, setShowPass] = useState(false)
   const [loading,  setLoading]  = useState(false)
+  /** Set when the account exists but the email was never confirmed. */
+  const [unconfirmed, setUnconfirmed] = useState<string | null>(null)
 
   const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -28,6 +30,7 @@ export default function LoginPage() {
 
   const onSubmit = async (data: FormData) => {
     setLoading(true)
+    setUnconfirmed(null)
     try {
       const supabase = createClient()
       const { error } = await supabase.auth.signInWithPassword({
@@ -38,10 +41,34 @@ export default function LoginPage() {
       router.push('/dashboard')
       router.refresh()
     } catch (err: any) {
-      toast.error(err?.message || 'Invalid email or password')
+      // Supabase answers both "wrong password" and "never confirmed your
+      // email" with a 400 on the same endpoint. Telling them apart matters:
+      // one means try again, the other means the password is fine and there is
+      // a link sitting unread in an inbox. Showing "invalid credentials" for
+      // the second sends people round in circles retyping a correct password.
+      const code = err?.code ?? ''
+      const msg  = String(err?.message ?? '')
+
+      if (code === 'email_not_confirmed' || /not confirmed/i.test(msg)) {
+        setUnconfirmed(data.email)
+        toast.error('Confirm your email first — check your inbox.')
+      } else if (code === 'invalid_credentials' || /invalid login/i.test(msg)) {
+        toast.error('That email and password do not match.')
+      } else {
+        toast.error(msg || 'Could not sign in')
+      }
     } finally {
       setLoading(false)
     }
+  }
+
+  const resendConfirmation = async () => {
+    if (!unconfirmed) return
+    const supabase = createClient()
+    const { error } = await supabase.auth.resend({ type: 'signup', email: unconfirmed })
+    toast[error ? 'error' : 'success'](
+      error ? error.message : 'Sent. It can take a minute to arrive.'
+    )
   }
 
   return (
@@ -50,6 +77,28 @@ export default function LoginPage() {
         <h1 className="text-2xl font-bold text-slate-900">Welcome back</h1>
         <p className="text-slate-500 mt-1.5 text-sm">Log in to your shop account</p>
       </div>
+
+      {/* A toast vanishes; this is the one error where the next step is not
+          obvious, so it stays on screen until they act on it. */}
+      {unconfirmed && (
+        <div
+          role="status"
+          className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900"
+        >
+          <p className="font-medium">This account is not confirmed yet</p>
+          <p className="mt-0.5 text-amber-800">
+            We sent a link to <span className="font-medium">{unconfirmed}</span>.
+            Open it, then sign in. Check the spam folder too.
+          </p>
+          <button
+            type="button"
+            onClick={resendConfirmation}
+            className="mt-1.5 text-amber-900 underline underline-offset-2 hover:no-underline"
+          >
+            Send it again
+          </button>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
         <Input

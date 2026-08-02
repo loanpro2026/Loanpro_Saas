@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { ensureTenantProvisioned } from '@/lib/tenant'
 import { numberAt } from '@/lib/json'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { BottomNav } from '@/components/layout/BottomNav'
@@ -17,13 +18,28 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   if (!user) redirect('/login')
 
-  const { data: appUser } = await supabase
+  let { data: appUser } = await supabase
     .from('users')
     .select('*, tenant:tenants(*)')
     .eq('auth_id', user.id)
-    .single()
+    .maybeSingle()
 
-  if (!appUser) redirect('/register')
+  // An account confirmed by email arrives here with a session but no shop —
+  // see ensureTenantProvisioned(). Provision, then read again.
+  if (!appUser) {
+    const ok = await ensureTenantProvisioned()
+    if (!ok) redirect('/setup')
+
+    ;({ data: appUser } = await supabase
+      .from('users')
+      .select('*, tenant:tenants(*)')
+      .eq('auth_id', user.id)
+      .maybeSingle())
+
+    // Never send them to /register: the middleware bounces signed-in users off
+    // that route straight back here, which is the loop this replaced.
+    if (!appUser) redirect('/setup')
+  }
 
   const tenant = (appUser as any).tenant
 

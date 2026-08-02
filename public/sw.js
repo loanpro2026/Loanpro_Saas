@@ -11,7 +11,7 @@
  * deploy. Without that, a shop can be stuck on a months-old bundle.
  */
 
-const CACHE_VERSION = 'v2'
+const CACHE_VERSION = 'v3'
 const SHELL_CACHE = `loanpro-shell-${CACHE_VERSION}`
 const ASSET_CACHE = `loanpro-assets-${CACHE_VERSION}`
 const PAGE_CACHE = `loanpro-pages-${CACHE_VERSION}`
@@ -23,10 +23,6 @@ const SHELL_URLS = [
   '/icons/icon-192.png',
 ]
 
-/** How long to wait for the network on a navigation before using the cache.
- *  A shop on a bad connection should not stare at a white screen for 30s —
- *  three seconds then serve what we have. */
-const NAV_TIMEOUT_MS = 3000
 
 // ─── Install ────────────────────────────────────────────────────────────────
 self.addEventListener('install', (event) => {
@@ -81,10 +77,7 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
-  // Navigations — network first with a timeout, then cache, then the offline
-  // page. The previous version did `fetch().catch(() => caches.match())`,
-  // which resolves to undefined for a page that was never visited online and
-  // shows the browser's own error screen.
+  // Navigations — network first, then cache, then the offline page.
   if (request.mode === 'navigate') {
     event.respondWith(navigationHandler(request))
     return
@@ -109,39 +102,77 @@ async function cacheFirst(request, cacheName) {
   }
 }
 
+/**
+ * Slow is not the same as offline.
+ *
+ * This used to race the fetch against a 3s timer and, on timeout, fall through
+ * to the offline page. That is wrong for this app in a way that showed up as a
+ * bug people actually hit: leave the app idle, come back, and every navigation
+ * lands on "No internet" despite a perfectly good connection.
+ *
+ * The reason it was reliable rather than occasional: after a few idle minutes
+ * the Vercel function has scaled to zero and the Supabase connection is cold,
+ * and every page under (app) does real work before it can respond — the
+ * middleware calls getUser(), the layout calls getUser() again plus a users
+ * select plus my_settings, and the dashboard fires seven more RPCs. A cold
+ * first request through that chain is routinely over three seconds. It then
+ * failed twice over: the timeout fired, so the `cache.put` on the success path
+ * never ran, so the page was never in PAGE_CACHE either, so the fallback went
+ * all the way to /offline. Every single time.
+ *
+ * The 3s timer also could not abort the request it abandoned — which is why
+ * going back to the domain and signing in appeared to fix it. It did not fix
+ * anything; the abandoned request had warmed the function, so the next attempt
+ * came back under the limit.
+ *
+ * So: no timer. Serve the cache only when the network genuinely fails, or when
+ * the OS says there is no network at all. A slow page is a slow page, and the
+ * browser keeps the previous page on screen while it waits — nobody is staring
+ * at a white screen, which was the original worry.
+ */
 async function navigationHandler(request) {
+  // `navigator.onLine === false` is trustworthy: the OS is saying there is no
+  // usable interface. `true` is NOT a promise of reachability (a captive wifi
+  // portal reports true), which is why it is only used in this direction —
+  // to skip a fetch that cannot possibly succeed rather than to conclude one
+  // will.
+  if (self.navigator && self.navigator.onLine === false) {
+    return offlineFallback(request)
+  }
+
   try {
-    const response = await withTimeout(fetch(request), NAV_TIMEOUT_MS)
+    const response = await fetch(request)
 
     // Only cache real pages. Caching a 500 means serving that error until the
-    // next successful load.
-    if (response.ok) {
+    // next successful load; caching a redirect is worse still, because a
+    // redirected response replayed for a navigation throws in the browser
+    // rather than rendering anything at all.
+    if (response.ok && !response.redirected) {
       const cache = await caches.open(PAGE_CACHE)
-      cache.put(request, response.clone())
+      // Never let a cache write break the response the shop is waiting on.
+      cache.put(request, response.clone()).catch(() => {})
     }
     return response
   } catch {
-    const cached = await caches.match(request, { ignoreSearch: true })
-    if (cached) return cached
-
-    const fallback = await caches.match('/offline')
-    if (fallback) return fallback
-
-    return new Response(
-      '<!doctype html><meta charset="utf-8"><title>Offline</title>' +
-      '<body style="font-family:system-ui;padding:2rem;text-align:center">' +
-      '<h1>No internet</h1><p>Reconnect and try again. Anything you saved on ' +
-      'this device is still there and will sync automatically.</p>',
-      { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8' } }
-    )
+    // A real failure: DNS, refused connection, the browser's own timeout.
+    return offlineFallback(request)
   }
 }
 
-function withTimeout(promise, ms) {
-  return Promise.race([
-    promise,
-    new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms)),
-  ])
+async function offlineFallback(request) {
+  const cached = await caches.match(request, { ignoreSearch: true })
+  if (cached) return cached
+
+  const fallback = await caches.match('/offline')
+  if (fallback) return fallback
+
+  return new Response(
+    '<!doctype html><meta charset="utf-8"><title>Offline</title>' +
+    '<body style="font-family:system-ui;padding:2rem;text-align:center">' +
+    '<h1>No internet</h1><p>Reconnect and try again. Anything you saved on ' +
+    'this device is still there and will sync automatically.</p>',
+    { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8' } }
+  )
 }
 
 // ─── Background sync ────────────────────────────────────────────────────────

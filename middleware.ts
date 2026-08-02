@@ -61,8 +61,16 @@ export async function middleware(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   const { pathname } = request.nextUrl
 
-  // Public routes — no auth needed
-  const publicRoutes = ['/', '/pricing', '/login', '/register', '/auth/callback']
+  // Public routes — no auth needed.
+  //
+  // /offline is public deliberately. It is the page the service worker caches
+  // at install and serves when a navigation fails, and it renders from
+  // IndexedDB with no session. If it required auth, the install-time
+  // `cache.add('/offline')` would store a redirect to /login instead — and a
+  // redirected response replayed for a navigation throws, so the one page
+  // whose whole job is to work when nothing else does would be the page that
+  // reliably failed.
+  const publicRoutes = ['/', '/pricing', '/login', '/register', '/auth/callback', '/offline']
   const isPublic = publicRoutes.some(r => pathname === r || pathname.startsWith('/api/webhooks'))
 
   // Camera page is public (accessed from mobile via QR)

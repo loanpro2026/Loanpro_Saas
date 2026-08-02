@@ -25,19 +25,29 @@ export function LoanFilters({ currentStatus, currentCategory, query }: Props) {
   const onRecordRoutes = pathname.startsWith('/view-records')
 
   const push = (params: Record<string, string | undefined>) => {
-    const sp = new URLSearchParams()
-    const merged = { status: currentStatus, category: currentCategory, q: search, ...params }
+    const status = params.status ?? currentStatus
 
-    let target = pathname
-    if (onRecordRoutes && params.status) {
-      // 'all' has no screen of its own; the closest thing is the active list.
-      target = params.status === 'closed'
-        ? '/view-records/closed'
-        : '/view-records/active'
-      delete merged.status
+    const sp = new URLSearchParams()
+    if (currentCategory) sp.set('category', currentCategory)
+    if (search) sp.set('q', search)
+
+    // Whatever the caller passed wins. An explicit `undefined` clears the
+    // parameter — that is how the search box empties itself.
+    for (const [k, v] of Object.entries(params)) {
+      if (k === 'status') continue          // handled below
+      if (v) sp.set(k, v)
+      else sp.delete(k)
     }
 
-    Object.entries(merged).forEach(([k, v]) => { if (v) sp.set(k, v) })
+    // On the split routes the status IS the path, so it never becomes a query
+    // parameter. Everywhere else it is a filter on the current page.
+    let target = pathname
+    if (onRecordRoutes) {
+      target = status === 'closed' ? '/view-records/closed' : '/view-records/active'
+    } else if (status) {
+      sp.set('status', status)
+    }
+
     const qs = sp.toString()
     startTransition(() => router.push(qs ? `${target}?${qs}` : target))
   }

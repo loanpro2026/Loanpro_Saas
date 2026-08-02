@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { PeriodCards } from '@/components/dashboard/PeriodCards'
 import { QuickActions } from '@/components/dashboard/QuickActions'
+import { TopLocations, type LocationRow } from '@/components/dashboard/TopLocations'
 import { QuickReports } from '@/components/dashboard/QuickReports'
 import { ActivityFeed } from '@/components/dashboard/ActivityFeed'
 import { StockChart } from '@/components/dashboard/StockChart'
@@ -38,6 +39,12 @@ type BreakdownRow = {
   name: string | null
   total_amount: number | null
   percentage: number | null
+}
+
+type LocationReportRow = {
+  location: string | null
+  active_count: number | null
+  active_amount: number | null
 }
 
 type TrendRow = {
@@ -86,11 +93,14 @@ export default async function DashboardPage() {
       .eq('status', 'active').order('issue_date', { ascending: false }).limit(5),
     supabase.rpc('jewellery_breakdown', { p_category: 'Gold', p_limit: 4 }),
     supabase.rpc('chart_data', { p_months: 12 }),
+    // No date bounds: Top Locations shows the whole book, since a shop
+    // wants to know where it is exposed overall.
+    supabase.rpc('location_report', { p_locations: null, p_start: null, p_end: null }),
   ])
 
   const NAMES = [
     'lending_metrics', 'jewellery_stock', 'activity_log',
-    'recent_loans', 'jewellery_breakdown', 'chart_data',
+    'recent_loans', 'jewellery_breakdown', 'chart_data', 'location_report',
   ] as const
 
   function unwrap<T>(i: number): T | null {
@@ -115,6 +125,7 @@ export default async function DashboardPage() {
   const recentLoans   = unwrap<RecentLoanRow[]>(3)
   const goldBreakdown = unwrap<BreakdownRow[]>(4)
   const trend         = unwrap<TrendRow[]>(5)
+  const locations     = unwrap<LocationReportRow[]>(6)
 
   // lending_metrics() and jewellery_stock() are `RETURNS jsonb`, so their
   // generated type is the full Json union. Narrow once here, with a runtime
@@ -243,6 +254,19 @@ export default async function DashboardPage() {
         </div>
 
         <div className="space-y-5">
+          <TopLocations
+            rows={(locations ?? []).reduce<LocationRow[]>((acc, r) => {
+              // A loan with no location recorded has nothing to show here.
+              if (r.location) {
+                acc.push({
+                  location: r.location,
+                  active_count: r.active_count ?? 0,
+                  active_amount: r.active_amount ?? 0,
+                })
+              }
+              return acc
+            }, [])}
+          />
           <QuickActions />
           <QuickReports />
           <ActivityFeed items={activity ?? []} />

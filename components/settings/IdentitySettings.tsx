@@ -74,21 +74,19 @@ export function IdentitySettings({ settings }: { settings: ShopSettings }) {
               express "a photo is required" together with "there is no way to
               take one", which the settings screen happily allowed. */}
           <div className="space-y-1.5">
-            <label htmlFor="photo_capture_mode" className="label">
-              Where photos are taken
-            </label>
             <Select
-              id="photo_capture_mode"
+              label="Where photos are taken"
               value={local.photo_capture_mode}
               disabled={pending || !idOn}
               onChange={e =>
                 save('photo_capture_mode', e.target.value as ShopSettings['photo_capture_mode'])
               }
-            >
-              <option value="webcam">Camera on this computer</option>
-              <option value="phone">Paired phone</option>
-              <option value="off">Do not capture photos</option>
-            </Select>
+              options={[
+                { value: 'webcam', label: 'Camera on this computer' },
+                { value: 'phone',  label: 'Paired phone' },
+                { value: 'off',    label: 'Do not capture photos' },
+              ]}
+            />
             <p className="text-xs text-slate-500">
               {local.photo_capture_mode === 'webcam'
                 ? 'Uses the webcam on the machine you are working at. Nothing to set up.'

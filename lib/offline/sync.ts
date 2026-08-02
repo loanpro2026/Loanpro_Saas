@@ -76,13 +76,19 @@ async function applyOne(write: QueuedWrite): Promise<void> {
     case 'photo': {
       if (!write.blob) throw new Error('Photo data is missing')
 
+      // Queued before migration 019 there was no stage, so default to pledge —
+      // that is what every photo captured back then was. Without this, a
+      // collection photo captured offline would replay as a pledge photo and
+      // overwrite the record of who handed the item over.
+      const stage = p.stage === 'collection' ? 'collection' : 'pledge'
+
       // Same three-step handshake as an online upload — ask for a presigned
       // URL, PUT to R2, confirm. Replaying it simply overwrites the same loan's
       // photo with identical bytes, so no idempotency key is needed.
       const urlRes = await fetch('/api/photos/upload-url', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ loan_id: p.loan_id, content_type: 'image/jpeg' }),
+        body: JSON.stringify({ loan_id: p.loan_id, content_type: 'image/jpeg', stage }),
       })
       if (!urlRes.ok) {
         throw new Error((await urlRes.json().catch(() => ({}))).error || 'Could not start upload')
@@ -100,7 +106,7 @@ async function applyOne(write: QueuedWrite): Promise<void> {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          loan_id: p.loan_id, key,
+          loan_id: p.loan_id, key, stage,
           byte_size: write.blob.size, mime_type: 'image/jpeg',
         }),
       })

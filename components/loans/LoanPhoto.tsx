@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { PhotoCapture } from '@/components/loans/PhotoCapture'
 import { uploadLoanPhoto, compressImage, deleteLoanPhoto, photoUrl } from '@/lib/storage'
+import type { PhotoStage } from '@/lib/r2'
 import { useOffline } from '@/components/offline/OfflineProvider'
 
 interface Props {
@@ -21,9 +22,18 @@ interface Props {
   hasPhoto: boolean
   verifiedBy: string | null
   readOnly: boolean
+  /**
+   * Which photo this panel is for. A loan holds up to two: the pledge photo
+   * from when it was created, and the collection photo from when it was
+   * closed. Defaults to pledge, which is what the detail page has always
+   * shown.
+   */
+  stage?: PhotoStage
 }
 
-export function LoanPhoto({ loanId, hasPhoto, verifiedBy, readOnly }: Props) {
+export function LoanPhoto({
+  loanId, hasPhoto, verifiedBy, readOnly, stage = 'pledge',
+}: Props) {
   const router = useRouter()
   const { online, queueWrite } = useOffline()
   const [capturing, setCapturing] = useState(false)
@@ -43,7 +53,7 @@ export function LoanPhoto({ loanId, hasPhoto, verifiedBy, readOnly }: Props) {
         // now; asking them to come back when the internet works is not an
         // option. Compressed first so the queue holds ~250KB, not 4MB.
         if (!online) {
-          await queueWrite('photo', { loan_id: loanId }, compressed)
+          await queueWrite('photo', { loan_id: loanId, stage }, compressed)
           // Show it locally so the shop can see the capture worked.
           setQueuedPhoto(URL.createObjectURL(compressed))
           toast.success('Photo saved on this device — it will upload when you are back online',
@@ -52,7 +62,7 @@ export function LoanPhoto({ loanId, hasPhoto, verifiedBy, readOnly }: Props) {
           return
         }
 
-        await uploadLoanPhoto(loanId, compressed)
+        await uploadLoanPhoto(loanId, compressed, stage)
         toast.success('Photo saved')
         setCapturing(false)
         setQueuedPhoto(null)
@@ -66,7 +76,7 @@ export function LoanPhoto({ loanId, hasPhoto, verifiedBy, readOnly }: Props) {
 
   const onDelete = () => startTransition(async () => {
     try {
-      await deleteLoanPhoto(loanId)
+      await deleteLoanPhoto(loanId, stage)
       toast.success('Photo removed')
       setVersion(v => v + 1)
       router.refresh()
@@ -99,7 +109,7 @@ export function LoanPhoto({ loanId, hasPhoto, verifiedBy, readOnly }: Props) {
         ) : hasPhoto ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={`${photoUrl(loanId)}?v=${version}`}
+            src={`${photoUrl(loanId, stage)}&v=${version}`}
             alt="Customer identity photo"
             className="w-full h-full object-cover"
           />

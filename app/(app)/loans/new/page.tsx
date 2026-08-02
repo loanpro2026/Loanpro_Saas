@@ -93,7 +93,9 @@ export default function NewLoanPage() {
       // The loan is saved either way — a failed photo upload must not lose it.
       if (photoFile) {
         try {
-          await uploadLoanPhoto(loanId, await compressImage(photoFile))
+          // Explicit rather than relying on the default: this is the photo of
+          // whoever handed the item over.
+          await uploadLoanPhoto(loanId, await compressImage(photoFile), 'pledge')
         } catch (photoErr: any) {
           toast.error(`Loan saved, but the photo did not upload: ${photoErr.message}`)
         }

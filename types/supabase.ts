@@ -483,6 +483,7 @@ export type Database = {
           mime_type: string | null
           archived: boolean
           archived_at: string | null
+          stage: 'pledge' | 'collection'
         }
         Insert: {
           loan_id: number
@@ -498,6 +499,7 @@ export type Database = {
           mime_type?: string | null
           archived?: boolean
           archived_at?: string | null
+          stage?: 'pledge' | 'collection'
         }
         Update: {
           loan_id?: number
@@ -513,6 +515,7 @@ export type Database = {
           mime_type?: string | null
           archived?: boolean
           archived_at?: string | null
+          stage?: 'pledge' | 'collection'
         }
         Relationships: [
           {
@@ -996,6 +999,7 @@ export type Database = {
           trial_ends_at: string | null
           created_at: string
           updated_at: string
+          storage_bytes: number
         }
         Insert: {
           id?: string
@@ -1006,6 +1010,7 @@ export type Database = {
           trial_ends_at?: string | null
           created_at?: string
           updated_at?: string
+          storage_bytes?: number
         }
         Update: {
           id?: string
@@ -1016,6 +1021,7 @@ export type Database = {
           trial_ends_at?: string | null
           created_at?: string
           updated_at?: string
+          storage_bytes?: number
         }
         Relationships: []
       }
@@ -1202,6 +1208,10 @@ export type Database = {
         Args: Record<string, never>
         Returns: string
       }
+      has_photo: {
+        Args: { p_loan_id?: number | null; p_stage?: string | null }
+        Returns: boolean
+      }
       inventory_report: {
         Args: Record<string, never>
         Returns: { category_type: string | null; item_type: string | null; item_count: number | null; total_amount: number | null; total_weight: number | null }[]
@@ -1229,6 +1239,10 @@ export type Database = {
       loan_detail: {
         Args: { p_loan_id?: number | null }
         Returns: Json
+      }
+      loan_photos_storage_delta: {
+        Args: Record<string, never>
+        Returns: unknown
       }
       loans_missing_photo: {
         Args: Record<string, never>
@@ -1262,6 +1276,10 @@ export type Database = {
         Args: { p_stage?: string | null }
         Returns: boolean
       }
+      plan_storage_limit: {
+        Args: { p_plan?: string | null }
+        Returns: number
+      }
       provision_tenant: {
         Args: { p_shop_name?: string | null; p_full_name?: string | null }
         Returns: string
@@ -1281,6 +1299,10 @@ export type Database = {
       recalculate_my_cash_summary: {
         Args: { p_from_date?: string | null }
         Returns: undefined
+      }
+      recalculate_storage_bytes: {
+        Args: { p_tenant?: string | null }
+        Returns: { t_id: string | null; bytes_before: number | null; bytes_after: number | null }[]
       }
       record_cash_idem: {
         Args: { p_type?: string | null; p_amount?: number | null; p_reason?: string | null; p_date?: string | null; p_key?: string | null }

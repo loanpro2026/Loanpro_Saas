@@ -52,11 +52,23 @@ export function r2(): S3Client {
 // Tenant id is the first path segment so that a whole shop's photos can be
 // listed or deleted with a single prefix operation.
 //
-//   {tenant_id}/loans/{loan_id}/{uuid}.jpg      identity photo on a loan
-//   {tenant_id}/camera/{session_id}.jpg         transient capture-session photo
+//   {tenant_id}/loans/{loan_id}/{stage}/{uuid}.jpg   identity photo on a loan
+//   {tenant_id}/camera/{session_id}.jpg              transient capture-session photo
+//
+// The stage segment is what makes a closed loan's folder self-describing: you
+// can see at a glance whether an object is the pledge photo or the collection
+// photo without joining back to the database.
 
-export function loanPhotoKey(tenantId: string, loanId: number | string, ext = 'jpg') {
-  return `${tenantId}/loans/${loanId}/${crypto.randomUUID()}.${ext}`
+/** pledge = taken at creation, collection = taken at closing. */
+export type PhotoStage = 'pledge' | 'collection'
+
+export function loanPhotoKey(
+  tenantId: string,
+  loanId: number | string,
+  stage: PhotoStage = 'pledge',
+  ext = 'jpg'
+) {
+  return `${tenantId}/loans/${loanId}/${stage}/${crypto.randomUUID()}.${ext}`
 }
 
 export function cameraSessionKey(tenantId: string, sessionId: string, ext = 'jpg') {

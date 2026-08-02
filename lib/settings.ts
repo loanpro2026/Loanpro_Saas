@@ -26,8 +26,20 @@ export interface ShopSettings {
   identity_verification_enabled: boolean
   identity_mandatory_at_creation: boolean
   identity_mandatory_at_closure: boolean
-  identity_allow_mobile_capture: boolean
   identity_allow_multiple_mobile_devices: boolean
+
+  /**
+   * Where the identity photo is taken.
+   *
+   *   webcam  the machine running the app (no pairing, works on day one)
+   *   phone   a paired phone via the camera relay
+   *   off     no identity photos at all — record fields only
+   *
+   * Replaces the old identity_allow_mobile_capture boolean. As two booleans,
+   * "verification on" plus "mobile capture off" described a shop that requires
+   * a photo it has no way to take.
+   */
+  photo_capture_mode: 'webcam' | 'phone' | 'off'
 
   // Optional fields on the add-record form. Both OFF by default, as on the
   // desktop — most shops do not collect an address for a pawn loan.
@@ -53,8 +65,9 @@ export const DEFAULT_SETTINGS: ShopSettings = {
   identity_verification_enabled: true,
   identity_mandatory_at_creation: true,
   identity_mandatory_at_closure: true,
-  identity_allow_mobile_capture: false,
   identity_allow_multiple_mobile_devices: false,
+
+  photo_capture_mode: 'webcam',
 
   add_record_address_field_enabled: false,
   add_record_additional_information_field_enabled: false,

@@ -11,7 +11,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getSessionContext } from '@/lib/tenant'
-import { keyBelongsToTenant, objectExists, deleteObject, MAX_PHOTO_BYTES } from '@/lib/r2'
+import { keyBelongsToTenant, objectExists, deleteObject, MAX_PHOTO_BYTES, type PhotoStage } from '@/lib/r2'
 
 export async function POST(req: Request) {
   const ctx = await getSessionContext()
@@ -22,6 +22,7 @@ export async function POST(req: Request) {
   const key: string = body?.key ?? ''
   const byteSize = Number(body?.byte_size ?? 0)
   const mimeType: string = body?.mime_type || 'image/jpeg'
+  const stage: PhotoStage = body?.stage === 'collection' ? 'collection' : 'pledge'
 
   if (!Number.isInteger(loanId) || loanId <= 0 || !key) {
     return NextResponse.json({ error: 'loan_id and key are required' }, { status: 400 })
@@ -43,10 +44,13 @@ export async function POST(req: Request) {
   const supabase = await createClient()
 
   // Replacing an existing photo — remember the old key so we can clean it up.
+  // Scoped to the stage: without it, uploading a collection photo would look
+  // up the pledge photo's key and delete it below as "the old one".
   const { data: existing } = await supabase
     .from('loan_photos')
     .select('r2_key')
     .eq('loan_id', loanId)
+    .eq('stage', stage)
     .maybeSingle()
 
   const { error } = await supabase
@@ -54,11 +58,12 @@ export async function POST(req: Request) {
     .upsert({
       loan_id:     loanId,
       tenant_id:   ctx.tenantId,
+      stage,
       r2_key:      key,
       byte_size:   byteSize,
       mime_type:   mimeType,
       captured_at: new Date().toISOString(),
-    }, { onConflict: 'loan_id' })
+    }, { onConflict: 'loan_id,stage' })
 
   if (error) {
     // The row did not save, so the uploaded object is now an orphan.

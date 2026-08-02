@@ -70,18 +70,39 @@ export function IdentitySettings({ settings }: { settings: ShopSettings }) {
             disabled={pending || !idOn}
             onChange={v => save('identity_mandatory_at_closure', v)}
           />
-          <Toggle
-            label="Allow capture from a paired phone"
-            description="Send a capture request to a phone instead of using the camera on this device."
-            checked={local.identity_allow_mobile_capture}
-            disabled={pending || !idOn}
-            onChange={v => save('identity_allow_mobile_capture', v)}
-          />
+          {/* One three-way choice rather than two booleans. The old pair could
+              express "a photo is required" together with "there is no way to
+              take one", which the settings screen happily allowed. */}
+          <div className="space-y-1.5">
+            <label htmlFor="photo_capture_mode" className="label">
+              Where photos are taken
+            </label>
+            <Select
+              id="photo_capture_mode"
+              value={local.photo_capture_mode}
+              disabled={pending || !idOn}
+              onChange={e =>
+                save('photo_capture_mode', e.target.value as ShopSettings['photo_capture_mode'])
+              }
+            >
+              <option value="webcam">Camera on this computer</option>
+              <option value="phone">Paired phone</option>
+              <option value="off">Do not capture photos</option>
+            </Select>
+            <p className="text-xs text-slate-500">
+              {local.photo_capture_mode === 'webcam'
+                ? 'Uses the webcam on the machine you are working at. Nothing to set up.'
+                : local.photo_capture_mode === 'phone'
+                ? 'Sends a capture request to a paired phone. Better photos, but the phone must be paired first.'
+                : 'Loans are saved with their details only. The two requirements above are ignored while this is off.'}
+            </p>
+          </div>
+
           <Toggle
             label="Allow more than one paired phone"
             description="Useful if two people work the counter."
             checked={local.identity_allow_multiple_mobile_devices}
-            disabled={pending || !idOn || !local.identity_allow_mobile_capture}
+            disabled={pending || !idOn || local.photo_capture_mode !== 'phone'}
             onChange={v => save('identity_allow_multiple_mobile_devices', v)}
           />
         </div>

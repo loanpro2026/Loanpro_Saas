@@ -9,12 +9,25 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getSessionContext } from '@/lib/tenant'
-import { presignDownload, deleteObject, keyBelongsToTenant } from '@/lib/r2'
+import { presignDownload, deleteObject, keyBelongsToTenant, type PhotoStage } from '@/lib/r2'
+
+/**
+ * Which photo the caller means.
+ *
+ * Defaults to `pledge` on GET so an old link keeps resolving, but DELETE
+ * demands it explicitly — see the note there.
+ */
+function stageFrom(req: Request, fallback: PhotoStage | null): PhotoStage | null {
+  const raw = new URL(req.url).searchParams.get('stage')
+  if (raw === 'pledge' || raw === 'collection') return raw
+  return raw ? null : fallback
+}
+
 
 const SIGNED_URL_TTL = 300 // 5 minutes
 
 export async function GET(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ loanId: string }> }
 ) {
   const ctx = await getSessionContext()
@@ -28,10 +41,14 @@ export async function GET(
 
   // RLS scopes this to the caller's tenant.
   const supabase = await createClient()
+  const stage = stageFrom(req, 'pledge')
+  if (!stage) return NextResponse.json({ error: 'Unknown stage' }, { status: 400 })
+
   const { data: photo } = await supabase
     .from('loan_photos')
     .select('r2_key')
     .eq('loan_id', id)
+    .eq('stage', stage)
     .maybeSingle()
 
   if (!photo?.r2_key) {
@@ -54,7 +71,7 @@ export async function GET(
 }
 
 export async function DELETE(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ loanId: string }> }
 ) {
   const ctx = await getSessionContext()
@@ -66,11 +83,22 @@ export async function DELETE(
     return NextResponse.json({ error: 'Invalid loan id' }, { status: 400 })
   }
 
+  // No default here. Falling back to `pledge` would mean a caller that forgot
+  // the parameter deletes the record of who handed the item over — the photo
+  // you are least able to recreate.
+  const stage = stageFrom(req, null)
+  if (!stage) {
+    return NextResponse.json(
+      { error: 'stage is required: pledge or collection' }, { status: 400 }
+    )
+  }
+
   const supabase = await createClient()
   const { data: photo } = await supabase
     .from('loan_photos')
     .select('r2_key')
     .eq('loan_id', id)
+    .eq('stage', stage)
     .maybeSingle()
 
   if (!photo) return NextResponse.json({ success: true })
@@ -78,7 +106,8 @@ export async function DELETE(
   // Delete the row first. If the object delete fails afterwards we leak an
   // object, which a sweep can reclaim; the reverse order would leave a row
   // pointing at nothing, which the UI cannot recover from.
-  const { error } = await supabase.from('loan_photos').delete().eq('loan_id', id)
+  const { error } = await supabase
+    .from('loan_photos').delete().eq('loan_id', id).eq('stage', stage)
   if (error) return NextResponse.json({ error: 'Could not delete photo' }, { status: 500 })
 
   if (photo.r2_key && keyBelongsToTenant(photo.r2_key, ctx.tenantId)) {

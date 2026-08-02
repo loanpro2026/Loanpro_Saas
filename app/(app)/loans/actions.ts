@@ -135,18 +135,25 @@ export async function deleteLoan(loanId: number): Promise<ActionResult> {
     .from('loans').select('id, issue_date, name').eq('id', loanId).single()
   if (!loan) return fail('Loan not found')
 
-  // The photo's R2 object outlives the row unless we remove it here — the
-  // database cascade knows nothing about object storage.
-  const { data: photo } = await supabase
-    .from('loan_photos').select('r2_key').eq('loan_id', loanId).maybeSingle()
+  // The R2 objects outlive the rows unless we remove them here — the database
+  // cascade knows nothing about object storage.
+  //
+  // Plural since migration 019: a loan can hold a pledge photo and a
+  // collection photo. maybeSingle() would have thrown on a closed loan that
+  // had both, aborting the delete for the one case where cleanup matters most.
+  const { data: photos } = await supabase
+    .from('loan_photos').select('r2_key').eq('loan_id', loanId)
 
   const { error } = await supabase.from('loans').delete().eq('id', loanId)
   if (error) return fail(friendlyError(error))
 
-  if (photo?.r2_key) {
+  if (photos?.length) {
     const { deleteObject } = await import('@/lib/r2')
-    await deleteObject(photo.r2_key).catch(e =>
-      console.error('[deleteLoan] orphaned R2 object', photo.r2_key, e))
+    for (const p of photos) {
+      if (!p.r2_key) continue
+      await deleteObject(p.r2_key).catch(e =>
+        console.error('[deleteLoan] orphaned R2 object', p.r2_key, e))
+    }
   }
 
   await supabase.from('activity_log').insert({

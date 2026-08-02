@@ -57,6 +57,9 @@
   "p_field"
  ],
  "get_tenant_id": [],
+ "has_photo": [
+  "p_loan_id"
+ ],
  "inventory_report": [],
  "investment_report": [],
  "invite_staff": [
@@ -70,6 +73,7 @@
  "loan_detail": [
   "p_loan_id"
  ],
+ "loan_photos_storage_delta": [],
  "loans_missing_photo": [],
  "location_report": [],
  "my_plan": [],
@@ -81,6 +85,9 @@
  "offline_snapshot": [],
  "photo_required": [
   "p_stage"
+ ],
+ "plan_storage_limit": [
+  "p_plan"
  ],
  "provision_tenant": [
   "p_shop_name",
@@ -95,6 +102,7 @@
  "recalculate_my_cash_summary": [
   "p_from_date"
  ],
+ "recalculate_storage_bytes": [],
  "record_cash_idem": [
   "p_type",
   "p_amount",

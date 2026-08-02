@@ -32,8 +32,21 @@ export interface LoanDetailPayload {
   deposits: Row<'deposits'>[]
   /** Deposits moved aside when the loan was closed. Also never null. */
   archived_deposits: Row<'closed_record_deposits'>[]
-  /** `to_jsonb` of the loan_photos row, or null when no photo was captured. */
+  /**
+   * The pledge photo. Retained under its old name so existing callers keep
+   * working; prefer `photos` below.
+   */
   photo: Row<'loan_photos'> | null
+
+  /**
+   * Both stages, keyed rather than in an array so a caller can ask for the one
+   * it wants. Either may be null: an active loan has no collection photo, and
+   * a loan saved while the requirement was off has no pledge photo.
+   */
+  photos: {
+    pledge: Row<'loan_photos'> | null
+    collection: Row<'loan_photos'> | null
+  }
   total_deposits: number
   days_held: number
   /**

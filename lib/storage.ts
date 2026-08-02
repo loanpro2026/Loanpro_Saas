@@ -1,3 +1,4 @@
+import type { PhotoStage } from '@/lib/r2'
 /**
  * Photo storage — client-side helpers.
  *
@@ -20,11 +21,11 @@ export interface UploadedPhoto {
 }
 
 /** Ask the server for a presigned upload URL scoped to this loan. */
-async function requestUploadUrl(loanId: number, contentType: string) {
+async function requestUploadUrl(loanId: number, contentType: string, stage: PhotoStage) {
   const res = await fetch('/api/photos/upload-url', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ loan_id: loanId, content_type: contentType }),
+    body: JSON.stringify({ loan_id: loanId, content_type: contentType, stage }),
   })
   if (!res.ok) {
     throw new Error((await res.json().catch(() => ({}))).error || 'Could not start upload')
@@ -41,10 +42,15 @@ async function requestUploadUrl(loanId: number, contentType: string) {
  */
 export async function uploadLoanPhoto(
   loanId: number,
-  file: File | Blob
+  file: File | Blob,
+  /**
+   * Which photo this is. A loan holds at most one of each, so uploading a
+   * second `pledge` replaces the first rather than accumulating.
+   */
+  stage: PhotoStage = 'pledge'
 ): Promise<UploadedPhoto> {
   const mimeType = file.type || 'image/jpeg'
-  const { key, uploadUrl } = await requestUploadUrl(loanId, mimeType)
+  const { key, uploadUrl } = await requestUploadUrl(loanId, mimeType, stage)
 
   const put = await fetch(uploadUrl, {
     method: 'PUT',
@@ -59,6 +65,7 @@ export async function uploadLoanPhoto(
     body: JSON.stringify({
       loan_id: loanId,
       key,
+      stage,
       byte_size: file.size,
       mime_type: mimeType,
     }),
@@ -77,12 +84,19 @@ export async function uploadLoanPhoto(
  * photo belongs to the caller's tenant, then redirects to a 5-minute presigned
  * URL. Safe to drop straight into <img src>.
  */
-export function photoUrl(loanId: number): string {
-  return `/api/photos/${loanId}`
+export function photoUrl(loanId: number, stage: PhotoStage = 'pledge'): string {
+  return `/api/photos/${loanId}?stage=${stage}`
 }
 
-export async function deleteLoanPhoto(loanId: number): Promise<void> {
-  const res = await fetch(`/api/photos/${loanId}`, { method: 'DELETE' })
+/**
+ * Delete one stage's photo.
+ *
+ * The stage is required rather than defaulted, deliberately. A caller that
+ * forgets it would silently remove the pledge photo — the record of who handed
+ * the item over, and the one you are least able to recreate.
+ */
+export async function deleteLoanPhoto(loanId: number, stage: PhotoStage): Promise<void> {
+  const res = await fetch(`/api/photos/${loanId}?stage=${stage}`, { method: 'DELETE' })
   if (!res.ok) throw new Error('Could not delete photo')
 }
 

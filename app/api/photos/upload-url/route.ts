@@ -11,7 +11,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getSessionContext } from '@/lib/tenant'
-import { presignUpload, loanPhotoKey, ALLOWED_MIME, type AllowedMime } from '@/lib/r2'
+import { presignUpload, loanPhotoKey, ALLOWED_MIME, type AllowedMime, type PhotoStage } from '@/lib/r2'
 
 const EXT: Record<AllowedMime, string> = {
   'image/jpeg': 'jpg',
@@ -26,6 +26,7 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => null)
   const loanId = Number(body?.loan_id)
   const contentType = (body?.content_type || 'image/jpeg') as AllowedMime
+  const stage: PhotoStage = body?.stage === 'collection' ? 'collection' : 'pledge'
 
   if (!Number.isInteger(loanId) || loanId <= 0) {
     return NextResponse.json({ error: 'loan_id is required' }, { status: 400 })
@@ -48,7 +49,7 @@ export async function POST(req: Request) {
 
   if (!loan) return NextResponse.json({ error: 'Loan not found' }, { status: 404 })
 
-  const key = loanPhotoKey(ctx.tenantId, loanId, EXT[contentType])
+  const key = loanPhotoKey(ctx.tenantId, loanId, stage, EXT[contentType])
 
   try {
     const uploadUrl = await presignUpload(key, contentType)

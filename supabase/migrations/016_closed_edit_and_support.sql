@@ -172,6 +172,7 @@ CREATE POLICY "messages_insert" ON support_messages
   FOR INSERT TO authenticated
   WITH CHECK (tenant_id = get_tenant_id() AND from_staff = false);
 
+DROP TRIGGER IF EXISTS set_updated_at_tickets ON support_tickets;
 CREATE TRIGGER set_updated_at_tickets
   BEFORE UPDATE ON support_tickets
   FOR EACH ROW EXECUTE FUNCTION trigger_set_updated_at();

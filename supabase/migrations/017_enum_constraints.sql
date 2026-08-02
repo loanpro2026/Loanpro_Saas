@@ -70,22 +70,33 @@ BEGIN
 END $$;
 
 
+-- DROP IF EXISTS before each ADD, so this migration can be run twice.
+-- `ADD CONSTRAINT` has no IF NOT EXISTS form, and a half-applied migration you
+-- cannot safely re-run is worse than a redundant drop: the constraints are
+-- identical each time, and dropping one for the microseconds before it is
+-- recreated inside the same transaction changes nothing anyone can observe.
+
+ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
 ALTER TABLE users
   ADD CONSTRAINT users_role_check
   CHECK (role IN ('owner', 'staff'));
 
+ALTER TABLE tenants DROP CONSTRAINT IF EXISTS tenants_plan_check;
 ALTER TABLE tenants
   ADD CONSTRAINT tenants_plan_check
   CHECK (plan IN ('trial', 'basic', 'pro'));
 
+ALTER TABLE tenants DROP CONSTRAINT IF EXISTS tenants_plan_status_check;
 ALTER TABLE tenants
   ADD CONSTRAINT tenants_plan_status_check
   CHECK (plan_status IN ('active', 'expired', 'cancelled'));
 
+ALTER TABLE subscriptions DROP CONSTRAINT IF EXISTS subscriptions_plan_check;
 ALTER TABLE subscriptions
   ADD CONSTRAINT subscriptions_plan_check
   CHECK (plan IN ('trial', 'basic', 'pro'));
 
+ALTER TABLE subscriptions DROP CONSTRAINT IF EXISTS subscriptions_status_check;
 ALTER TABLE subscriptions
   ADD CONSTRAINT subscriptions_status_check
   CHECK (status IN ('pending', 'active', 'expired', 'cancelled', 'failed'));

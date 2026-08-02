@@ -299,26 +299,32 @@ BEGIN
 END;
 $$;
 
+DROP TRIGGER IF EXISTS set_updated_at_tenants ON tenants;
 CREATE TRIGGER set_updated_at_tenants
   BEFORE UPDATE ON tenants
   FOR EACH ROW EXECUTE FUNCTION trigger_set_updated_at();
 
+DROP TRIGGER IF EXISTS set_updated_at_subscriptions ON subscriptions;
 CREATE TRIGGER set_updated_at_subscriptions
   BEFORE UPDATE ON subscriptions
   FOR EACH ROW EXECUTE FUNCTION trigger_set_updated_at();
 
+DROP TRIGGER IF EXISTS set_updated_at_users ON users;
 CREATE TRIGGER set_updated_at_users
   BEFORE UPDATE ON users
   FOR EACH ROW EXECUTE FUNCTION trigger_set_updated_at();
 
+DROP TRIGGER IF EXISTS set_updated_at_loans ON loans;
 CREATE TRIGGER set_updated_at_loans
   BEFORE UPDATE ON loans
   FOR EACH ROW EXECUTE FUNCTION trigger_set_updated_at();
 
+DROP TRIGGER IF EXISTS set_updated_at_loan_photos ON loan_photos;
 CREATE TRIGGER set_updated_at_loan_photos
   BEFORE UPDATE ON loan_photos
   FOR EACH ROW EXECUTE FUNCTION trigger_set_updated_at();
 
+DROP TRIGGER IF EXISTS set_updated_at_cash_summary ON daily_cash_summary;
 CREATE TRIGGER set_updated_at_cash_summary
   BEFORE UPDATE ON daily_cash_summary
   FOR EACH ROW EXECUTE FUNCTION trigger_set_updated_at();

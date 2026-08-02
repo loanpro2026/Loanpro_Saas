@@ -133,6 +133,40 @@ for (const file of files) {
   })
 }
 
+// ── Migrations must be re-runnable ──────────────────────────────────────────
+//
+// A migration that fails halfway leaves you unable to run it again, which is
+// exactly when you most need to. `ADD CONSTRAINT` and `CREATE TRIGGER` have no
+// IF NOT EXISTS form, so they need an explicit DROP ... IF EXISTS first.
+//
+// Migration 017 shipped without one and failed on its second run with
+// "constraint users_role_check for relation users already exists".
+for (const file of files) {
+  const rel = path.relative(path.resolve(__dirname, '..'), file).replace(/\\/g, '/')
+  if (!rel.includes('migrations/')) continue
+  const src = fs.readFileSync(file, 'utf8')
+  const lines = src.split('\n')
+
+  lines.forEach((line, i) => {
+    if (line.trim().startsWith('--')) return
+
+    const con = line.match(/ADD\s+CONSTRAINT\s+([a-z_0-9]+)/i)
+    if (con && !new RegExp(`DROP\\s+CONSTRAINT\\s+IF\\s+EXISTS\\s+${con[1]}\\b`, 'i').test(src)) {
+      problems++
+      console.log(`\n\x1b[31m✗ ADD CONSTRAINT without a DROP ... IF EXISTS\x1b[0m  ${rel}:${i + 1}`)
+      console.log(`     ${con[1]}`)
+      console.log(`     Add first:  ALTER TABLE <t> DROP CONSTRAINT IF EXISTS ${con[1]};`)
+    }
+
+    const trg = line.match(/^\s*CREATE\s+TRIGGER\s+([a-z_0-9]+)/i)
+    if (trg && !new RegExp(`DROP\\s+TRIGGER\\s+IF\\s+EXISTS\\s+${trg[1]}\\b`, 'i').test(src)) {
+      problems++
+      console.log(`\n\x1b[31m✗ CREATE TRIGGER without a DROP ... IF EXISTS\x1b[0m  ${rel}:${i + 1}`)
+      console.log(`     ${trg[1]}`)
+    }
+  })
+}
+
 // ── Migrations must be numbered contiguously ────────────────────────────────
 // A gap usually means a file was renamed and something now runs out of order.
 const migrations = fs.readdirSync(path.join(DIR, 'migrations'))

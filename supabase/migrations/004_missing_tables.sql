@@ -229,14 +229,17 @@ CREATE POLICY "migration_jobs_select" ON migration_jobs
 -- ============================================================
 -- updated_at triggers
 -- ============================================================
+DROP TRIGGER IF EXISTS set_updated_at_closed_record_deposits ON closed_record_deposits;
 CREATE TRIGGER set_updated_at_closed_record_deposits
   BEFORE UPDATE ON closed_record_deposits
   FOR EACH ROW EXECUTE FUNCTION trigger_set_updated_at();
 
+DROP TRIGGER IF EXISTS set_updated_at_app_state ON app_state;
 CREATE TRIGGER set_updated_at_app_state
   BEFORE UPDATE ON app_state
   FOR EACH ROW EXECUTE FUNCTION trigger_set_updated_at();
 
+DROP TRIGGER IF EXISTS set_updated_at_tenant_settings ON tenant_settings;
 CREATE TRIGGER set_updated_at_tenant_settings
   BEFORE UPDATE ON tenant_settings
   FOR EACH ROW EXECUTE FUNCTION trigger_set_updated_at();

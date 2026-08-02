@@ -1,16 +1,8 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, FileText, ArrowDownCircle, Wallet, BarChart2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-
-const NAV = [
-  { href: '/dashboard', label: 'Home',     icon: LayoutDashboard },
-  { href: '/loans',     label: 'Loans',    icon: FileText        },
-  { href: '/deposits',  label: 'Deposits', icon: ArrowDownCircle },
-  { href: '/cash',      label: 'Cash',     icon: Wallet          },
-  { href: '/reports',   label: 'Reports',  icon: BarChart2       },
-]
+import { MOBILE_NAV as NAV, isActive } from '@/lib/nav'
 
 export function BottomNav() {
   const pathname = usePathname()
@@ -21,7 +13,7 @@ export function BottomNav() {
       aria-label="Mobile navigation"
     >
       {NAV.map(({ href, label, icon: Icon }) => {
-        const active = pathname === href || pathname.startsWith(href + '/')
+        const active = isActive(pathname, href)
         return (
           <Link
             key={href}

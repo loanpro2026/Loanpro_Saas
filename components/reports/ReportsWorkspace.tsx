@@ -25,13 +25,31 @@ import { AccountReport } from './AccountReport'
 import { LocationReport } from './LocationReport'
 import { InventoryReport } from './InventoryReport'
 
-export function ReportsWorkspace({ shopName = 'LoanPro' }: { shopName?: string }) {
-  const [key, setKey] = useState<ReportKey>('daily')
+type AccountType = 'Investment' | 'Returns' | 'Interest'
+
+export function ReportsWorkspace({
+  shopName = 'LoanPro',
+  /**
+   * Which report to open on. The desktop reaches Investment, Returns and
+   * Interest as three separate menu items, so /view-accounts/investment has to
+   * land on that report rather than on the daily book with a picker to change.
+   */
+  initialKey = 'daily',
+  initialAccountType = 'Investment',
+  /** Hide the report picker when the page already IS one report. */
+  lockToInitial = false,
+}: {
+  shopName?: string
+  initialKey?: ReportKey
+  initialAccountType?: AccountType
+  lockToInitial?: boolean
+}) {
+  const [key, setKey] = useState<ReportKey>(initialKey)
   const [printing, setPrinting] = useState(false)
   const [date, setDate] = useState(todayIST())
   const [start, setStart] = useState(daysAgoIST(30))
   const [end, setEnd] = useState(todayIST())
-  const [accountType, setAccountType] = useState<'Investment' | 'Returns' | 'Interest'>('Investment')
+  const [accountType, setAccountType] = useState<AccountType>(initialAccountType)
 
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(false)
@@ -140,8 +158,10 @@ export function ReportsWorkspace({ shopName = 'LoanPro' }: { shopName?: string }
 
   return (
     <div className="space-y-5">
-      {/* Report picker */}
-      <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+      {/* Report picker. Hidden when the page is already one specific report —
+          /view-accounts/investment showing a row of buttons to switch to the
+          daily book would just be a second, competing navigation. */}
+      <div className={cn('flex gap-2 overflow-x-auto pb-1 -mx-1 px-1', lockToInitial && 'hidden')}>
         {REPORTS.map(r => (
           <button
             key={r.key}

@@ -32,9 +32,20 @@ interface Ticket {
   awaiting_you: boolean
 }
 
-export function HelpWorkspace({ tickets }: { tickets: Ticket[] }) {
+export function HelpWorkspace({
+  tickets,
+  /**
+   * The desktop has Help and Support Tickets as two menu items, so
+   * /help/support-tickets opens straight on the messages rather than on the
+   * guide with a tab to find.
+   */
+  initialTab = 'guide',
+}: {
+  tickets: Ticket[]
+  initialTab?: 'guide' | 'tickets'
+}) {
   const router = useRouter()
-  const [tab, setTab] = useState<'guide' | 'tickets'>('guide')
+  const [tab, setTab] = useState<'guide' | 'tickets'>(initialTab)
   const [openArticle, setOpenArticle] = useState<string | null>(null)
   const [raising, setRaising] = useState(false)
   const [pending, startTransition] = useTransition()

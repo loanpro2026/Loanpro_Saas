@@ -1,24 +1,24 @@
 'use client'
+/**
+ * The sidebar, matching the desktop app's structure.
+ *
+ * Groups (View Records, View Accounts, Help & Support) expand in place rather
+ * than flying out on hover as they do on the desktop. A hover flyout depends on
+ * a mouse; this app is used on laptops at a counter and on phones, and a menu
+ * that only opens on hover is unreachable on the second.
+ *
+ * A group is open when the current page is inside it, and can be toggled
+ * otherwise — so landing on /view-records/closed shows you where you are
+ * without a click.
+ */
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import {
-  LayoutDashboard, FileText, ArrowDownCircle,
-  Wallet, BarChart2, Settings, LogOut,
-  ChevronRight, ClipboardCheck, LifeBuoy
-} from 'lucide-react'
+import { usePathname, useRouter } from 'next/navigation'
+import { useState } from 'react'
+import { ChevronRight, ChevronDown, LogOut } from 'lucide-react'
 import { cn, getInitials } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
+import { NAV, isGroup, isActive, type NavLeaf } from '@/lib/nav'
 import type { Tenant, AppUser } from '@/types'
-
-const NAV = [
-  { href: '/dashboard',  label: 'Dashboard',  icon: LayoutDashboard },
-  { href: '/loans',      label: 'Loans',       icon: FileText        },
-  { href: '/deposits',   label: 'Deposits',    icon: ArrowDownCircle },
-  { href: '/cash',       label: 'Cash',        icon: Wallet          },
-  { href: '/day-end',    label: 'End of day', icon: ClipboardCheck },
-  { href: '/reports',    label: 'Reports',     icon: BarChart2       },
-]
 
 interface SidebarProps {
   tenant: Tenant
@@ -29,15 +29,44 @@ export function Sidebar({ tenant, user }: SidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
 
+  // Groups the user has opened by hand. A group containing the current page is
+  // always open regardless.
+  const [opened, setOpened] = useState<Record<string, boolean>>({})
+
   const handleSignOut = async () => {
     const supabase = createClient()
     await supabase.auth.signOut()
     router.push('/login')
   }
 
+  const leafClass = (active: boolean, nested = false) =>
+    cn(
+      'flex items-center gap-3 rounded-xl text-sm font-medium transition-all duration-150',
+      nested ? 'px-3 py-2 ml-3' : 'px-3 py-2.5',
+      active
+        ? 'bg-primary-700 text-white'
+        : 'text-primary-300 hover:bg-primary-800/60 hover:text-white'
+    )
+
+  const Leaf = ({ item, nested }: { item: NavLeaf; nested?: boolean }) => {
+    const active = isActive(pathname, item.href)
+    const Icon = item.icon
+    return (
+      <Link
+        href={item.href}
+        className={leafClass(active, nested)}
+        aria-current={active ? 'page' : undefined}
+      >
+        <Icon className="h-4 w-4 flex-shrink-0" />
+        <span className="flex-1 truncate">{item.label}</span>
+        {active && !nested && <ChevronRight className="h-3.5 w-3.5 opacity-50" />}
+      </Link>
+    )
+  }
+
   return (
     <aside className="hidden lg:flex flex-col w-64 min-h-screen bg-primary-950 text-white border-r border-primary-900">
-      {/* Logo */}
+      {/* Shop */}
       <div className="px-6 py-5 border-b border-primary-900">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-gold-500 flex items-center justify-center flex-shrink-0">
@@ -50,57 +79,45 @@ export function Sidebar({ tenant, user }: SidebarProps) {
         </div>
       </div>
 
-      {/* Nav */}
-      <nav className="flex-1 px-3 py-4 space-y-0.5" aria-label="Main navigation">
-        {NAV.map(({ href, label, icon: Icon }) => {
-          const active = pathname === href || pathname.startsWith(href + '/')
+      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto" aria-label="Main navigation">
+        {NAV.map(entry => {
+          if (!isGroup(entry)) return <Leaf key={entry.href} item={entry} />
+
+          const inside = pathname.startsWith(entry.match)
+          const open = inside || !!opened[entry.label]
+          const Icon = entry.icon
+
           return (
-            <Link
-              key={href}
-              href={href}
-              className={cn(
-                'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150',
-                active
-                  ? 'bg-primary-700 text-white'
-                  : 'text-primary-300 hover:bg-primary-800/60 hover:text-white'
+            <div key={entry.label}>
+              <button
+                type="button"
+                onClick={() => setOpened(o => ({ ...o, [entry.label]: !open }))}
+                aria-expanded={open}
+                className={cn(
+                  'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150',
+                  inside
+                    ? 'text-white'
+                    : 'text-primary-300 hover:bg-primary-800/60 hover:text-white'
+                )}
+              >
+                <Icon className="h-4 w-4 flex-shrink-0" />
+                <span className="flex-1 text-left truncate">{entry.label}</span>
+                {open
+                  ? <ChevronDown className="h-3.5 w-3.5 opacity-60" />
+                  : <ChevronRight className="h-3.5 w-3.5 opacity-60" />}
+              </button>
+
+              {open && (
+                <div className="mt-0.5 space-y-0.5">
+                  {entry.children.map(child => (
+                    <Leaf key={child.href} item={child} nested />
+                  ))}
+                </div>
               )}
-              aria-current={active ? 'page' : undefined}
-            >
-              <Icon className="h-4 w-4 flex-shrink-0" />
-              {label}
-              {active && <ChevronRight className="h-3.5 w-3.5 ml-auto opacity-50" />}
-            </Link>
+            </div>
           )
         })}
       </nav>
-
-      {/* Bottom links */}
-      <div className="px-3 py-3 space-y-0.5 border-t border-primary-900">
-        <Link
-          href="/help"
-          className={cn(
-            'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150',
-            pathname.startsWith('/help')
-              ? 'bg-primary-700 text-white'
-              : 'text-primary-300 hover:bg-primary-800/60 hover:text-white'
-          )}
-        >
-          <LifeBuoy className="h-4 w-4" />
-          Help
-        </Link>
-        <Link
-          href="/settings"
-          className={cn(
-            'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150',
-            pathname === '/settings'
-              ? 'bg-primary-700 text-white'
-              : 'text-primary-300 hover:bg-primary-800/60 hover:text-white'
-          )}
-        >
-          <Settings className="h-4 w-4" />
-          Settings
-        </Link>
-      </div>
 
       {/* User */}
       <div className="px-4 py-4 border-t border-primary-900">

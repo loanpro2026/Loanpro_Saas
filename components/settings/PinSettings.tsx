@@ -34,18 +34,18 @@ export function PinSettings({ timeoutMinutes }: { timeoutMinutes: number }) {
     setBusy(true)
     try {
       if (isSet && !(await verifyPin(current))) {
-        toast.error('Current PIN is wrong'); return
+        toast.error('The current device PIN is incorrect. The screen-lock setting was not changed.'); return
       }
       if (next !== confirm) {
-        toast.error('The two PINs do not match'); return
+        toast.error('The new PIN and confirmation do not match. The existing PIN is unchanged.'); return
       }
       await setPin(next)
       setIsSet(true)
       setOpen(false)
       reset()
-      toast.success('PIN saved')
+      toast.success('Screen-lock PIN saved on this device only.')
     } catch (e: any) {
-      toast.error(e?.message ?? 'Could not save the PIN')
+      toast.error(`The screen-lock PIN was not saved. ${e?.message ?? 'The previous device PIN remains active.'}`)
     } finally {
       setBusy(false)
     }
@@ -54,12 +54,12 @@ export function PinSettings({ timeoutMinutes }: { timeoutMinutes: number }) {
   const onRemove = async () => {
     setBusy(true)
     try {
-      if (!(await verifyPin(current))) { toast.error('PIN is wrong'); return }
+      if (!(await verifyPin(current))) { toast.error('The device PIN is incorrect, so the screen lock was not removed.'); return }
       clearPin()
       setIsSet(false)
       setOpen(false)
       reset()
-      toast.success('PIN removed')
+      toast.success('Screen-lock PIN removed from this device; other devices are unchanged.')
     } finally {
       setBusy(false)
     }

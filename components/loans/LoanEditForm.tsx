@@ -82,11 +82,11 @@ export function LoanEditForm({ loan, isClosed = false }: { loan: Loan; isClosed?
           })
 
       if (res.ok) {
-        toast.success('Changes saved')
+        toast.success(`${isClosed ? 'Settled' : 'Active'} loan #${loan.id} for ${form.name.trim()} was updated${isClosed ? '; historical cash was recalculated' : ''}.`)
         router.push(`/loans/${loan.id}`)
         router.refresh()
       } else {
-        toast.error(res.error ?? 'Could not save')
+        toast.error(`Loan #${loan.id} was not updated. ${res.error ?? 'The existing record is unchanged.'}`)
       }
     })
   }

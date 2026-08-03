@@ -12,7 +12,20 @@ import { Button } from '@/components/ui/Button'
 export const dynamic = 'force-dynamic'
 
 interface Props {
-  searchParams: Promise<{ category?: string; q?: string; page?: string }>
+  searchParams: Promise<{
+    category?: string; q?: string; field?: string; page?: string
+    from?: string; to?: string; min?: string; max?: string
+  }>
+}
+
+const SEARCH_FIELDS = ['name', 'father_name', 'location', 'id'] as const
+type SearchField = (typeof SEARCH_FIELDS)[number]
+const isSearchField = (value?: string): value is SearchField =>
+  !!value && (SEARCH_FIELDS as readonly string[]).includes(value)
+const validDate = (value?: string) => value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null
+const validAmount = (value?: string) => {
+  const amount = Number(value)
+  return value !== undefined && Number.isFinite(amount) && amount >= 0 ? amount : null
 }
 
 /** Rows per page. A migrated shop can have thousands of loans; the previous
@@ -67,11 +80,24 @@ export default async function ActiveRecordsPage({ searchParams }: Props) {
     query = query.eq('category_type', params.category)
   }
 
-  if (params.q) {
-    query = query.ilike('name', `%${params.q}%`)
+  const search = params.q?.trim().slice(0, 100)
+  const field: SearchField = isSearchField(params.field) ? params.field : 'name'
+  if (search) {
+    query = field === 'id'
+      ? query.eq('id', /^\d+$/.test(search) ? Number(search) : -1)
+      : query.ilike(field, `%${search}%`)
   }
+  const issueFrom = validDate(params.from)
+  const issueTo = validDate(params.to)
+  const minAmount = validAmount(params.min)
+  const maxAmount = validAmount(params.max)
+  if (issueFrom) query = query.gte('issue_date', issueFrom)
+  if (issueTo) query = query.lte('issue_date', issueTo)
+  if (minAmount !== null) query = query.gte('amount', minAmount)
+  if (maxAmount !== null) query = query.lte('amount', maxAmount)
 
-  const { data: loans, count } = await query
+  const { data: loans, count, error } = await query
+  if (error) throw new Error(`Active records could not be loaded: ${error.message}`)
   const total = count ?? 0
   const lastPage = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
@@ -79,6 +105,11 @@ export default async function ActiveRecordsPage({ searchParams }: Props) {
     const sp = new URLSearchParams()
     if (params.category) sp.set('category', params.category)
     if (params.q) sp.set('q', params.q)
+    if (params.field) sp.set('field', params.field)
+    if (params.from) sp.set('from', params.from)
+    if (params.to) sp.set('to', params.to)
+    if (params.min) sp.set('min', params.min)
+    if (params.max) sp.set('max', params.max)
     if (n > 1) sp.set('page', String(n))
     const qs = sp.toString()
     return qs ? `/view-records/active?${qs}` : '/view-records/active'
@@ -100,7 +131,11 @@ export default async function ActiveRecordsPage({ searchParams }: Props) {
         </Link>
       </div>
 
-      <LoanFilters currentStatus="active" currentCategory={params.category} query={params.q} />
+      <LoanFilters
+        currentStatus="active" currentCategory={params.category} query={params.q}
+        searchField={params.field} issueFrom={params.from} issueTo={params.to}
+        minAmount={params.min} maxAmount={params.max}
+      />
 
       {!loans?.length ? (
         <EmptyState

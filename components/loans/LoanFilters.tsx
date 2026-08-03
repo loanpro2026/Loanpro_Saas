@@ -1,118 +1,169 @@
 'use client'
+
 import { useRouter, usePathname } from 'next/navigation'
-import { Search } from 'lucide-react'
+import { Loader2, Search } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useTransition, useState } from 'react'
 
 interface Props {
-  currentStatus:   string
+  currentStatus: string
   currentCategory?: string
-  query?:          string
+  query?: string
+  searchField?: string
+  issueFrom?: string
+  issueTo?: string
+  minAmount?: string
+  maxAmount?: string
 }
 
-export function LoanFilters({ currentStatus, currentCategory, query }: Props) {
-  const router   = useRouter()
+export function LoanFilters({
+  currentStatus, currentCategory, query, searchField = 'name',
+  issueFrom, issueTo, minAmount, maxAmount,
+}: Props) {
+  const router = useRouter()
   const pathname = usePathname()
-  const [, startTransition] = useTransition()
+  const [isPending, startTransition] = useTransition()
   const [search, setSearch] = useState(query ?? '')
-
-  /**
-   * Active and Closed are separate routes (matching the desktop), so on those
-   * pages the status buttons have to navigate rather than set ?status= — the
-   * page pins its own status and would ignore the parameter, leaving a control
-   * that looks live and does nothing.
-   */
+  const [field, setField] = useState(searchField)
+  const [from, setFrom] = useState(issueFrom ?? '')
+  const [to, setTo] = useState(issueTo ?? '')
+  const [minimum, setMinimum] = useState(minAmount ?? '')
+  const [maximum, setMaximum] = useState(maxAmount ?? '')
   const onRecordRoutes = pathname.startsWith('/view-records')
 
-  const push = (params: Record<string, string | undefined>) => {
-    const status = params.status ?? currentStatus
-
+  const push = (overrides: Record<string, string | undefined>) => {
+    const status = overrides.status ?? currentStatus
     const sp = new URLSearchParams()
-    if (currentCategory) sp.set('category', currentCategory)
-    if (search) sp.set('q', search)
-
-    // Whatever the caller passed wins. An explicit `undefined` clears the
-    // parameter — that is how the search box empties itself.
-    for (const [k, v] of Object.entries(params)) {
-      if (k === 'status') continue          // handled below
-      if (v) sp.set(k, v)
-      else sp.delete(k)
+    const current: Record<string, string> = {
+      ...(currentCategory ? { category: currentCategory } : {}),
+      ...(search ? { q: search } : {}),
+      ...(field !== 'name' ? { field } : {}),
+      ...(from ? { from } : {}),
+      ...(to ? { to } : {}),
+      ...(minimum ? { min: minimum } : {}),
+      ...(maximum ? { max: maximum } : {}),
+    }
+    for (const [key, value] of Object.entries(current)) sp.set(key, value)
+    for (const [key, value] of Object.entries(overrides)) {
+      if (key === 'status') continue
+      if (value) sp.set(key, value)
+      else sp.delete(key)
     }
 
-    // On the split routes the status IS the path, so it never becomes a query
-    // parameter. Everywhere else it is a filter on the current page.
     let target = pathname
-    if (onRecordRoutes) {
-      target = status === 'closed' ? '/view-records/closed' : '/view-records/active'
-    } else if (status) {
-      sp.set('status', status)
-    }
+    if (onRecordRoutes) target = status === 'closed' ? '/view-records/closed' : '/view-records/active'
+    else if (status) sp.set('status', status)
 
     const qs = sp.toString()
     startTransition(() => router.push(qs ? `${target}?${qs}` : target))
   }
 
-  const handleSearch = (e: React.FormEvent) => {
+  const apply = (e: React.FormEvent) => {
     e.preventDefault()
-    push({ q: search || undefined })
+    push({
+      q: search.trim() || undefined,
+      field: field === 'name' ? undefined : field,
+      from: from || undefined,
+      to: to || undefined,
+      min: minimum || undefined,
+      max: maximum || undefined,
+    })
   }
 
+  const clearAdvanced = () => {
+    setField('name'); setFrom(''); setTo(''); setMinimum(''); setMaximum('')
+    push({ field: undefined, from: undefined, to: undefined, min: undefined, max: undefined })
+  }
+  const hasAdvanced = field !== 'name' || !!from || !!to || !!minimum || !!maximum
+
   return (
-    <div className="flex flex-col sm:flex-row gap-3">
-      {/* Search */}
-      <form onSubmit={handleSearch} className="relative flex-1">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-        <input
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder="Search by name…"
-          className="input pl-9 h-9 text-sm"
-        />
-      </form>
-
-      {/* Status tabs */}
-      <div className="flex rounded-xl border border-surface-border overflow-hidden bg-white">
-        {[
-          { value: 'active', label: 'Active' },
-          { value: 'closed', label: 'Closed' },
-          ...(onRecordRoutes ? [] : [{ value: 'all', label: 'All' }]),
-        ].map(s => (
-          <button
-            key={s.value}
-            onClick={() => push({ status: s.value, q: search || undefined })}
-            className={cn(
-              'px-4 py-1.5 text-sm font-medium transition-colors',
-              currentStatus === s.value
-                ? 'bg-primary-700 text-white'
-                : 'text-slate-600 hover:bg-slate-50'
-            )}
+    <div className="space-y-3" aria-busy={isPending || undefined}>
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <form onSubmit={apply} className="flex flex-1 gap-2">
+          <select
+            aria-label="Search field"
+            value={field}
+            onChange={e => setField(e.target.value)}
+            className="input h-9 w-32 px-3 text-sm"
           >
-            {s.label}
-          </button>
-        ))}
+            <option value="name">Name</option>
+            <option value="id">Loan #</option>
+            <option value="father_name">Father</option>
+            <option value="location">Location</option>
+          </select>
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            {isPending && <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-primary-600" />}
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder={field === 'id' ? 'Exact loan number…' : `Search by ${field === 'father_name' ? "father's name" : field}…`}
+              className="input h-9 pl-9 pr-9 text-sm"
+            />
+          </div>
+        </form>
+
+        <div className="flex overflow-hidden rounded-xl border border-surface-border bg-white">
+          {[
+            { value: 'active', label: 'Active' },
+            { value: 'closed', label: 'Closed' },
+            ...(onRecordRoutes ? [] : [{ value: 'all', label: 'All' }]),
+          ].map(option => (
+            <button
+              key={option.value}
+              disabled={isPending}
+              onClick={() => push({ status: option.value, q: search.trim() || undefined })}
+              className={cn(
+                'px-4 py-1.5 text-sm font-medium transition-colors disabled:opacity-60',
+                currentStatus === option.value ? 'bg-primary-700 text-white' : 'text-slate-600 hover:bg-slate-50'
+              )}
+            >{option.label}</button>
+          ))}
+        </div>
+
+        <div className="flex overflow-hidden rounded-xl border border-surface-border bg-white">
+          {[
+            { value: '', label: 'All' },
+            { value: 'Gold', label: 'Gold' },
+            { value: 'Silver', label: 'Silver' },
+          ].map(option => (
+            <button
+              key={option.value}
+              disabled={isPending}
+              onClick={() => push({ category: option.value || undefined, q: search.trim() || undefined })}
+              className={cn(
+                'px-3 py-1.5 text-sm font-medium transition-colors disabled:opacity-60',
+                currentCategory === option.value || (!currentCategory && option.value === '')
+                  ? 'bg-primary-700 text-white' : 'text-slate-600 hover:bg-slate-50'
+              )}
+            >{option.label}</button>
+          ))}
+        </div>
       </div>
 
-      {/* Category filter */}
-      <div className="flex rounded-xl border border-surface-border overflow-hidden bg-white">
-        {[
-          { value: '',       label: 'All'    },
-          { value: 'Gold',   label: '🥇 Gold'   },
-          { value: 'Silver', label: '🥈 Silver' },
-        ].map(c => (
-          <button
-            key={c.value}
-            onClick={() => push({ category: c.value || undefined, q: search || undefined })}
-            className={cn(
-              'px-3 py-1.5 text-sm font-medium transition-colors',
-              currentCategory === c.value || (!currentCategory && c.value === '')
-                ? 'bg-primary-700 text-white'
-                : 'text-slate-600 hover:bg-slate-50'
-            )}
-          >
-            {c.label}
-          </button>
-        ))}
-      </div>
+      <details open={hasAdvanced || undefined}>
+        <summary className="w-fit cursor-pointer text-xs font-medium text-primary-700">
+          {hasAdvanced ? 'Advanced filters applied' : 'More filters'}
+        </summary>
+        <form onSubmit={apply} className="mt-3 grid items-end gap-3 rounded-2xl border border-surface-border bg-white p-3 sm:grid-cols-2 lg:grid-cols-5">
+          <label className="text-xs text-slate-600">Issue date from
+            <input type="date" className="input mt-1 h-9 px-3" value={from} max={to || undefined} onChange={e => setFrom(e.target.value)} />
+          </label>
+          <label className="text-xs text-slate-600">Issue date to
+            <input type="date" className="input mt-1 h-9 px-3" value={to} min={from || undefined} onChange={e => setTo(e.target.value)} />
+          </label>
+          <label className="text-xs text-slate-600">Minimum amount
+            <input type="number" min="0" max={maximum || undefined} className="input mt-1 h-9 px-3" value={minimum} onChange={e => setMinimum(e.target.value)} />
+          </label>
+          <label className="text-xs text-slate-600">Maximum amount
+            <input type="number" min={minimum || '0'} className="input mt-1 h-9 px-3" value={maximum} onChange={e => setMaximum(e.target.value)} />
+          </label>
+          <div className="flex gap-2">
+            <button type="submit" disabled={isPending} className="btn-primary h-9 flex-1 px-3 py-1.5">Apply</button>
+            {hasAdvanced && <button type="button" disabled={isPending} onClick={clearAdvanced} className="btn-secondary h-9 px-3 py-1.5">Clear</button>}
+          </div>
+        </form>
+      </details>
     </div>
   )
 }

@@ -3,10 +3,16 @@
  * Handles: payment.captured, subscription.charged, subscription.cancelled
  */
 import { createServiceClient } from '@/lib/supabase/server'
-import { verifyWebhookSignature } from '@/lib/razorpay'
+import { getBillingMode, verifyWebhookSignature } from '@/lib/razorpay'
 import { NextResponse } from 'next/server'
 
 export async function POST(req: Request) {
+  if (getBillingMode() === 'disabled') {
+    return NextResponse.json(
+      { error: 'Billing webhooks are disabled while LoanPro is in testing' },
+      { status: 503 },
+    )
+  }
   const rawBody = await req.text()
   const signature = req.headers.get('x-razorpay-signature') ?? ''
 

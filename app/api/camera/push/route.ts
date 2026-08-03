@@ -14,6 +14,8 @@
  */
 import { createClient as createServerClient, createServiceClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import type { PushSubscription } from 'web-push'
+import { logServerError, rateLimit, requestId } from '@/lib/api-security'
 
 /**
  * A row from `paired_devices`, narrowed to the two columns this route selects.
@@ -30,8 +32,16 @@ type PairedDevice = {
   push_subscription: unknown
 }
 
+function isPushSubscription(value: unknown): value is PushSubscription {
+  if (!value || typeof value !== 'object') return false
+  const candidate = value as { endpoint?: unknown; keys?: { auth?: unknown; p256dh?: unknown } }
+  return typeof candidate.endpoint === 'string'
+    && typeof candidate.keys?.auth === 'string'
+    && typeof candidate.keys?.p256dh === 'string'
+}
+
 // ─── Web Push (lazy init) ──────────────────────────────────────────────────
-async function sendWebPush(subscription: any, sessionKey: string, appUrl: string) {
+async function sendWebPush(subscription: PushSubscription, sessionKey: string, appUrl: string) {
   const webpush = (await import('web-push')).default
   webpush.setVapidDetails(
     `mailto:${process.env.VAPID_CONTACT_EMAIL!}`,
@@ -54,6 +64,11 @@ export async function POST(req: Request) {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const limited = await rateLimit(req, {
+    scope: 'camera.push', limit: 20, windowSeconds: 60, identity: `user:${user.id}`,
+  })
+  if (limited) return limited
 
   const { data: appUser } = await supabase
     .from('users')
@@ -112,13 +127,17 @@ export async function POST(req: Request) {
         // needed to reach the *native* Android companion app, which belongs
         // to the desktop product — dropping it removed firebase-admin and
         // with it a long tail of vulnerable transitive dependencies.
-        if (device.push_subscription) {
+        if (isPushSubscription(device.push_subscription)) {
           await sendWebPush(device.push_subscription, sessionKey, appUrl)
         } else {
-          errors.push(`${device.device_type}: no push subscription — re-pair this device`)
+          errors.push(`${device.device_type}: invalid push subscription — re-pair this device`)
         }
-      } catch (err: any) {
-        errors.push(`${device.device_type}: ${err.message}`)
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'push delivery failed'
+        errors.push(`${device.device_type}: ${message}`)
+        logServerError('camera.push.delivery_failed', err, {
+          request_id: requestId(req), device_type: device.device_type,
+        })
       }
     }),
   )

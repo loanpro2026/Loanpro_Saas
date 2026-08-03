@@ -30,14 +30,16 @@ export function RemarksLog({ loanId, remarks }: Props) {
 
   const onAdd = () => startTransition(async () => {
     const res = await appendRemark(loanId, text)
-    if (res.ok) { setText(''); setOpen(false); router.refresh() }
-    else toast.error(res.error ?? 'Could not add the remark')
+    if (res.ok) {
+      toast.success(`A dated remark was added to loan #${loanId}.`)
+      setText(''); setOpen(false); router.refresh()
+    } else toast.error(`The remark was not added to loan #${loanId}. ${res.error ?? 'Please retry.'}`)
   })
 
-  const onRemove = (index: number) => startTransition(async () => {
-    const res = await deleteRemark(loanId, index)
-    if (res.ok) router.refresh()
-    else toast.error(res.error ?? 'Could not remove')
+  const onRemove = (index: number, expected: string) => startTransition(async () => {
+    const res = await deleteRemark(loanId, index, expected)
+    if (res.ok) { toast.success(`The selected remark was removed from loan #${loanId}.`); router.refresh() }
+    else toast.error(`The remark was not removed from loan #${loanId}. ${res.error ?? 'It may have changed on another device; reload and retry.'}`)
   })
 
   return (
@@ -95,7 +97,7 @@ export function RemarksLog({ loanId, remarks }: Props) {
                   <p className="text-slate-700 whitespace-pre-wrap break-words">{body}</p>
                 </div>
                 <button
-                  onClick={() => onRemove(i)}
+                  onClick={() => onRemove(i, entry)}
                   disabled={pending}
                   className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity text-slate-400 hover:text-red-600 shrink-0"
                   aria-label="Remove this remark"

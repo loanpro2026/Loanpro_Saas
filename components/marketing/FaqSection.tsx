@@ -29,11 +29,11 @@ const FAQS = [
   },
   {
     q: 'What about the fingerprint scanner?',
-    a: 'Fingerprint scanning needs the device plugged into a Windows machine, so it stays a desktop-only feature — a browser cannot reach that hardware. Customer photo capture works everywhere, from the browser or a paired phone. If fingerprint matching is important to how you work, keep using the desktop app; it is not going away.',
+    a: 'Fingerprint capture and matching are not included in the SaaS application. Customer photo capture works directly on phones and tablets, with the paired-phone flow available from desktop. We will plan any future fingerprint workflow separately rather than pretending a browser can safely replace the current hardware process.',
   },
   {
-    q: 'Do I have to stop using the desktop app?',
-    a: 'No. Both keep working. We move a copy of your records across, you check the totals against what you already know, and you switch over only when you are satisfied. Most shops do it overnight so nothing changes in the middle of a working day.',
+    q: 'How does the switch from desktop work?',
+    a: 'We first rehearse with a copy while the desktop app stays untouched. For the final overnight cutover, new desktop entries stop, we take the final copy, reconcile the totals, and then the web application becomes the live system. This prevents two different loan books from drifting apart.',
   },
   {
     q: 'What if my subscription lapses?',
@@ -41,7 +41,7 @@ const FAQS = [
   },
   {
     q: 'Can more than one person use it at once?',
-    a: 'Yes. You can add staff with their own logins, and they can work at the same time from different devices. Closing loans, deleting records and changing the plan stay with the owner.',
+    a: 'The owner can sign in securely on multiple devices now. Separate staff accounts and their plan limits are intentionally disabled during testing and will be introduced only after that workflow is fully validated.',
   },
 ]
 

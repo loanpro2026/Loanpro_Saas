@@ -7,12 +7,18 @@
 import { createClient as createServerClient, createServiceClient } from '@/lib/supabase/server'
 import { putObject, presignDownload, cameraSessionKey, MAX_PHOTO_BYTES, ALLOWED_MIME, type AllowedMime } from '@/lib/r2'
 import { NextResponse } from 'next/server'
+import { logServerError, rateLimit, requestId } from '@/lib/api-security'
 
 // POST — create session
 export async function POST(req: Request) {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const limited = await rateLimit(req, {
+    scope: 'camera.create', limit: 20, windowSeconds: 60, identity: `user:${user.id}`,
+  })
+  if (limited) return limited
 
   const { data: appUser } = await supabase.from('users').select('tenant_id').eq('auth_id', user.id).single()
   if (!appUser) return NextResponse.json({ error: 'Not found' }, { status: 404 })
@@ -35,6 +41,11 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url)
   const key = searchParams.get('key')
   if (!key) return NextResponse.json({ error: 'key required' }, { status: 400 })
+
+  const limited = await rateLimit(req, {
+    scope: 'camera.poll', limit: 90, windowSeconds: 60,
+  })
+  if (limited) return limited
 
   const service = createServiceClient()
   const { data, error } = await service
@@ -62,6 +73,11 @@ export async function PUT(req: Request) {
   const { searchParams } = new URL(req.url)
   const key = searchParams.get('key')
   if (!key) return NextResponse.json({ error: 'key required' }, { status: 400 })
+
+  const limited = await rateLimit(req, {
+    scope: 'camera.upload', limit: 10, windowSeconds: 600,
+  })
+  if (limited) return limited
 
   const service = createServiceClient()
 
@@ -100,7 +116,9 @@ export async function PUT(req: Request) {
   try {
     await putObject(r2Key, buffer, mimeType)
   } catch (err) {
-    console.error('[camera] R2 upload failed', err)
+    logServerError('camera.upload.storage_failed', err, {
+      request_id: requestId(req), session_id: String(session.id),
+    })
     return NextResponse.json({ error: 'Could not store photo' }, { status: 502 })
   }
 

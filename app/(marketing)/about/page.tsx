@@ -53,8 +53,9 @@ export default function AboutPage() {
           <h2 className="text-lg font-semibold text-slate-900">How we work</h2>
           <p>
             We move shops across one at a time, by hand, and check the totals
-            with the owner before anything is switched over. Your desktop app
-            keeps working the whole time.
+            with the owner before anything is switched over. Rehearsals use a
+            copy; the final overnight cutover freezes desktop entry so the two
+            systems cannot drift apart.
           </p>
           <p>
             We would rather have a small number of shops whose books we know are

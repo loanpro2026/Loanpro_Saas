@@ -12,10 +12,16 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getSessionContext } from '@/lib/tenant'
 import { keyBelongsToTenant, objectExists, deleteObject, MAX_PHOTO_BYTES, type PhotoStage } from '@/lib/r2'
+import { logServerError, rateLimit, requestId } from '@/lib/api-security'
 
 export async function POST(req: Request) {
   const ctx = await getSessionContext()
   if (!ctx) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const limited = await rateLimit(req, {
+    scope: 'photos.confirm', limit: 30, windowSeconds: 60, identity: `user:${ctx.authId}`,
+  })
+  if (limited) return limited
 
   const body = await req.json().catch(() => null)
   const loanId = Number(body?.loan_id)
@@ -68,7 +74,9 @@ export async function POST(req: Request) {
   if (error) {
     // The row did not save, so the uploaded object is now an orphan.
     await deleteObject(key).catch(() => {})
-    console.error('[photos/confirm] insert failed', error)
+    logServerError('photos.confirm.database_failed', error, {
+      request_id: requestId(req), tenant_id: ctx.tenantId, loan_id: loanId,
+    })
     return NextResponse.json({ error: 'Could not save photo' }, { status: 500 })
   }
 

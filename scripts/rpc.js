@@ -35,15 +35,19 @@ const files=[];
 let problems=0;
 const usedRpc=new Set(), usedTbl=new Set();
 for(const f of files){
-  const src=fs.readFileSync(f,'utf8'); const rel=path.relative(ROOT,f);
+  const src=fs.readFileSync(f,'utf8');
+  // Normalise once so repository checks behave the same on Windows and CI.
+  const rel=path.relative(ROOT,f).replace(/\\/g, '/');
   for(const m of src.matchAll(/\.rpc\(\s*['"]([a-z0-9_]+)['"]/gi)){
     const name=m[1].toLowerCase(); usedRpc.add(name);
     if(!defined.has(name)){problems++;console.log(`MISSING FUNCTION  ${rel}\n     .rpc('${name}') has no CREATE FUNCTION`);}
     else {
-      // Scripts run as service_role; app code runs as authenticated.
+      // Scripts and server-only helpers that construct a service client run as
+      // service_role; browser/server components otherwise run as authenticated.
       const isScript = rel.startsWith('scripts/');
-      const ok = isScript ? (grantedToService.has(name) || grantedToAuth.has(name))
-                          : grantedToAuth.has(name);
+      const usesServiceRole = isScript || src.includes('createServiceClient');
+      const ok = usesServiceRole ? (grantedToService.has(name) || grantedToAuth.has(name))
+                                 : grantedToAuth.has(name);
       if(!ok && revokedFromAuth.has(name)){
         problems++;console.log(`NOT GRANTED       ${rel}\n     .rpc('${name}') is revoked and never granted to the calling role`);}
       else if(!ok){
@@ -59,6 +63,7 @@ for(const f of files){
 console.log(`\nRPCs called:  ${[...usedRpc].sort().join(', ')}`);
 console.log(`Tables used:  ${[...usedTbl].sort().join(', ')}`);
 console.log(`\n${problems} problem(s)`);
+if (problems) process.exitCode = 1;
 
 // ─── Required-argument check ────────────────────────────────────────────────
 //

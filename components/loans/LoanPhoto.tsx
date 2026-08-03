@@ -16,6 +16,8 @@ import { PhotoCapture } from '@/components/loans/PhotoCapture'
 import { uploadLoanPhoto, compressImage, deleteLoanPhoto, photoUrl } from '@/lib/storage'
 import type { PhotoStage } from '@/lib/r2'
 import { useOffline } from '@/components/offline/OfflineProvider'
+import { useSettings } from '@/components/settings/SettingsProvider'
+import { photoCaptureEnabled } from '@/lib/settings'
 
 interface Props {
   loanId: number
@@ -35,6 +37,8 @@ export function LoanPhoto({
   loanId, hasPhoto, verifiedBy, readOnly, stage = 'pledge',
 }: Props) {
   const router = useRouter()
+  const settings = useSettings()
+  const captureEnabled = photoCaptureEnabled(settings)
   const { online, queueWrite } = useOffline()
   const [capturing, setCapturing] = useState(false)
   const [pending, startTransition] = useTransition()
@@ -42,6 +46,7 @@ export function LoanPhoto({
   // Cache-buster so a replaced photo shows immediately rather than serving the
   // browser's copy of the previous one.
   const [version, setVersion] = useState(0)
+  const stageLabel = stage === 'collection' ? 'Collection' : 'Pledge'
 
   const onPhoto = (file: File | null) => {
     if (!file) return
@@ -56,20 +61,20 @@ export function LoanPhoto({
           await queueWrite('photo', { loan_id: loanId, stage }, compressed)
           // Show it locally so the shop can see the capture worked.
           setQueuedPhoto(URL.createObjectURL(compressed))
-          toast.success('Photo saved on this device — it will upload when you are back online',
+          toast.success(`${stageLabel} photo for loan #${loanId} is saved on this device and will upload after reconnection.`,
             { duration: 6000 })
           setCapturing(false)
           return
         }
 
         await uploadLoanPhoto(loanId, compressed, stage)
-        toast.success('Photo saved')
+        toast.success(`${stageLabel} photo attached to loan #${loanId}.`)
         setCapturing(false)
         setQueuedPhoto(null)
         setVersion(v => v + 1)
         router.refresh()
       } catch (err: any) {
-        toast.error(err?.message ?? 'Could not save the photo')
+        toast.error(`${stageLabel} photo was not attached to loan #${loanId}. ${err?.message ?? 'Please capture it again.'}`)
       }
     })
   }
@@ -77,11 +82,11 @@ export function LoanPhoto({
   const onDelete = () => startTransition(async () => {
     try {
       await deleteLoanPhoto(loanId, stage)
-      toast.success('Photo removed')
+      toast.success(`${stageLabel} photo removed from loan #${loanId}.`)
       setVersion(v => v + 1)
       router.refresh()
     } catch {
-      toast.error('Could not remove the photo')
+      toast.error(`${stageLabel} photo was not removed from loan #${loanId}; the stored image is unchanged.`)
     }
   })
 
@@ -121,7 +126,7 @@ export function LoanPhoto({
         )}
       </div>
 
-      {!readOnly && (
+      {!readOnly && captureEnabled && (
         <div className="flex gap-2">
           <Button
             size="sm"
@@ -137,6 +142,10 @@ export function LoanPhoto({
             </Button>
           )}
         </div>
+      )}
+
+      {!readOnly && !captureEnabled && !hasPhoto && (
+        <p className="text-xs text-slate-400">Photo capture is turned off in Settings.</p>
       )}
 
       {readOnly && hasPhoto && (

@@ -125,16 +125,23 @@ export function ReportsWorkspace({
 
   const onExportCsv = () => {
     const rows = asRows()
-    if (rows.length === 0) { toast.error('Nothing to export'); return }
+    if (rows.length === 0) {
+      toast.error(`${meta.title} has no rows for ${periodLabel()}, so no CSV was created.`)
+      return
+    }
     downloadCsv(`loanpro-${key}-${fileStamp()}.csv`, toCsv(rows, REPORT_COLUMNS[key]))
-    toast.success('Downloaded')
+    toast.success(`${meta.title} CSV downloaded with ${rows.length} row${rows.length === 1 ? '' : 's'}.`)
   }
 
   const onPrint = async () => {
     const rows = asRows()
-    if (rows.length === 0) { toast.error('Nothing to print'); return }
+    if (rows.length === 0) {
+      toast.error(`${meta.title} has no rows for ${periodLabel()}, so no PDF was created.`)
+      return
+    }
 
     setPrinting(true)
+    const notice = toast.loading(`Generating ${meta.title} PDF for ${periodLabel()}…`)
     try {
       const blob = await generateReportPdf({
         title: meta.title,
@@ -149,8 +156,12 @@ export function ReportsWorkspace({
         orientation: LANDSCAPE_REPORTS.includes(key) ? 'landscape' : 'portrait',
       })
       printPdf(blob)
+      toast.success(`${meta.title} PDF is ready in the print window.`, { id: notice })
     } catch (e: any) {
-      toast.error(e?.message ?? 'Could not build the PDF')
+      toast.error(
+        `The ${meta.title} PDF could not be generated. ${e?.message ?? 'Please retry the same period.'}`,
+        { id: notice }
+      )
     } finally {
       setPrinting(false)
     }
@@ -247,8 +258,15 @@ export function ReportsWorkspace({
 
       {/* Result */}
       {loading ? (
-        <div className="card flex items-center justify-center py-16">
-          <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
+        <div className="card p-5 space-y-4" role="status" aria-label={`Loading ${meta.title}`}>
+          <div className="flex items-center gap-2 text-sm text-slate-500">
+            <Loader2 className="h-4 w-4 animate-spin" /> Loading {meta.title.toLowerCase()}…
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="skeleton h-16" /><div className="skeleton h-16" /><div className="skeleton h-16" />
+          </div>
+          <div className="skeleton h-10" />
+          {Array.from({ length: 6 }, (_, i) => <div key={i} className="skeleton h-8" />)}
         </div>
       ) : error ? (
         <EmptyState

@@ -57,22 +57,25 @@ export function LoanActions({ loan, totalDeposits, daysHeld, suggestedInterest, 
   const onClose = () => startTransition(async () => {
     const res = await closeLoan(loan.id, interestNum, closedDate)
     if (res.ok) {
-      toast.success(`Loan #${loan.id} closed`)
+      toast.success(`Loan #${loan.id} for ${loan.name} was settled. Customer payment: ${formatCurrency(customerPays)}.`)
       setClosing(false)
       router.refresh()
-    } else toast.error(res.error ?? 'Could not close the loan')
+    } else toast.error(`Loan #${loan.id} was not settled. ${res.error ?? 'Please reload the record and try again.'}`)
   })
 
   const onReopen = () => startTransition(async () => {
     const res = await reopenLoan(loan.id)
-    if (res.ok) { toast.success('Loan reopened'); router.refresh() }
-    else toast.error(res.error ?? 'Could not reopen')
+    if (res.ok) { toast.success(`Loan #${loan.id} for ${loan.name} is active again.`); router.refresh() }
+    else toast.error(`Loan #${loan.id} was not reopened. ${res.error ?? 'Its historical cash entries were left unchanged.'}`)
   })
 
   const onDelete = () => startTransition(async () => {
     const res = await deleteLoan(loan.id)
-    if (res.ok) { toast.success('Loan deleted'); router.push('/view-records/active') }
-    else toast.error(res.error ?? 'Could not delete')
+    if (res.ok) {
+      toast.success(`Mistaken loan #${loan.id} for ${loan.name} was permanently deleted.`)
+      router.push(isClosed ? '/view-records/closed' : '/view-records/active')
+    }
+    else toast.error(`Loan #${loan.id} was not deleted. ${res.error ?? 'No record or photo was removed.'}`)
   })
 
   return (

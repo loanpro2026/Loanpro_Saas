@@ -5,8 +5,10 @@ hand, one customer at a time, with them on a call.
 
 ## Before you start
 
-The customer keeps using the desktop app throughout. Nothing here writes to
-their MySQL — if anything goes wrong, they close the browser and carry on.
+During rehearsal, the customer can keep using the desktop app because the
+source is read-only. During the final cutover, close the desktop app before the
+final copy and do not enter anything else there unless the migration is rolled
+back completely.
 
 Do it as a **freeze window**: migrate after close of business, verify that
 evening, they start on the web the next morning. No delta import, no
@@ -99,6 +101,20 @@ they've never seen doesn't.
 | `--batch <n>` | Insert batch size, default 500. |
 | `--mysql-host/-port/-user/-password/-database` | Source connection. |
 | `--tolerance <n>` | (reconcile) allowed difference on money totals. Default 0. |
+
+## Staging performance audit
+
+After importing the copied customer database and reconciling its totals, run
+the same bounded query shapes used by the web record lists and detail pages:
+
+```bash
+npm run staging:audit -- --tenant <uuid>
+```
+
+The audit is read-only. It runs each query three times, verifies that list
+queries never return more than one 50-row page, and fails when any query takes
+more than 1,500 ms. On a slow or distant development connection, change only
+the reporting threshold with `--budget-ms <n>`; do not increase page sizes.
 
 ## Testing the mapping
 

@@ -184,7 +184,131 @@ END $$;
 
 
 -- ============================================================
--- 7. Anonymous callers see nothing
+-- 7. Loan mutations only pass through transactional functions
+-- ============================================================
+SELECT pg_temp.login('11111111-1111-1111-1111-111111111111');
+
+DO $$
+BEGIN
+  UPDATE loans SET amount = 1 WHERE id = 9001;
+  RAISE EXCEPTION 'FAIL  authenticated caller directly updated a loan';
+EXCEPTION
+  WHEN insufficient_privilege THEN
+    RAISE NOTICE 'ok    direct loan updates are denied';
+END $$;
+
+SELECT update_active_loan(9001, '{"name":"Customer A Corrected","category_type":"Silver","amount":51000}'::jsonb);
+SELECT pg_temp.check('transactional active-loan correction works',
+  (SELECT name = 'Customer A Corrected' AND category_type = 'Silver' AND amount = 51000
+     FROM loans WHERE id = 9001));
+
+DO $$
+BEGIN
+  PERFORM update_active_loan(9001, '{"issue_date":"2099-01-01"}'::jsonb);
+  RAISE EXCEPTION 'FAIL  future issue date was accepted';
+EXCEPTION
+  WHEN invalid_parameter_value THEN
+    RAISE NOTICE 'ok    future issue date is rejected at the data boundary';
+END $$;
+
+SELECT add_deposit(9001, 1000, '2026-01-12');
+DO $$
+BEGIN
+  UPDATE deposits SET amount = 999999 WHERE loan_id = 9001;
+  RAISE EXCEPTION 'FAIL  authenticated caller directly changed a deposit';
+EXCEPTION
+  WHEN insufficient_privilege THEN
+    RAISE NOTICE 'ok    direct deposit mutations are denied';
+END $$;
+
+DO $$
+BEGIN
+  INSERT INTO cash_transactions (tenant_id, type, amount, reason, transaction_date)
+  VALUES ('aaaaaaaa-0000-0000-0000-000000000001', 'add', 999999, 'bypass', '2026-01-12');
+  RAISE EXCEPTION 'FAIL  authenticated caller directly inserted cash';
+EXCEPTION
+  WHEN insufficient_privilege THEN
+    RAISE NOTICE 'ok    direct cash mutations are denied';
+END $$;
+
+DO $$
+BEGIN
+  INSERT INTO api_rate_limits (scope, identity_hash, request_count)
+  VALUES ('bypass', repeat('a', 64), 1);
+  RAISE EXCEPTION 'FAIL  authenticated caller wrote the API limiter table';
+EXCEPTION
+  WHEN insufficient_privilege THEN
+    RAISE NOTICE 'ok    API limiter state is service-role only';
+END $$;
+
+DO $$
+BEGIN
+  PERFORM consume_api_rate_limit('bypass', repeat('a', 64), 1, 60);
+  RAISE EXCEPTION 'FAIL  authenticated caller invoked the limiter function';
+EXCEPTION
+  WHEN insufficient_privilege THEN
+    RAISE NOTICE 'ok    limiter function is service-role only';
+END $$;
+
+DO $$
+BEGIN
+  PERFORM tenant_totals('bbbbbbbb-0000-0000-0000-000000000002');
+  RAISE EXCEPTION 'FAIL  authenticated caller read another tenant migration totals';
+EXCEPTION
+  WHEN insufficient_privilege THEN
+    RAISE NOTICE 'ok    migration reconciliation is service-role only';
+END $$;
+
+DO $$
+BEGIN
+  PERFORM close_loan(9001, 0, '2026-01-11');
+  RAISE EXCEPTION 'FAIL  loan closed before an existing deposit';
+EXCEPTION
+  WHEN invalid_parameter_value THEN
+    RAISE NOTICE 'ok    closing before an existing deposit is rejected';
+END $$;
+SELECT pg_temp.check('failed close leaves loan and deposit intact',
+  (SELECT status = 'active' FROM loans WHERE id = 9001)
+  AND EXISTS (SELECT 1 FROM deposits WHERE loan_id = 9001 AND amount = 1000));
+
+DO $$
+BEGIN
+  PERFORM close_loan(9001, -1, '2026-01-12');
+  RAISE EXCEPTION 'FAIL  negative settlement interest was accepted';
+EXCEPTION
+  WHEN invalid_parameter_value THEN
+    RAISE NOTICE 'ok    negative settlement interest is rejected';
+END $$;
+
+SELECT append_loan_remark(9001, 'first note');
+SELECT append_loan_remark(9001, 'second note');
+DO $$
+BEGIN
+  PERFORM delete_loan_remark(9001, 0, '[stale] wrong note');
+  RAISE EXCEPTION 'FAIL  stale remark deletion was accepted';
+EXCEPTION
+  WHEN serialization_failure THEN
+    RAISE NOTICE 'ok    stale remark deletion fails safely';
+END $$;
+SELECT pg_temp.check('stale delete preserved both remarks',
+  (SELECT cardinality(string_to_array(remarks, E'\n')) = 2 FROM loans WHERE id = 9001));
+
+DO $$
+BEGIN
+  DELETE FROM loans WHERE id = 9001;
+  RAISE EXCEPTION 'FAIL  authenticated caller directly deleted a loan';
+EXCEPTION
+  WHEN insufficient_privilege THEN
+    RAISE NOTICE 'ok    direct loan deletes are denied';
+END $$;
+
+SELECT delete_loan(9001);
+SELECT pg_temp.check('transactional owner deletion works',
+  NOT EXISTS (SELECT 1 FROM loans WHERE id = 9001));
+
+
+-- ============================================================
+-- 8. Anonymous callers see nothing
 -- ============================================================
 SELECT pg_temp.logout();
 SET LOCAL role anon;

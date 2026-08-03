@@ -5,7 +5,12 @@ import type { NextRequest } from 'next/server'
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
-  const next = searchParams.get('next') ?? '/dashboard'
+  const requestedNext = searchParams.get('next') ?? '/dashboard'
+  // Only permit an internal path. Otherwise this callback becomes an open
+  // redirect that can make a genuine LoanPro email send users to a fake site.
+  const next = requestedNext.startsWith('/') && !requestedNext.startsWith('//')
+    ? requestedNext
+    : '/dashboard'
 
   if (code) {
     const supabase = await createClient()

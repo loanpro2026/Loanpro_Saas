@@ -73,7 +73,7 @@ export const HELP_ARTICLES: HelpGroup[] = [
     articles: [
       {
         q: 'How do I take a customer photo?',
-        a: 'On the loan screen use Capture. You can use the camera on this device, or send a request to a paired phone if you have set one up in Settings.\n\nPhotos are resized before uploading so they do not eat your data.',
+        a: 'On a phone or tablet, LoanPro uses that device’s camera directly. On desktop, it uses the paired-phone capture flow. You can always choose an existing image as a fallback.\n\nPhotos are resized before uploading so they do not eat your data.',
       },
       {
         q: 'Can I make photos compulsory?',
@@ -85,7 +85,7 @@ export const HELP_ARTICLES: HelpGroup[] = [
       },
       {
         q: 'What happened to the fingerprint scanner?',
-        a: 'It needs the device plugged into a Windows machine, and a browser cannot reach that hardware. So fingerprint capture and 1:N search stay in the desktop app.\n\nThe desktop app is not going away. If fingerprint matching is central to how you work, keep using it — or use both.',
+        a: 'The current SaaS application does not include fingerprint capture or matching. That hardware workflow needs separate planning and is intentionally outside the web migration for now.',
       },
     ],
   },

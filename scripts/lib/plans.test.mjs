@@ -13,7 +13,7 @@
 const LIMITS = {
   pro:   { staff: 10, loans: null },
   basic: { staff: 3,  loans: 5000 },
-  trial: { staff: 2,  loans: 100 },
+  trial: { staff: 2,  loans: null },
 }
 
 function myPlan(t, now = Date.now()) {
@@ -132,9 +132,8 @@ eq('the error tells them records are still available',
 // ─────────────────────────────────────────────────────────────────────────────
 section('Loan limits')
 
-noThrow('trial under the limit',      () => assertCanWrite(liveTrial, 99, NOW))
-throws('trial at the limit',          () => assertCanWrite(liveTrial, 100, NOW), /limited to 100/)
-throws('trial over the limit',        () => assertCanWrite(liveTrial, 250, NOW), /limited to 100/)
+noThrow('trial has no loan limit',    () => assertCanWrite(liveTrial, 999999, NOW))
+eq('trial loan_limit is null',        myPlan(liveTrial, NOW).loan_limit, null)
 
 const basic = { plan: 'basic', plan_status: 'active' }
 noThrow('basic well under',           () => assertCanWrite(basic, 4999, NOW))

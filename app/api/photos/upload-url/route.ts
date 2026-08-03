@@ -12,6 +12,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getSessionContext } from '@/lib/tenant'
 import { presignUpload, loanPhotoKey, ALLOWED_MIME, type AllowedMime, type PhotoStage } from '@/lib/r2'
+import { logServerError, rateLimit, requestId } from '@/lib/api-security'
 
 const EXT: Record<AllowedMime, string> = {
   'image/jpeg': 'jpg',
@@ -22,6 +23,11 @@ const EXT: Record<AllowedMime, string> = {
 export async function POST(req: Request) {
   const ctx = await getSessionContext()
   if (!ctx) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const limited = await rateLimit(req, {
+    scope: 'photos.presign', limit: 30, windowSeconds: 60, identity: `user:${ctx.authId}`,
+  })
+  if (limited) return limited
 
   const body = await req.json().catch(() => null)
   const loanId = Number(body?.loan_id)
@@ -55,7 +61,9 @@ export async function POST(req: Request) {
     const uploadUrl = await presignUpload(key, contentType)
     return NextResponse.json({ key, uploadUrl })
   } catch (err) {
-    console.error('[photos/upload-url] presign failed', err)
+    logServerError('photos.presign.failed', err, {
+      request_id: requestId(req), tenant_id: ctx.tenantId, loan_id: loanId,
+    })
     return NextResponse.json({ error: 'Storage unavailable' }, { status: 503 })
   }
 }

@@ -17,12 +17,16 @@
     "db:types:local": "supabase gen types typescript --local --schema public > types/supabase.ts",
     "migrate:tenant": "tsx --env-file=.env.local scripts/migrate-tenant.ts",
     "migrate:reconcile": "tsx --env-file=.env.local scripts/reconcile.ts",
+    "staging:audit": "tsx --env-file=.env.local scripts/staging-audit.ts",
     "migrate:test": "tsx scripts/lib/map.test.ts",
     "test:cash": "node scripts/lib/cash.test.mjs",
     "test:reports": "node scripts/lib/reports.test.mjs",
     "test:interest": "node scripts/lib/interest.test.mjs",
     "test:offline": "node scripts/lib/offline.test.mjs",
     "test:plans": "node scripts/lib/plans.test.mjs",
+    "test:billing": "tsx scripts/lib/billing.test.ts",
+    "test:devices": "tsx scripts/lib/device.test.ts",
+    "test:capture-device": "tsx scripts/lib/capture-device.test.ts",
     "test:sw": "node scripts/lib/sw.test.mjs",
     "check:rpc": "node scripts/rpc.js",
     "check:guard": "node scripts/guard.js",
@@ -32,12 +36,12 @@
     "check:env": "node scripts/env.js",
     "check:sql": "node scripts/sql.js",
     "check:syntax": "node scripts/check.js && node scripts/imports.js && node --check public/sw.js",
-    "test": "npm run migrate:test && npm run test:cash && npm run test:reports && npm run test:interest && npm run test:offline && npm run test:plans && npm run test:sw && npm run check:rpc && npm run check:guard && npm run check:links && npm run check:parity && npm run check:deps && npm run check:syntax && npm run typecheck:scripts",
+    "test": "npm run migrate:test && npm run test:cash && npm run test:reports && npm run test:interest && npm run test:offline && npm run test:plans && npm run test:billing && npm run test:devices && npm run test:capture-device && npm run test:sw && npm run check:rpc && npm run check:guard && npm run check:links && npm run check:parity && npm run check:deps && npm run check:syntax && npm run typecheck:scripts",
     "typecheck:scripts": "tsc -p tsconfig.scripts.json"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.750.0",
-    "@aws-sdk/s3-request-presigner": "^3.750.0",
+    "@aws-sdk/client-s3": "3.894.0",
+    "@aws-sdk/s3-request-presigner": "3.894.0",
     "@hookform/resolvers": "^5.1.1",
     "@supabase/ssr": "^0.12.4",
     "@supabase/supabase-js": "^2.111.0",
@@ -73,7 +77,9 @@
     "typescript": "^5.8.3"
   },
   "overrides": {
+    "@aws-sdk/xml-builder": "3.972.37",
     "postcss": "^8.5.25",
-    "sharp": "^0.35.3"
+    "sharp": "^0.35.3",
+    "uuid": "11.1.1"
   }
 }

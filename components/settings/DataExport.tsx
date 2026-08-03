@@ -8,7 +8,7 @@
  */
 import { useState } from 'react'
 import toast from 'react-hot-toast'
-import { Download, Loader2, HardDriveDownload } from 'lucide-react'
+import { Download, HardDriveDownload } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 
 export function DataExport() {
@@ -18,7 +18,7 @@ export function DataExport() {
     setBusy(true)
     // A shop with thousands of photos will wait a while, so say so rather than
     // letting them wonder whether the click registered.
-    const t = toast.loading('Preparing your download — this can take a minute…')
+    const t = toast.loading('Collecting loans, deposits, cash records and customer photos…')
 
     try {
       const res = await fetch('/api/export')
@@ -42,9 +42,12 @@ export function DataExport() {
       document.body.removeChild(a)
       setTimeout(() => URL.revokeObjectURL(url), 1000)
 
-      toast.success('Downloaded', { id: t })
+      toast.success(`Complete LoanPro backup downloaded as ${filename}.`, { id: t })
     } catch (e: any) {
-      toast.error(e?.message ?? 'Could not build the export', { id: t })
+      toast.error(
+        `Your backup could not be prepared. ${e?.message ?? 'No data was changed; please try again.'}`,
+        { id: t }
+      )
     } finally {
       setBusy(false)
     }
@@ -65,9 +68,9 @@ export function DataExport() {
             as plain JSON. Readable without LoanPro.
           </p>
         </div>
-        <Button size="sm" variant="secondary" onClick={onExport} disabled={busy}>
-          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-          Download
+        <Button size="sm" variant="secondary" onClick={onExport} loading={busy}>
+          {!busy && <Download className="h-4 w-4" />}
+          {busy ? 'Preparing backup' : 'Download'}
         </Button>
       </div>
 

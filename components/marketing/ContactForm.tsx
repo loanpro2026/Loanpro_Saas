@@ -43,16 +43,18 @@ export function ContactForm() {
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!form.name.trim())  { toast.error('Please tell us your name'); return }
+    if (!form.name.trim())  { toast.error('Enter your name so the support team knows who sent this enquiry.'); return }
     if (!form.email.trim() && !form.phone.trim()) {
-      toast.error('Leave an email or a phone number so we can reply'); return
+      toast.error('Enter either an email address or phone number so the support team can reply.'); return
     }
-    if (!form.message.trim()) { toast.error('Please tell us what you need'); return }
+    if (!form.message.trim()) { toast.error('Describe what you need before sending the enquiry.'); return }
 
     startTransition(async () => {
       const res = await submitEnquiry(form)
-      if (res.ok) setSent(true)
-      else toast.error(res.error ?? 'Could not send — please try again')
+      if (res.ok) {
+        toast.success(`Your ${form.reason} enquiry was received. We will reply using the contact detail you provided.`)
+        setSent(true)
+      } else toast.error(`Your enquiry was not sent. ${res.error ?? 'The form remains available to retry.'}`)
     })
   }
 

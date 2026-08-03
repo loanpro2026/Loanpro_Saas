@@ -28,10 +28,13 @@ export function IdentitySettings({ settings }: { settings: ShopSettings }) {
     setLocal(s => ({ ...s, [key]: value }))
     startTransition(async () => {
       const res = await saveSetting(key, value)
-      if (res.ok) router.refresh()
+      if (res.ok) {
+        toast.success(`${key.replaceAll('_', ' ')} updated.`)
+        router.refresh()
+      }
       else {
         setLocal(s => ({ ...s, [key]: settings[key] }))
-        toast.error(res.error ?? 'Could not save')
+        toast.error(`${key.replaceAll('_', ' ')} was not updated. ${res.error ?? 'The previous setting remains active.'}`)
       }
     })
   }
@@ -82,27 +85,16 @@ export function IdentitySettings({ settings }: { settings: ShopSettings }) {
                 save('photo_capture_mode', e.target.value as ShopSettings['photo_capture_mode'])
               }
               options={[
-                { value: 'webcam', label: 'Camera on this computer' },
-                { value: 'phone',  label: 'Paired phone' },
+                { value: 'automatic', label: 'Automatic for this device' },
                 { value: 'off',    label: 'Do not capture photos' },
               ]}
             />
             <p className="text-xs text-slate-500">
-              {local.photo_capture_mode === 'webcam'
-                ? 'Uses the webcam on the machine you are working at. Nothing to set up.'
-                : local.photo_capture_mode === 'phone'
-                ? 'Sends a capture request to a paired phone. Better photos, but the phone must be paired first.'
+              {local.photo_capture_mode === 'automatic'
+                ? 'On a phone or tablet, capture directly with its camera. On desktop, use the existing paired-phone flow.'
                 : 'Loans are saved with their details only. The two requirements above are ignored while this is off.'}
             </p>
           </div>
-
-          <Toggle
-            label="Allow more than one paired phone"
-            description="Useful if two people work the counter."
-            checked={local.identity_allow_multiple_mobile_devices}
-            disabled={pending || !idOn || local.photo_capture_mode !== 'phone'}
-            onChange={v => save('identity_allow_multiple_mobile_devices', v)}
-          />
         </div>
       </section>
 

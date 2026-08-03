@@ -31,15 +31,14 @@ export interface ShopSettings {
   /**
    * Where the identity photo is taken.
    *
-   *   webcam  the machine running the app (no pairing, works on day one)
-   *   phone   a paired phone via the camera relay
+   *   automatic  mobile camera directly; desktop paired-phone relay
    *   off     no identity photos at all — record fields only
    *
    * Replaces the old identity_allow_mobile_capture boolean. As two booleans,
    * "verification on" plus "mobile capture off" described a shop that requires
    * a photo it has no way to take.
    */
-  photo_capture_mode: 'webcam' | 'phone' | 'off'
+  photo_capture_mode: 'automatic' | 'off'
 
   // Optional fields on the add-record form. Both OFF by default, as on the
   // desktop — most shops do not collect an address for a pawn loan.
@@ -67,7 +66,7 @@ export const DEFAULT_SETTINGS: ShopSettings = {
   identity_mandatory_at_closure: true,
   identity_allow_multiple_mobile_devices: false,
 
-  photo_capture_mode: 'webcam',
+  photo_capture_mode: 'automatic',
 
   add_record_address_field_enabled: false,
   add_record_additional_information_field_enabled: false,
@@ -96,7 +95,13 @@ export const WRITABLE_SETTINGS = Object.keys(DEFAULT_SETTINGS) as Array<keyof Sh
 export function withDefaults(
   raw: Json | Record<string, unknown> | null | undefined
 ): ShopSettings {
-  return { ...DEFAULT_SETTINGS, ...asObject(raw as Json) } as ShopSettings
+  const merged = { ...DEFAULT_SETTINGS, ...asObject(raw as Json) } as Record<string, unknown>
+  // Smooth rolling deployment: application code may reach a project just
+  // before migration 025 converts the legacy values.
+  if (merged.photo_capture_mode === 'webcam' || merged.photo_capture_mode === 'phone') {
+    merged.photo_capture_mode = 'automatic'
+  }
+  return merged as unknown as ShopSettings
 }
 
 /**
@@ -107,11 +112,15 @@ export function withDefaults(
  * them the same way (`captureFeatureEnabled = identityEnabled && ...`).
  */
 export function photoRequiredAtCreation(s: ShopSettings): boolean {
-  return s.identity_verification_enabled && s.identity_mandatory_at_creation
+  return photoCaptureEnabled(s) && s.identity_mandatory_at_creation
 }
 
 export function photoRequiredAtClosure(s: ShopSettings): boolean {
-  return s.identity_verification_enabled && s.identity_mandatory_at_closure
+  return photoCaptureEnabled(s) && s.identity_mandatory_at_closure
+}
+
+export function photoCaptureEnabled(s: ShopSettings): boolean {
+  return s.identity_verification_enabled && s.photo_capture_mode !== 'off'
 }
 
 /**

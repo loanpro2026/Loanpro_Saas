@@ -11,18 +11,17 @@ It shares no code and no infrastructure with `loanpro_web` or the desktop app.
 
 ## Status
 
-**Code-complete. Never built or run.**
+**Build and regression suite verified locally on 3 August 2026.**
 
-`npm install` has never completed in the environment this was written in, so
-`next build` and `tsc --noEmit` have not run once. That is the single largest
-untested surface — everything else that *could* be verified without a build has
-been.
+The production Next.js build, application checks, migration checks, generated
+database types, and dependency audit are enforced in CI. Live Supabase, R2,
+email-confirmation, and browser workflow validation still require staging.
 
 | | |
 |---|---|
-| Migrations | 17 files, 349 statements — all parse as real PostgreSQL |
-| App code | 118 TS/TSX files — all parse, all imports resolve |
-| Tests | ~265 assertions, no build required |
+| Migrations | 26 sequential files — all parse as real PostgreSQL |
+| App code | Type-checked by the production build; imports checked independently |
+| Tests | Financial, migration, offline, plan, service-worker and parity checks |
 | Desktop parity | 167/167 endpoints accounted for |
 
 ---
@@ -31,26 +30,31 @@ been.
 
 ```bash
 npm install
-npm test            # passes without a build
-npm run build       # the real test
+python -m pip install -r scripts/requirements.txt
+npm test
+npm run check:sql
+npm run build
 ```
 
 Then, in order:
 
 1. **Supabase project.** Go straight to Pro — free projects pause after a week
-   idle. Apply migrations `001`–`016` in order.
+   idle. Apply migrations `001`–`029` in order.
 2. **Enable `pg_cron` and `pg_trgm`** in Database → Extensions. Migration 004
    only prints a notice if `pg_cron` is missing, so the nightly purge silently
    never runs. `pg_trgm` fails loudly in 008.
-3. **`npm run db:types`** — `Database` is currently `any`, so no Supabase query
-   is type-checked. Do this before writing more code.
+3. **`npm run db:types`** against the linked staging project after migrations.
+   For offline generation, use `npm run db:types:sql`.
 4. **Run `supabase/tests/rls.test.sql`.** If it fails, one shop can read
    another's records. Stop and fix.
 5. **Cloudflare R2 bucket** `loanpro-photos`, private, no public domain.
    Verify a presigned PUT/GET round-trip.
-6. **Vercel.** `NEXT_PUBLIC_APP_URL` must be the real domain — staff invitation
-   links are built from it.
-7. **Fill in real details** on `/about` and `/terms`. The business address and
+6. **Supabase Auth URLs.** Set the production Site URL and allow
+   `https://yourdomain.com/api/auth/callback`. Email confirmation and password
+   recovery both return through this callback.
+7. **Vercel.** `NEXT_PUBLIC_APP_URL` must be the real domain. Keep
+   `BILLING_MODE=disabled` and `STAFF_ACCESS_ENABLED=false` during testing.
+8. **Fill in real details** on `/about` and `/terms`. The business address and
    jurisdiction are placeholders and Razorpay will check them.
 
 ---
@@ -81,7 +85,7 @@ components/        by feature — loans, reports, offline, settings, help
 lib/               utils, settings, R2, offline queue, PDF
 scripts/           migration CLI, tests, repository checks
 supabase/
-  migrations/      001–016, applied in order
+  migrations/      001–029, applied in order
   tests/           RLS regression tests
 ```
 
@@ -104,6 +108,14 @@ supabase/
 | 014 | End-of-day screens |
 | 015 | Marketing enquiries |
 | 016 | Closed-record editing, support tickets |
+| 017–022 | Constraints, photo metering/stages, loan detail and dashboard |
+| 023 | 60-day unlimited trial |
+| 024 | Per-session access devices and revocation |
+| 025 | Automatic mobile/desktop photo capture selection |
+| 026 | Transaction-safe edits, deletion and multi-device remarks |
+| 027 | Database-wide loan chronology and owner-only reopen guard |
+| 028 | Financial write hardening and large-book query indexes |
+| 029 | Distributed API abuse protection without retaining raw IP addresses |
 
 ---
 
@@ -186,6 +198,7 @@ npm test
 | `test:offline` | A replayed queued write posts exactly once |
 | `test:reports` | Mangal Sutra grouping, silver-in-kg, CSV quoting |
 | `test:plans` | An expired plan blocks new loans and nothing else |
+| `test:capture-device` | Phones/tablets use direct capture; laptops retain the relay |
 | `migrate:test` | Row mapping, across four timezones |
 | `check:parity` | Every desktop endpoint is covered or explained |
 | `check:guard` | Known bug patterns have not returned |

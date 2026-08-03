@@ -35,8 +35,8 @@ export function TicketThread({
   const onReply = () => startTransition(async () => {
     if (!body.trim()) return
     const res = await replyToTicket(ticketId, body)
-    if (res.ok) { setBody(''); router.refresh() }
-    else toast.error(res.error ?? 'Could not send')
+    if (res.ok) { toast.success('Your reply was added to this support conversation.'); setBody(''); router.refresh() }
+    else toast.error(`Your support reply was not sent. ${res.error ?? 'The text remains available to retry.'}`)
   })
 
   const when = (iso: string) =>

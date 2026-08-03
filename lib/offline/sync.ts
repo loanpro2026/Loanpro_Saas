@@ -39,6 +39,46 @@ function isPermanent(message: string): boolean {
 /** Give up after this many attempts even on a transient-looking error. */
 const MAX_ATTEMPTS = 8
 
+/** Attach image bytes that travelled with an offline write. */
+async function uploadQueuedPhoto(
+  loanId: number,
+  blob: Blob,
+  stage: 'pledge' | 'collection'
+): Promise<void> {
+  const mimeType = blob.type || 'image/jpeg'
+  const urlRes = await fetch('/api/photos/upload-url', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ loan_id: loanId, content_type: mimeType, stage }),
+  })
+  if (!urlRes.ok) {
+    throw new Error((await urlRes.json().catch(() => ({}))).error || 'Could not start upload')
+  }
+  const { key, uploadUrl } = await urlRes.json()
+
+  const put = await fetch(uploadUrl, {
+    method: 'PUT',
+    headers: { 'Content-Type': mimeType },
+    body: blob,
+  })
+  if (!put.ok) throw new Error(`Upload failed (${put.status})`)
+
+  const confirm = await fetch('/api/photos/confirm', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      loan_id: loanId,
+      key,
+      stage,
+      byte_size: blob.size,
+      mime_type: mimeType,
+    }),
+  })
+  if (!confirm.ok) {
+    throw new Error((await confirm.json().catch(() => ({}))).error || 'Could not save photo')
+  }
+}
+
 async function applyOne(write: QueuedWrite): Promise<void> {
   const supabase = createClient()
   const p = write.payload as any
@@ -55,11 +95,20 @@ async function applyOne(write: QueuedWrite): Promise<void> {
       return
     }
     case 'loan': {
-      const { error } = await supabase.rpc('create_loan_idem', {
+      const { data, error } = await supabase.rpc('create_loan_idem', {
         p_loan: p.loan,
         p_key: write.key,
       })
       if (error) throw new Error(error.message)
+
+      const loanId = Number(data)
+      if (!Number.isInteger(loanId) || loanId <= 0) {
+        throw new Error('Created loan did not return an ID')
+      }
+
+      // If the RPC landed but the image did not, create_loan_idem returns the
+      // same ID on retry, so the loan cannot be duplicated.
+      if (write.blob) await uploadQueuedPhoto(loanId, write.blob, 'pledge')
       return
     }
     case 'cash': {
@@ -85,34 +134,7 @@ async function applyOne(write: QueuedWrite): Promise<void> {
       // Same three-step handshake as an online upload — ask for a presigned
       // URL, PUT to R2, confirm. Replaying it simply overwrites the same loan's
       // photo with identical bytes, so no idempotency key is needed.
-      const urlRes = await fetch('/api/photos/upload-url', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ loan_id: p.loan_id, content_type: 'image/jpeg', stage }),
-      })
-      if (!urlRes.ok) {
-        throw new Error((await urlRes.json().catch(() => ({}))).error || 'Could not start upload')
-      }
-      const { key, uploadUrl } = await urlRes.json()
-
-      const put = await fetch(uploadUrl, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'image/jpeg' },
-        body: write.blob,
-      })
-      if (!put.ok) throw new Error(`Upload failed (${put.status})`)
-
-      const confirm = await fetch('/api/photos/confirm', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          loan_id: p.loan_id, key, stage,
-          byte_size: write.blob.size, mime_type: 'image/jpeg',
-        }),
-      })
-      if (!confirm.ok) {
-        throw new Error((await confirm.json().catch(() => ({}))).error || 'Could not save photo')
-      }
+      await uploadQueuedPhoto(Number(p.loan_id), write.blob, stage)
       return
     }
     default:

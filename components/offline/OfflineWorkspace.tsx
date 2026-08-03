@@ -79,7 +79,7 @@ export function OfflineWorkspace() {
           </div>
           {online && (
             <button
-              onClick={() => location.reload()}
+              onClick={() => location.assign('/dashboard')}
               className="inline-flex items-center gap-1.5 rounded-xl bg-primary-700 px-3.5 py-2 text-sm font-medium text-white"
             >
               <RefreshCw className="h-4 w-4" /> Retry

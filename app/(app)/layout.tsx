@@ -5,12 +5,13 @@ import { numberAt } from '@/lib/json'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { BottomNav } from '@/components/layout/BottomNav'
 import { TopBar } from '@/components/layout/TopBar'
-import { Toaster } from 'react-hot-toast'
 import { DeviceRegistrationBridge } from '@/components/DeviceRegistrationBridge'
 import { OfflineProvider } from '@/components/offline/OfflineProvider'
 import { OfflineBanner } from '@/components/offline/OfflineBanner'
 import { ScreenLock } from '@/components/lock/ScreenLock'
 import { SettingsProvider } from '@/components/settings/SettingsProvider'
+import { ThemeBridge } from '@/components/settings/ThemeBridge'
+import { withDefaults } from '@/lib/settings'
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -47,12 +48,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // the new-loan form, the closing dialog and the dashboard all need them,
   // and three round trips per page load is wasteful on a shop's connection.
   const { data: settings } = await supabase.rpc('my_settings')
+  const appSettings = withDefaults(settings)
   const lockAfter = numberAt(settings, 'lock_after_minutes')
 
   return (
     <SettingsProvider settings={settings}>
+    <ThemeBridge theme={appSettings.theme} />
     <OfflineProvider>
-    <div className="flex min-h-dvh bg-surface">
+    <div className={`${appSettings.theme === 'dark' ? 'dark ' : ''}flex min-h-dvh bg-surface`}>
       <Sidebar tenant={tenant} user={appUser} />
 
       <div className="flex-1 flex flex-col min-w-0">
@@ -72,18 +75,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <ScreenLock timeoutMinutes={lockAfter} shopName={tenant?.shop_name ?? 'LoanPro'} />
       {/* Silently registers Android FCM token / iOS push subscription when running inside native app */}
       <DeviceRegistrationBridge />
-      <Toaster
-        position="top-center"
-        toastOptions={{
-          duration: 3500,
-          style: {
-            borderRadius: '12px',
-            background: '#0f172a',
-            color: '#f8fafc',
-            fontSize: '0.875rem',
-          },
-        }}
-      />
     </div>
     </OfflineProvider>
     </SettingsProvider>

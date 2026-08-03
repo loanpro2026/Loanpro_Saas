@@ -16,7 +16,6 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { getSessionContext } from '@/lib/tenant'
 import type { JsonObject } from '@/lib/json'
-import type { Updates } from '@/types/supabase'
 
 export interface ActionResult<T = unknown> {
   ok: boolean
@@ -130,47 +129,28 @@ export async function deleteLoan(loanId: number): Promise<ActionResult> {
   if (ctx.role !== 'owner') return fail('Only the shop owner can delete a loan')
 
   const supabase = await createClient()
-
-  const { data: loan } = await supabase
-    .from('loans').select('id, issue_date, name').eq('id', loanId).single()
-  if (!loan) return fail('Loan not found')
-
-  // The R2 objects outlive the rows unless we remove them here — the database
-  // cascade knows nothing about object storage.
-  //
-  // Plural since migration 019: a loan can hold a pledge photo and a
-  // collection photo. maybeSingle() would have thrown on a closed loan that
-  // had both, aborting the delete for the one case where cleanup matters most.
-  const { data: photos } = await supabase
-    .from('loan_photos').select('r2_key').eq('loan_id', loanId)
-
-  const { error } = await supabase.from('loans').delete().eq('id', loanId)
+  const { data, error } = await supabase.rpc('delete_loan', { p_loan_id: loanId })
   if (error) return fail(friendlyError(error))
 
-  if (photos?.length) {
+  // The database transaction returns storage keys for cleanup after commit.
+  // A storage failure can leave an unreachable object, never partial books.
+  const result = data && typeof data === 'object' && !Array.isArray(data)
+    ? data as Record<string, unknown>
+    : {}
+  const photoKeys = Array.isArray(result.photo_keys)
+    ? result.photo_keys.filter((key): key is string => typeof key === 'string')
+    : []
+  if (photoKeys.length) {
     const { deleteObject } = await import('@/lib/r2')
-    for (const p of photos) {
-      if (!p.r2_key) continue
-      await deleteObject(p.r2_key).catch(e =>
-        console.error('[deleteLoan] orphaned R2 object', p.r2_key, e))
+    for (const key of photoKeys) {
+      await deleteObject(key).catch(e =>
+        console.error('[deleteLoan] orphaned R2 object', key, e))
     }
   }
 
-  await supabase.from('activity_log').insert({
-    tenant_id: ctx.tenantId,
-    type: 'loan_deleted',
-    description: `Loan #${loanId} deleted — ${loan.name}`,
-    color: 'red',
-    icon: 'trash-2',
-  })
-
-  // Deleting removes an investment from its issue date, so every later day's
-  // running balance changes.
-  await supabase.rpc('recalculate_my_cash_summary', {
-    p_from_date: loan.issue_date,
-  }).then(() => {}, () => {})   // best effort; the nightly job also corrects this
-
   revalidateLoan()
+  revalidatePath('/day-end')
+  revalidatePath('/reports')
   return { ok: true }
 }
 
@@ -181,7 +161,7 @@ export async function deleteLoan(loanId: number): Promise<ActionResult> {
 const EDITABLE = [
   'name', 'father_name', 'location', 'address', 'additional_information',
   'category_type', 'detailed_type', 'weight', 'amount',
-  'remarks', 'issue_date',
+  'issue_date',
 ] as const
 
 export async function updateLoan(
@@ -205,31 +185,15 @@ export async function updateLoan(
   }
 
   const supabase = await createClient()
-
-  const { data: before } = await supabase
-    .from('loans').select('issue_date, amount').eq('id', loanId).single()
-
-  // `clean` is assembled key by key from the EDITABLE whitelist above, so it
-  // cannot be expressed as the generated Update type without losing the loop.
-  // The whitelist — not this cast — is what stops a client patching tenant_id,
-  // status or closed_date; the cast only tells TypeScript what the loop already
-  // guarantees.
-  const { error } = await supabase
-    .from('loans')
-    .update(clean as Updates<'loans'>)
-    .eq('id', loanId)
+  const { error } = await supabase.rpc('update_active_loan', {
+    p_loan_id: loanId,
+    p_patch: clean as JsonObject,
+  })
   if (error) return fail(friendlyError(error))
 
-  // Amount or issue date feed the daily investment total.
-  if (before && (clean.amount !== undefined || clean.issue_date !== undefined)) {
-    const earliest = [before.issue_date, clean.issue_date as string]
-      .filter(Boolean).sort()[0]
-    await supabase.rpc('recalculate_my_cash_summary', {
-      p_from_date: earliest,
-    }).then(() => {}, () => {})
-  }
-
   revalidateLoan(loanId)
+  revalidatePath('/day-end')
+  revalidatePath('/reports')
   return { ok: true }
 }
 
@@ -281,39 +245,26 @@ export async function appendRemark(loanId: number, text: string): Promise<Action
   if (body.length > 2000) return fail('Remark is too long')
 
   const supabase = await createClient()
-  const { data: loan } = await supabase
-    .from('loans').select('remarks').eq('id', loanId).single()
-  if (!loan) return fail('Loan not found')
-
-  const stamp = new Date().toLocaleString('en-IN', {
-    timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short', year: 'numeric',
-    hour: '2-digit', minute: '2-digit',
+  const { error } = await supabase.rpc('append_loan_remark', {
+    p_loan_id: loanId,
+    p_text: body,
   })
-  const entry = `[${stamp}] ${body}`
-  const next = loan.remarks ? `${loan.remarks}\n${entry}` : entry
-
-  const { error } = await supabase.from('loans').update({ remarks: next }).eq('id', loanId)
   if (error) return fail(friendlyError(error))
 
   revalidateLoan(loanId)
   return { ok: true }
 }
 
-export async function deleteRemark(loanId: number, index: number): Promise<ActionResult> {
+export async function deleteRemark(loanId: number, index: number, expected: string): Promise<ActionResult> {
   const ctx = await getSessionContext()
   if (!ctx) return fail('Not signed in')
 
   const supabase = await createClient()
-  const { data: loan } = await supabase
-    .from('loans').select('remarks').eq('id', loanId).single()
-  if (!loan?.remarks) return fail('No remarks to remove')
-
-  const lines = loan.remarks.split('\n')
-  if (index < 0 || index >= lines.length) return fail('That remark no longer exists')
-  lines.splice(index, 1)
-
-  const { error } = await supabase
-    .from('loans').update({ remarks: lines.join('\n') || null }).eq('id', loanId)
+  const { error } = await supabase.rpc('delete_loan_remark', {
+    p_loan_id: loanId,
+    p_index: index,
+    p_expected: expected,
+  })
   if (error) return fail(friendlyError(error))
 
   revalidateLoan(loanId)

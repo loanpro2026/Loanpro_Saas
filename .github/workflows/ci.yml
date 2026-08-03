@@ -1,0 +1,38 @@
+name: LoanPro SaaS CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20.11.0
+          cache: npm
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: scripts/requirements.txt
+
+      - run: npm ci
+      - run: python -m pip install -r scripts/requirements.txt
+      - run: npm audit
+      - run: npm test
+      - run: npm run check:sql
+      - run: npm run db:types:sql
+      - name: Verify generated database types are committed
+        run: git diff --exit-code -- types/supabase.ts scripts/rpc-required-args.json
+      - run: npm run build

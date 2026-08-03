@@ -6,6 +6,7 @@
  */
 import { createClient as createServerClient, createServiceClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { rateLimit } from '@/lib/api-security'
 
 // ─── GET — list devices ────────────────────────────────────────────────────
 export async function GET() {
@@ -27,6 +28,11 @@ export async function POST(req: Request) {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const limited = await rateLimit(req, {
+    scope: 'devices.register', limit: 20, windowSeconds: 600, identity: `user:${user.id}`,
+  })
+  if (limited) return limited
 
   const { data: appUser } = await supabase
     .from('users')
@@ -78,6 +84,11 @@ export async function DELETE(req: Request) {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const limited = await rateLimit(req, {
+    scope: 'devices.remove', limit: 20, windowSeconds: 600, identity: `user:${user.id}`,
+  })
+  if (limited) return limited
 
   // RLS enforces tenant isolation — delete only matches tenant
   const { error } = await supabase

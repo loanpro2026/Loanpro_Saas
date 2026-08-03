@@ -14,11 +14,13 @@
 import { NextResponse } from 'next/server'
 import archiver from 'archiver'
 import { PassThrough, Readable } from 'node:stream'
+import type { ReadableStream as NodeReadableStream } from 'node:stream/web'
 import { createClient } from '@/lib/supabase/server'
 import { getSessionContext } from '@/lib/tenant'
 import { presignDownload } from '@/lib/r2'
 import { todayIST } from '@/lib/utils'
 import type { TableName } from '@/types/supabase'
+import { logServerError, rateLimit, requestId } from '@/lib/api-security'
 
 // Node runtime: this needs streams and the R2 SDK, neither of which works on
 // the edge runtime.
@@ -47,10 +49,9 @@ async function fetchAll(
       .from(table).select('*').order(orderBy).range(from, from + page - 1)
 
     if (error) {
-      // A table that does not exist yet should not abort the whole export —
-      // the shop still gets everything else.
-      console.error(`[export] ${table}:`, error.message)
-      break
+      // A successful-looking archive with a silently missing financial table
+      // is more dangerous than a failed download the user can retry.
+      throw new Error(`Could not export ${table}: ${error.message}`)
     }
     if (!data?.length) break
     rows.push(...data)
@@ -59,9 +60,14 @@ async function fetchAll(
   return rows
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   const ctx = await getSessionContext()
   if (!ctx) return NextResponse.json({ error: 'Not signed in' }, { status: 401 })
+
+  const limited = await rateLimit(req, {
+    scope: 'data.export', limit: 2, windowSeconds: 900, identity: `tenant:${ctx.tenantId}`,
+  })
+  if (limited) return limited
 
   const supabase = await createClient()
 
@@ -117,7 +123,7 @@ export async function GET() {
           const res = await fetch(url)
           if (!res.ok || !res.body) { photosFailed++; continue }
 
-          archive.append(Readable.fromWeb(res.body as any), {
+          archive.append(Readable.fromWeb(res.body as NodeReadableStream), {
             name: `photos/loan-${p.loan_id}.jpg`,
           })
           photosIncluded++
@@ -145,7 +151,9 @@ export async function GET() {
 
       await archive.finalize()
     } catch (err) {
-      console.error('[export] failed', err)
+      logServerError('export.archive.failed', err, {
+        request_id: requestId(req), tenant_id: ctx.tenantId,
+      })
       archive.abort()
     }
   })()

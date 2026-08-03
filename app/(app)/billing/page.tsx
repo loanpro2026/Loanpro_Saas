@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { CheckCircle2, Star, Loader2 } from 'lucide-react'
+import { CheckCircle2, FlaskConical, Star } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { PLANS } from '@/lib/razorpay'
 import toast from 'react-hot-toast'
@@ -14,17 +14,38 @@ const PLAN_FEATURES: Record<string, string[]> = {
 
 export default function BillingPage() {
   const [loading, setLoading] = useState<string | null>(null)
+  const [billingMode, setBillingMode] = useState<'loading' | 'disabled' | 'test' | 'live'>('loading')
 
   useEffect(() => {
-    // Load Razorpay script
-    const script = document.createElement('script')
-    script.src = 'https://checkout.razorpay.com/v1/checkout.js'
-    script.async = true
-    document.head.appendChild(script)
-    return () => { document.head.removeChild(script) }
+    let script: HTMLScriptElement | null = null
+    let cancelled = false
+
+    fetch('/api/billing')
+      .then(r => r.json())
+      .then(({ mode, enabled }) => {
+        if (cancelled) return
+        const safeMode = mode === 'test' || mode === 'live' ? mode : 'disabled'
+        setBillingMode(safeMode)
+        if (!enabled) return
+
+        script = document.createElement('script')
+        script.src = 'https://checkout.razorpay.com/v1/checkout.js'
+        script.async = true
+        document.head.appendChild(script)
+      })
+      .catch(() => !cancelled && setBillingMode('disabled'))
+
+    return () => {
+      cancelled = true
+      script?.remove()
+    }
   }, [])
 
   const handleSubscribe = async (planId: string) => {
+    if (billingMode === 'disabled' || billingMode === 'loading') {
+      toast('Payments are disabled during testing. Your free trial remains active.')
+      return
+    }
     setLoading(planId)
     try {
       // Create order
@@ -82,6 +103,24 @@ export default function BillingPage() {
         <p className="page-subtitle mt-1">Upgrade to continue using LoanPro after your trial ends.</p>
       </div>
 
+      {billingMode === 'disabled' && (
+        <div className="card flex items-start gap-3 border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          <FlaskConical className="mt-0.5 h-5 w-5 flex-shrink-0" />
+          <div>
+            <p className="font-semibold">Checkout is disabled during testing</p>
+            <p className="mt-1 text-amber-800">
+              No payment can be created or accepted. Your 60-day trial continues normally.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {billingMode === 'test' && (
+        <div className="card flex items-center gap-2 border-blue-200 bg-blue-50 p-3 text-sm font-medium text-blue-800">
+          <FlaskConical className="h-4 w-4" /> Razorpay test mode — no real money will be charged.
+        </div>
+      )}
+
       <div className="grid sm:grid-cols-2 gap-5">
         {(Object.entries(PLANS) as [string, typeof PLANS[keyof typeof PLANS]][]).map(([planId, plan]) => {
           const isPro = planId === 'pro'
@@ -116,18 +155,27 @@ export default function BillingPage() {
                 className="w-full"
                 variant={isPro ? 'primary' : 'secondary'}
                 loading={loading === planId}
+                disabled={billingMode === 'disabled' || billingMode === 'loading'}
                 onClick={() => handleSubscribe(planId)}
               >
-                {loading === planId ? '' : `Subscribe to ${plan.name}`}
+                {loading === planId
+                  ? ''
+                  : billingMode === 'disabled'
+                    ? 'Checkout disabled during testing'
+                    : billingMode === 'loading'
+                      ? 'Checking availability…'
+                      : `Subscribe to ${plan.name}`}
               </Button>
             </div>
           )
         })}
       </div>
 
-      <p className="text-xs text-center text-slate-400">
-        Payments are processed securely by Razorpay. Cancel anytime from your settings.
-      </p>
+      {billingMode !== 'disabled' && (
+        <p className="text-xs text-center text-slate-400">
+          Payments are processed securely by Razorpay. Cancel anytime from your settings.
+        </p>
+      )}
     </div>
   )
 }

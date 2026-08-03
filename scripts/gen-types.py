@@ -1,7 +1,7 @@
 """
 Generate types/supabase.ts from supabase/migrations/*.sql.
 
-    pip install pglast
+    python -m pip install -r scripts/requirements.txt
     python scripts/gen-types.py
 
 This exists so the database types can be produced from the migrations
@@ -17,8 +17,9 @@ The equivalent official command, if you ever want the CLI, is:
 
     supabase gen types typescript --linked
 
-That version additionally fills in Relationships[] (for typed nested selects),
-because it can read the live foreign-key catalogue. This script cannot.
+That version can additionally see database objects created outside these
+migrations. This script derives tables, functions, checks, and relationships
+from the checked-in SQL only.
 """
 import pglast, glob, re
 from pglast import ast, enums
@@ -56,12 +57,12 @@ def check_union(colname, constraints):
     `string` and a typo like 'Golde' compiles fine.
     """
     for c in (constraints or []):
-        if 'CHECK' not in str(c.contype) or c.raw_expr is None:
+        if c.contype != enums.ConstrType.CONSTR_CHECK or c.raw_expr is None:
             continue
         e = c.raw_expr
         if not isinstance(e, ast.A_Expr):
             continue
-        if 'AEXPR_IN' not in str(e.kind):
+        if e.kind != enums.A_Expr_Kind.AEXPR_IN:
             continue
         # Only when the check is on this very column.
         lex = e.lexpr
@@ -79,7 +80,7 @@ def check_union(colname, constraints):
 def fk_of(colname, constraints):
     """Column-level `REFERENCES other(col)` -> (table, [cols])."""
     for c in (constraints or []):
-        if 'FOREIGN' in str(c.contype) and c.pktable is not None:
+        if c.contype == enums.ConstrType.CONSTR_FOREIGN and c.pktable is not None:
             cols = [x.sval for x in (c.pk_attrs or [])] or ['id']
             return (c.pktable.relname, cols)
     return None
@@ -101,11 +102,12 @@ for f in sorted(glob.glob('supabase/migrations/*.sql')):
                 ts,base=tname(e.typeName)
                 notnull=False; hasdef=is_serial(e.typeName); pk=False
                 for c in (e.constraints or []):
-                    ct=str(c.contype)
-                    if 'NOTNULL' in ct: notnull=True
-                    if 'DEFAULT' in ct: hasdef=True
-                    if 'PRIMARY' in ct: pk=True; notnull=True
-                    if 'IDENTITY' in ct or 'GENERATED' in ct: hasdef=True
+                    ct=c.contype
+                    if ct == enums.ConstrType.CONSTR_NOTNULL: notnull=True
+                    if ct == enums.ConstrType.CONSTR_DEFAULT: hasdef=True
+                    if ct == enums.ConstrType.CONSTR_PRIMARY: pk=True; notnull=True
+                    if ct in (enums.ConstrType.CONSTR_IDENTITY,
+                              enums.ConstrType.CONSTR_GENERATED): hasdef=True
                 union = check_union(e.colname, e.constraints)
                 if union: ts = union
                 fk = fk_of(e.colname, e.constraints)
@@ -121,16 +123,16 @@ for f in sorted(glob.glob('supabase/migrations/*.sql')):
             # table-level PRIMARY KEY / CHECK / FOREIGN KEY
             for e in (s.tableElts or []):
                 if not isinstance(e, ast.Constraint): continue
-                ct=str(e.contype)
-                if 'PRIMARY' in ct:
+                ct=e.contype
+                if ct == enums.ConstrType.CONSTR_PRIMARY:
                     for k in (e.keys or []):
                         if k.sval in cols:
                             cols[k.sval]['pk']=True; cols[k.sval]['notnull']=True
-                elif 'CHECK' in ct:
+                elif ct == enums.ConstrType.CONSTR_CHECK:
                     for cname in cols:
                         u = check_union(cname, [e])
                         if u: cols[cname]['ts'] = u
-                elif 'FOREIGN' in ct and e.pktable is not None:
+                elif ct == enums.ConstrType.CONSTR_FOREIGN and e.pktable is not None:
                     fcols=[x.sval for x in (e.fk_attrs or [])]
                     rcols=[x.sval for x in (e.pk_attrs or [])] or ['id']
                     if fcols:
@@ -147,7 +149,9 @@ for f in sorted(glob.glob('supabase/migrations/*.sql')):
                 # Constraints added after the table was created are just as
                 # binding as inline ones, so the union must come from here too
                 # — migration 017 adds all the role/plan ones this way.
-                if isinstance(c.def_, ast.Constraint) and 'CHECK' in str(c.def_.contype) and t in tables:
+                if (isinstance(c.def_, ast.Constraint)
+                        and c.def_.contype == enums.ConstrType.CONSTR_CHECK
+                        and t in tables):
                     for cname in tables[t]:
                         u = check_union(cname, [c.def_])
                         if u: tables[t][cname]['ts'] = u
@@ -158,37 +162,37 @@ for f in sorted(glob.glob('supabase/migrations/*.sql')):
                 # loan_photos.photo_url and .storage_path this way when the
                 # storage backend moved to R2 — without this the types still
                 # demanded them and every insert failed to compile.
-                st = str(c.subtype)
+                st = c.subtype
                 if t in tables and c.name and c.name in tables[t]:
-                    if 'AT_DropNotNull' in st:
+                    if st == enums.AlterTableType.AT_DropNotNull:
                         tables[t][c.name]['notnull'] = False
                         continue
-                    if 'AT_SetNotNull' in st:
+                    if st == enums.AlterTableType.AT_SetNotNull:
                         tables[t][c.name]['notnull'] = True
                         continue
-                    if 'AT_ColumnDefault' in st:
+                    if st == enums.AlterTableType.AT_ColumnDefault:
                         tables[t][c.name]['hasdef'] = c.def_ is not None
                         continue
-                if 'AT_DropColumn' in st and t in tables and c.name in tables.get(t, {}):
+                if st == enums.AlterTableType.AT_DropColumn and t in tables and c.name in tables.get(t, {}):
                     del tables[t][c.name]
                     continue
                 if c.def_ is not None and isinstance(c.def_, ast.ColumnDef) and t in tables:
                     e=c.def_; ts,base=tname(e.typeName)
                     notnull=False; hasdef=is_serial(e.typeName)
                     for k in (e.constraints or []):
-                        ct=str(k.contype)
-                        if 'NOTNULL' in ct: notnull=True
-                        if 'DEFAULT' in ct: hasdef=True
+                        ct=k.contype
+                        if ct == enums.ConstrType.CONSTR_NOTNULL: notnull=True
+                        if ct == enums.ConstrType.CONSTR_DEFAULT: hasdef=True
                     tables[t][e.colname]={'ts':ts,'notnull':notnull,'hasdef':hasdef,'pk':False}
         elif isinstance(s, ast.CreateFunctionStmt):
             nm=s.funcname[-1].sval
             args={}; tbl={}; required=[]
             for p in (s.parameters or []):
                 ts,base=tname(p.argType)
-                mode=str(p.mode)
-                if 'TABLE' in mode:
+                mode=p.mode
+                if mode == enums.FunctionParameterMode.FUNC_PARAM_TABLE:
                     tbl[p.name]=ts
-                elif 'OUT' not in mode:
+                elif mode != enums.FunctionParameterMode.FUNC_PARAM_OUT:
                     args[p.name]=ts
                     # No DEFAULT means the caller must supply it. PostgREST
                     # resolves a function by its argument names, so omitting one

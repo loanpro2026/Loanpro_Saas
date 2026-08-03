@@ -14,6 +14,7 @@
  */
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { logServerError, rateLimit, requestId } from '@/lib/api-security'
 
 export async function POST(req: Request) {
   const supabase = await createClient()
@@ -22,6 +23,11 @@ export async function POST(req: Request) {
   if (authError || !user) {
     return NextResponse.json({ error: 'Not signed in' }, { status: 401 })
   }
+
+  const limited = await rateLimit(req, {
+    scope: 'auth.provision', limit: 5, windowSeconds: 600, identity: `user:${user.id}`,
+  })
+  if (limited) return limited
 
   const body = await req.json().catch(() => null)
   const shopName = String(body?.shop_name ?? '').trim()
@@ -44,7 +50,9 @@ export async function POST(req: Request) {
   })
 
   if (error) {
-    console.error('[register] provision_tenant failed', error)
+    logServerError('auth.provision.failed', error, {
+      request_id: requestId(req), auth_id: user.id,
+    })
     return NextResponse.json(
       { error: 'Could not finish setting up your shop. Please try again.' },
       { status: 500 }

@@ -7,6 +7,7 @@ import { withDefaults } from '@/lib/settings'
 export const dynamic = 'force-dynamic'
 
 export default async function SettingsPage() {
+  const staffAccessEnabled = process.env.STAFF_ACCESS_ENABLED === 'true'
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -19,7 +20,7 @@ export default async function SettingsPage() {
   ] = await Promise.all([
     supabase.from('users').select('id, full_name, email, role, tenant_id').eq('auth_id', user.id).single(),
     supabase.rpc('my_plan'),
-    supabase.rpc('shop_members'),
+    staffAccessEnabled ? supabase.rpc('shop_members') : Promise.resolve({ data: [], error: null }),
     supabase.rpc('my_settings'),
   ])
 
@@ -53,6 +54,7 @@ export default async function SettingsPage() {
           is_me:      mem.is_me ?? false,
         }))}
         settings={withDefaults(settings)}
+        staffAccessEnabled={staffAccessEnabled}
       />
     </div>
   )

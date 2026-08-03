@@ -88,15 +88,15 @@ export function AddDepositButton({ tenantId }: Props) {
       // and re-chains the cash summary. The previous version inserted straight
       // into the table and left both stale.
       const res = await addDeposit(data.loan_id, data.amount, data.deposit_date)
-      if (!res.ok) throw new Error(res.error ?? 'Failed to record deposit')
+      if (!res.ok) throw new Error(res.error ?? 'The cash book rejected this deposit')
 
-      toast.success('Deposit recorded')
+      toast.success(`₹${data.amount.toLocaleString('en-IN')} deposit recorded on loan #${data.loan_id} for ${data.deposit_date}.`)
       reset()
       setSelectedLoan(null)
       setOpen(false)
       router.refresh()
     } catch (err: any) {
-      toast.error(err.message || 'Failed to record deposit')
+      toast.error(`The deposit on loan #${data.loan_id} was not recorded. ${err.message || 'No cash entry was changed.'}`)
     } finally {
       setLoading(false)
     }

@@ -45,7 +45,7 @@ export function DepositHistory({ loanId, deposits, readOnly, principal }: Props)
 
   const onAdd = () => startTransition(async () => {
     const value = Number(amount)
-    if (!value || value <= 0) { toast.error('Enter an amount'); return }
+    if (!value || value <= 0) { toast.error(`Enter a deposit amount greater than zero for loan #${loanId}.`); return }
 
     // A customer standing at the counter having just handed over cash cannot
     // be told to come back when the internet works. Queue it instead — the
@@ -62,11 +62,11 @@ export function DepositHistory({ loanId, deposits, readOnly, principal }: Props)
 
     const res = await addDeposit(loanId, value, date)
     if (res.ok) {
-      toast.success(`${formatCurrency(value)} recorded`)
+      toast.success(`${formatCurrency(value)} deposit recorded on loan #${loanId} for ${formatDate(date)}.`)
       setAdding(false); setAmount(''); setDate(todayIST())
       router.refresh()
     } else {
-      toast.error(res.error ?? 'Could not add the deposit')
+      toast.error(`The ${formatCurrency(value)} deposit was not recorded on loan #${loanId}. ${res.error ?? 'Please retry.'}`)
     }
   })
 
@@ -79,20 +79,20 @@ export function DepositHistory({ loanId, deposits, readOnly, principal }: Props)
   const onEdit = () => startTransition(async () => {
     if (!editing) return
     const value = Number(amount)
-    if (!value || value <= 0) { toast.error('Enter an amount'); return }
+    if (!value || value <= 0) { toast.error(`Enter a deposit amount greater than zero for loan #${loanId}.`); return }
 
     const res = await updateDeposit(editing.id, loanId, value, date)
     if (res.ok) {
-      toast.success('Deposit updated')
+      toast.success(`Deposit on loan #${loanId} updated to ${formatCurrency(value)} on ${formatDate(date)}.`)
       setEditing(null); setAmount(''); setDate(todayIST())
       router.refresh()
-    } else toast.error(res.error ?? 'Could not update')
+    } else toast.error(`The deposit on loan #${loanId} was not updated. ${res.error ?? 'The original entry is unchanged.'}`)
   })
 
   const onDelete = (id: number) => startTransition(async () => {
     const res = await deleteDeposit(id, loanId)
-    if (res.ok) { toast.success('Deposit removed'); router.refresh() }
-    else toast.error(res.error ?? 'Could not remove')
+    if (res.ok) { toast.success(`Deposit entry removed from loan #${loanId}; its cash history was recalculated.`); router.refresh() }
+    else toast.error(`The deposit was not removed from loan #${loanId}. ${res.error ?? 'The original entry is unchanged.'}`)
   })
 
   return (

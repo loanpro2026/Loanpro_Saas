@@ -11,6 +11,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
+import { memoryCached } from '@/lib/memory-cache'
 
 type Field = 'name' | 'father_name' | 'location' | 'detailed_type'
 
@@ -37,15 +38,25 @@ export function AutoSuggest({
   const [active, setActive] = useState(-1)
   const boxRef = useRef<HTMLDivElement>(null)
   const inputId = id ?? name ?? field
+  const listId = `${inputId}-suggestions`
 
   const fetchSuggestions = useCallback(async (prefix: string) => {
-    const supabase = createClient()
-    const { data } = await supabase.rpc('field_suggestions', {
-      p_field: field,
-      p_prefix: prefix,
-      p_limit: 8,
-    })
-    setItems((data as Suggestion[]) ?? [])
+    const normalized = prefix.trim().toLocaleLowerCase('en-IN')
+    const suggestions = await memoryCached<Suggestion[]>(
+      `field-suggestions:${field}:${normalized}`,
+      120_000,
+      async () => {
+        const supabase = createClient()
+        const { data, error } = await supabase.rpc('field_suggestions', {
+          p_field: field,
+          p_prefix: prefix,
+          p_limit: 8,
+        })
+        if (error) throw error
+        return (data as Suggestion[]) ?? []
+      }
+    ).catch(() => [])
+    setItems(suggestions)
   }, [field])
 
   // Debounced: this fires on every keystroke at a busy counter, and each one
@@ -111,6 +122,7 @@ export function AutoSuggest({
         required={required}
         autoComplete="off"
         role="combobox"
+        aria-controls={listId}
         aria-expanded={open && visible.length > 0}
         aria-autocomplete="list"
         onChange={e => { onChange(e.target.value); setOpen(true); setActive(-1) }}
@@ -119,7 +131,7 @@ export function AutoSuggest({
       />
 
       {open && visible.length > 0 && (
-        <ul className="suggest-panel" role="listbox">
+        <ul id={listId} className="suggest-panel" role="listbox">
           {visible.map((s, i) => (
             <li key={s.value}>
               <button

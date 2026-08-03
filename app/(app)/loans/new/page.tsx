@@ -16,7 +16,7 @@ import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { todayIST } from '@/lib/utils'
 import { useSettings } from '@/components/settings/SettingsProvider'
-import { photoRequiredAtCreation } from '@/lib/settings'
+import { photoCaptureEnabled, photoRequiredAtCreation } from '@/lib/settings'
 import { useOffline } from '@/components/offline/OfflineProvider'
 
 const schema = z.object({
@@ -37,7 +37,7 @@ type FormData = z.infer<typeof schema>
 export default function NewLoanPage() {
   const router = useRouter()
   const settings = useSettings()
-  const { online } = useOffline()
+  const { online, queueWrite } = useOffline()
   const [loading,      setLoading]     = useState(false)
   const [photoFile,    setPhotoFile]   = useState<File | null>(null)
 
@@ -47,6 +47,7 @@ export default function NewLoanPage() {
   const showAddress = settings.add_record_address_field_enabled
   const showNotes   = settings.add_record_additional_information_field_enabled
   const photoNeeded = photoRequiredAtCreation(settings)
+  const captureEnabled = photoCaptureEnabled(settings)
 
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -69,10 +70,7 @@ export default function NewLoanPage() {
 
     setLoading(true)
     try {
-      // Goes through create_loan (migration 007), which stamps tenant_id from
-      // the session, writes the activity entry and recalculates that day's
-      // cash summary in one transaction.
-      const res = await createLoan({
+      const loan = {
         name:                   data.name,
         father_name:            data.father_name || null,
         location:               data.location || null,
@@ -84,8 +82,23 @@ export default function NewLoanPage() {
         amount:                 data.amount,
         remarks:                data.remarks || null,
         issue_date:             data.issue_date,
-        has_photo:              !!photoFile,
-      })
+        // The image is not durable until R2 confirms it. Starting as missing
+        // makes an interrupted upload visible; the photo trigger clears this.
+        has_photo:              false,
+      }
+
+      if (!online) {
+        const photo = photoFile ? await compressImage(photoFile) : undefined
+        await queueWrite('loan', { loan }, photo)
+        toast.success('Loan saved on this device and queued for sync', { duration: 5000 })
+        router.push('/offline')
+        return
+      }
+
+      // Goes through create_loan (migration 007), which stamps tenant_id from
+      // the session, writes the activity entry and recalculates that day's
+      // cash summary in one transaction.
+      const res = await createLoan(loan)
 
       if (!res.ok || !res.data) throw new Error(res.error ?? 'Failed to create loan')
       const loanId = res.data
@@ -101,10 +114,10 @@ export default function NewLoanPage() {
         }
       }
 
-      toast.success('Loan created')
+      toast.success(`Loan #${loanId} created for ${data.name}.`)
       router.push(`/loans/${loanId}`)
     } catch (err: any) {
-      toast.error(err.message || 'Failed to create loan')
+      toast.error(`The loan for ${data.name} was not created. ${err.message || 'No record was saved; please retry.'}`)
     } finally {
       setLoading(false)
     }
@@ -214,7 +227,7 @@ export default function NewLoanPage() {
         </div>
 
         {/* Photo capture */}
-        <div className="card p-5">
+        {captureEnabled && <div className="card p-5">
           <h2 className="text-sm uppercase tracking-wide text-slate-500 font-semibold mb-1">
             Customer Photo
             {photoNeeded && <span className="text-red-500 ml-0.5">*</span>}
@@ -225,7 +238,7 @@ export default function NewLoanPage() {
             </p>
           )}
           <PhotoCapture onPhoto={setPhotoFile} />
-        </div>
+        </div>}
 
         <div className="flex gap-3">
           <Link href="/view-records/active"><Button variant="secondary">Cancel</Button></Link>

@@ -2,9 +2,10 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { Camera, Smartphone, Upload, X, CheckCircle2, Loader2, QrCode, Wifi } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
-import { cn } from '@/lib/utils'
-import { createBrowserClient } from '@supabase/ssr'
+import { createClient } from '@/lib/supabase/client'
+import { isLikelyMobileCaptureDevice } from '@/lib/capture-device'
 import Image from 'next/image'
+import toast from 'react-hot-toast'
 
 interface Props {
   onPhoto:           (file: File | null) => void
@@ -15,18 +16,12 @@ interface Props {
 type Mode = 'idle' | 'camera' | 'push-wait' | 'qr-wait'
 
 // ── Supabase browser client (lightweight — only used for Realtime) ─────────
-function useBrowserSupabase() {
-  return createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-  )
-}
-
 export function PhotoCapture({ onPhoto, existingPhotoUrl, loanId }: Props) {
   const [mode,       setMode]      = useState<Mode>('idle')
   const [preview,    setPreview]   = useState<string | null>(existingPhotoUrl ?? null)
-  const [isMobile,   setIsMobile]  = useState(false)
+  const [isMobile,   setIsMobile]  = useState<boolean | null>(null)
   const [hasPaired,  setHasPaired] = useState<boolean | null>(null)  // null = loading
+  const [cameraReady, setCameraReady] = useState(false)
 
   // Push-wait state
   const [sessionKey, setSessionKey] = useState<string | null>(null)
@@ -36,11 +31,20 @@ export function PhotoCapture({ onPhoto, existingPhotoUrl, loanId }: Props) {
 
   const videoRef   = useRef<HTMLVideoElement>(null)
   const streamRef  = useRef<MediaStream | null>(null)
-  const supabase   = useBrowserSupabase()
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const objectUrlRef = useRef<string | null>(null)
+  const [supabase] = useState(() => createClient())
 
   // ── Detect device type + paired devices ───────────────────────────────────
   useEffect(() => {
-    const mobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+    const nav = navigator as Navigator & { userAgentData?: { mobile?: boolean } }
+    const mobile = isLikelyMobileCaptureDevice({
+      userAgent: navigator.userAgent,
+      userAgentDataMobile: nav.userAgentData?.mobile,
+      maxTouchPoints: navigator.maxTouchPoints,
+      viewportWidth: window.innerWidth,
+      coarsePointer: window.matchMedia?.('(pointer: coarse)').matches ?? false,
+    })
     setIsMobile(mobile)
     if (!mobile) {
       // Check if user has a paired phone
@@ -50,6 +54,26 @@ export function PhotoCapture({ onPhoto, existingPhotoUrl, loanId }: Props) {
         .catch(() => setHasPaired(false))
     }
   }, [])
+
+  // getUserMedia resolves before React has rendered the camera view. Attach
+  // the stream after that video element exists, otherwise mobile shows a black
+  // preview even though camera permission was granted.
+  useEffect(() => {
+    if (mode !== 'camera' || !videoRef.current || !streamRef.current) return
+    videoRef.current.srcObject = streamRef.current
+    void videoRef.current.play().catch(() => undefined)
+  }, [mode])
+
+  useEffect(() => () => {
+    streamRef.current?.getTracks().forEach(track => track.stop())
+    if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current)
+  }, [])
+
+  const showLocalPreview = (file: File | Blob) => {
+    if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current)
+    objectUrlRef.current = URL.createObjectURL(file)
+    setPreview(objectUrlRef.current)
+  }
 
   // ── Supabase Realtime — listen for photo on push-wait ─────────────────────
   useEffect(() => {
@@ -104,25 +128,34 @@ export function PhotoCapture({ onPhoto, existingPhotoUrl, loanId }: Props) {
   // ── Direct camera (mobile) ────────────────────────────────────────────────
   const startCamera = async () => {
     try {
+      setCameraReady(false)
+      if (!navigator.mediaDevices?.getUserMedia) {
+        fileInputRef.current?.click()
+        return
+      }
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 960 } },
       })
       streamRef.current = stream
-      if (videoRef.current) videoRef.current.srcObject = stream
       setMode('camera')
-    } catch {
-      alert('Could not access camera. Check permissions or use Upload instead.')
+    } catch (error) {
+      const denied = error instanceof DOMException && error.name === 'NotAllowedError'
+      toast.error(denied
+        ? 'Camera permission is blocked. Allow it in your browser settings or choose a photo.'
+        : 'Could not open the camera. Choose a photo instead.')
+      fileInputRef.current?.click()
     }
   }
 
   const stopCamera = useCallback(() => {
     streamRef.current?.getTracks().forEach(t => t.stop())
     streamRef.current = null
+    setCameraReady(false)
     setMode('idle')
   }, [])
 
   const capturePhoto = () => {
-    if (!videoRef.current) return
+    if (!videoRef.current || !videoRef.current.videoWidth || !videoRef.current.videoHeight) return
     const canvas = document.createElement('canvas')
     canvas.width  = videoRef.current.videoWidth
     canvas.height = videoRef.current.videoHeight
@@ -130,7 +163,7 @@ export function PhotoCapture({ onPhoto, existingPhotoUrl, loanId }: Props) {
     canvas.toBlob(blob => {
       if (!blob) return
       const file = new File([blob], 'photo.jpg', { type: 'image/jpeg' })
-      setPreview(URL.createObjectURL(blob))
+      showLocalPreview(blob)
       onPhoto(file)
       stopCamera()
     }, 'image/jpeg', 0.88)
@@ -140,8 +173,9 @@ export function PhotoCapture({ onPhoto, existingPhotoUrl, loanId }: Props) {
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    setPreview(URL.createObjectURL(file))
+    showLocalPreview(file)
     onPhoto(file)
+    e.target.value = ''
   }
 
   // ── Push capture (desktop → phone) ────────────────────────────────────────
@@ -182,6 +216,8 @@ export function PhotoCapture({ onPhoto, existingPhotoUrl, loanId }: Props) {
   }
 
   const removePhoto = () => {
+    if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current)
+    objectUrlRef.current = null
     setPreview(null)
     onPhoto(null)
     setMode('idle')
@@ -212,10 +248,17 @@ export function PhotoCapture({ onPhoto, existingPhotoUrl, loanId }: Props) {
     return (
       <div className="space-y-3">
         <div className="relative rounded-xl overflow-hidden bg-black aspect-[4/3] max-w-sm border border-surface-border">
-          <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
+          <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            muted
+            onCanPlay={() => setCameraReady(true)}
+            className="w-full h-full object-cover"
+          />
         </div>
         <div className="flex gap-2">
-          <Button onClick={capturePhoto}>
+          <Button onClick={capturePhoto} disabled={!cameraReady}>
             <Camera className="h-4 w-4" /> Take Photo
           </Button>
           <Button variant="secondary" onClick={stopCamera}>
@@ -289,16 +332,17 @@ export function PhotoCapture({ onPhoto, existingPhotoUrl, loanId }: Props) {
 
   // ── Idle — choose method ──────────────────────────────────────────────────
   return (
-    <div className="flex flex-wrap gap-3">
+    <div className="space-y-2">
+      <div className="flex flex-wrap gap-3">
       {/* Mobile: direct camera */}
-      {isMobile && (
-        <Button variant="secondary" onClick={startCamera}>
-          <Camera className="h-4 w-4" /> Open Camera
+      {isMobile === true && (
+        <Button onClick={startCamera}>
+          <Camera className="h-4 w-4" /> Take Photo
         </Button>
       )}
 
       {/* Desktop: push to phone (primary if paired, else shows QR) */}
-      {!isMobile && (
+      {isMobile === false && (
         <Button
           variant="secondary"
           onClick={startPushCapture}
@@ -313,11 +357,25 @@ export function PhotoCapture({ onPhoto, existingPhotoUrl, loanId }: Props) {
         </Button>
       )}
 
+      {isMobile === null && (
+        <Button variant="secondary" disabled>
+          <Loader2 className="h-4 w-4 animate-spin" /> Checking camera…
+        </Button>
+      )}
+
       {/* Upload fallback — always available */}
       <label className="btn btn-secondary cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border border-surface-border bg-surface-card hover:bg-surface-hover transition-colors">
-        <Upload className="h-4 w-4" /> Upload Photo
-        <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileUpload} />
+        <Upload className="h-4 w-4" /> Choose Photo
+        <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileUpload} />
       </label>
+      </div>
+      <p className="text-xs text-slate-500">
+        {isMobile === true
+          ? 'Uses this device’s camera directly. You do not need to pair it first.'
+          : isMobile === false
+            ? 'Desktop capture continues through your paired phone. You can also choose an existing image.'
+            : 'Choosing the best capture method for this device…'}
+      </p>
     </div>
   )
 }

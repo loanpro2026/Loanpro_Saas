@@ -38,8 +38,8 @@ export function CashTxButton() {
     e.preventDefault()
     const value = Number(amount)
 
-    if (!value || value <= 0) { toast.error('Enter an amount'); return }
-    if (!reason.trim()) { toast.error('Please give a reason'); return }
+    if (!value || value <= 0) { toast.error('Enter a cash amount greater than zero. No transaction was recorded.'); return }
+    if (!reason.trim()) { toast.error('Add a reason so this transaction can be identified in the cash book.'); return }
 
     startTransition(async () => {
       if (!online) {
@@ -54,11 +54,11 @@ export function CashTxButton() {
 
       const res = await recordCash(type, value, reason.trim(), date)
       if (res.ok) {
-        toast.success(`${formatCurrency(value)} ${type === 'add' ? 'added' : 'removed'}`)
+        toast.success(`${formatCurrency(value)} ${type === 'add' ? 'added to' : 'removed from'} the cash drawer for “${reason.trim()}” on ${date}.`)
         reset(); setOpen(false)
         router.refresh()
       } else {
-        toast.error(res.error ?? 'Could not record the transaction')
+        toast.error(`The ${formatCurrency(value)} cash ${type === 'add' ? 'addition' : 'removal'} was not recorded. ${res.error ?? 'The cash book is unchanged.'}`)
       }
     })
   }

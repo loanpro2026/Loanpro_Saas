@@ -48,6 +48,63 @@ export type Database = {
   }
   public: {
     Tables: {
+      access_devices: {
+        Row: {
+          id: string
+          tenant_id: string
+          user_id: string
+          auth_session_id: string
+          display_name: string
+          user_agent: string | null
+          first_seen_at: string
+          last_seen_at: string
+          revoked_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          tenant_id: string
+          user_id: string
+          auth_session_id: string
+          display_name: string
+          user_agent?: string | null
+          first_seen_at?: string
+          last_seen_at?: string
+          revoked_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          tenant_id?: string
+          user_id?: string
+          auth_session_id?: string
+          display_name?: string
+          user_agent?: string | null
+          first_seen_at?: string
+          last_seen_at?: string
+          revoked_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'access_devices_tenant_id_fkey'
+            columns: ['tenant_id']
+            isOneToOne: false
+            referencedRelation: 'tenants'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'access_devices_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'users'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       activity_log: {
         Row: {
           id: number
@@ -88,6 +145,27 @@ export type Database = {
             referencedColumns: ['id']
           },
         ]
+      }
+      api_rate_limits: {
+        Row: {
+          scope: string
+          identity_hash: string
+          window_started_at: string
+          request_count: number
+        }
+        Insert: {
+          scope: string
+          identity_hash: string
+          window_started_at?: string
+          request_count?: number
+        }
+        Update: {
+          scope?: string
+          identity_hash?: string
+          window_started_at?: string
+          request_count?: number
+        }
+        Relationships: []
       }
       app_state: {
         Row: {
@@ -1124,6 +1202,10 @@ export type Database = {
         Args: { p_token?: string | null }
         Returns: string
       }
+      access_device_limit: {
+        Args: { p_plan?: string | null }
+        Returns: number
+      }
       account_report: {
         Args: { p_type?: string | null; p_start?: string | null; p_end?: string | null }
         Returns: { date: string | null; amount: number | null; count: number | null; avg_amount: number | null }[]
@@ -1136,7 +1218,15 @@ export type Database = {
         Args: { p_loan_id?: number | null; p_amount?: number | null; p_date?: string | null; p_key?: string | null }
         Returns: Json
       }
+      append_loan_remark: {
+        Args: { p_loan_id?: number | null; p_text?: string | null }
+        Returns: Json
+      }
       assert_can_write: {
+        Args: Record<string, never>
+        Returns: undefined
+      }
+      assert_device_management_session: {
         Args: Record<string, never>
         Returns: undefined
       }
@@ -1163,6 +1253,10 @@ export type Database = {
       close_loan: {
         Args: { p_loan_id?: number | null; p_interest?: number | null; p_closed_date?: string | null }
         Returns: Json
+      }
+      consume_api_rate_limit: {
+        Args: { p_scope?: string | null; p_identity_hash?: string | null; p_limit?: number | null; p_window_seconds?: number | null }
+        Returns: { allowed: boolean | null; remaining: number | null; retry_after: number | null }[]
       }
       create_loan: {
         Args: { p_loan?: Json | null }
@@ -1196,6 +1290,14 @@ export type Database = {
         Args: { p_deposit_id?: number | null }
         Returns: Json
       }
+      delete_loan: {
+        Args: { p_loan_id?: number | null }
+        Returns: Json
+      }
+      delete_loan_remark: {
+        Args: { p_loan_id?: number | null; p_index?: number | null; p_expected?: string | null }
+        Returns: undefined
+      }
       distinct_locations: {
         Args: Record<string, never>
         Returns: { location: string | null; loan_count: number | null; active_amount: number | null }[]
@@ -1203,6 +1305,10 @@ export type Database = {
       field_suggestions: {
         Args: { p_field?: string | null; p_prefix?: string | null; p_limit?: number | null }
         Returns: { value: string | null; uses: number | null }[]
+      }
+      get_app_user_id: {
+        Args: Record<string, never>
+        Returns: string
       }
       get_tenant_id: {
         Args: Record<string, never>
@@ -1252,6 +1358,10 @@ export type Database = {
         Args: { p_locations?: string[] | null; p_start?: string | null; p_end?: string | null }
         Returns: { location: string | null; loan_count: number | null; active_count: number | null; closed_count: number | null; total_amount: number | null; active_amount: number | null; total_weight: number | null; avg_amount: number | null }[]
       }
+      my_access_devices: {
+        Args: Record<string, never>
+        Returns: { id: string | null; display_name: string | null; user_agent: string | null; first_seen_at: string | null; last_seen_at: string | null; revoked_at: string | null; is_current: boolean | null }[]
+      }
       my_plan: {
         Args: Record<string, never>
         Returns: Json
@@ -1284,6 +1394,10 @@ export type Database = {
         Args: { p_shop_name?: string | null; p_full_name?: string | null }
         Returns: string
       }
+      prune_api_rate_limits: {
+        Args: Record<string, never>
+        Returns: number
+      }
       prune_enquiry_ips: {
         Args: Record<string, never>
         Returns: undefined
@@ -1312,9 +1426,17 @@ export type Database = {
         Args: { p_type?: string | null; p_amount?: number | null; p_reason?: string | null; p_date?: string | null }
         Returns: Json
       }
+      register_access_session: {
+        Args: { p_session_id?: string | null; p_display_name?: string | null; p_user_agent?: string | null }
+        Returns: Json
+      }
       removed_records_report: {
         Args: { p_date?: string | null }
         Returns: { id: number | null; loan_id: number | null; name: string | null; father_name: string | null; location: string | null; amount: number | null; detailed_type: string | null; weight: number | null; issue_date: string | null; closed_date: string | null; total_deposits: number | null; remarks: string | null }[]
+      }
+      rename_access_device: {
+        Args: { p_device_id?: string | null; p_name?: string | null }
+        Returns: undefined
       }
       reopen_loan: {
         Args: { p_loan_id?: number | null }
@@ -1331,6 +1453,18 @@ export type Database = {
       returns_report: {
         Args: { p_date?: string | null }
         Returns: { id: number | null; name: string | null; father_name: string | null; location: string | null; amount: number | null; category_type: string | null; detailed_type: string | null; weight: number | null; issue_date: string | null; closed_date: string | null; interest: number | null; total_return: number | null; deposits_collected: number | null; days_held: number | null }[]
+      }
+      revoke_access_device: {
+        Args: { p_device_id?: string | null }
+        Returns: boolean
+      }
+      revoke_all_access_devices: {
+        Args: Record<string, never>
+        Returns: number
+      }
+      revoke_other_access_devices: {
+        Args: Record<string, never>
+        Returns: number
       }
       revoke_staff: {
         Args: { p_user_id?: string | null }
@@ -1364,6 +1498,10 @@ export type Database = {
         Args: Record<string, never>
         Returns: unknown
       }
+      update_active_loan: {
+        Args: { p_loan_id?: number | null; p_patch?: Json | null }
+        Returns: Json
+      }
       update_closed_record: {
         Args: { p_loan_id?: number | null; p_patch?: Json | null }
         Returns: Json
@@ -1371,6 +1509,10 @@ export type Database = {
       update_deposit: {
         Args: { p_deposit_id?: number | null; p_amount?: number | null; p_date?: string | null }
         Returns: Json
+      }
+      validate_loan_chronology: {
+        Args: Record<string, never>
+        Returns: unknown
       }
     }
     Enums: { [_ in never]: never }

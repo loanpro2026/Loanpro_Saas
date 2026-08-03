@@ -55,8 +55,8 @@ export default function SupportPage() {
             <Mail className="h-5 w-5 text-primary-700" />
             <h2 className="mt-3 font-semibold text-slate-900">Moving from the desktop app?</h2>
             <p className="mt-1 text-sm text-slate-600">
-              We do it for you, and your desktop app keeps working the whole
-              time. Pick &ldquo;moving my records&rdquo; in the form and tell us
+              We rehearse safely from a copy, then perform one final overnight
+              cutover. Pick &ldquo;moving my records&rdquo; in the form and tell us
               roughly how many loans you have.
             </p>
           </div>

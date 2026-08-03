@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
+import { AppToaster } from '@/components/ui/AppToaster'
 
 export const metadata: Metadata = {
   title: { default: 'LoanPro — Gold & Silver Loan Management', template: '%s | LoanPro' },
@@ -32,6 +33,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en-IN" suppressHydrationWarning>
       <head>
+        <script dangerouslySetInnerHTML={{ __html: `(function(){try{var t=localStorage.getItem('loanpro-theme');if(t==='dark'){document.documentElement.classList.add('dark');document.documentElement.style.colorScheme='dark'}}catch(e){}})()` }} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link rel="apple-touch-icon" href="/icons/icon-192.png" />
@@ -39,7 +41,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
       </head>
-      <body>{children}</body>
+      <body>
+        {children}
+        <AppToaster />
+      </body>
     </html>
   )
 }

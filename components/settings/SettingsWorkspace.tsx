@@ -16,6 +16,8 @@ import {
 import { PinSettings } from '@/components/settings/PinSettings'
 import { IdentitySettings } from '@/components/settings/IdentitySettings'
 import { DataExport } from '@/components/settings/DataExport'
+import { AccessDevices } from '@/components/settings/AccessDevices'
+import { AppearanceSettings } from '@/components/settings/AppearanceSettings'
 import type { ShopSettings } from '@/lib/settings'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -42,9 +44,10 @@ interface Props {
   plan: Record<string, unknown>
   members: Member[]
   settings: ShopSettings
+  staffAccessEnabled?: boolean
 }
 
-export function SettingsWorkspace({ me, shopName, plan, members, settings }: Props) {
+export function SettingsWorkspace({ me, shopName, plan, members, settings, staffAccessEnabled = false }: Props) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
 
@@ -67,16 +70,17 @@ export function SettingsWorkspace({ me, shopName, plan, members, settings }: Pro
     startTransition(async () => {
       const res = await fn()
       if (res.ok) { toast.success(msg); router.refresh() }
-      else toast.error(res.error ?? 'Could not save')
+      else toast.error(`${msg} failed. ${res.error ?? 'The previous setting is still active.'}`)
     })
 
   const onInvite = () => startTransition(async () => {
     const res = await inviteStaff(inviteEmail, inviteRole)
-    if (!res.ok) { toast.error(res.error ?? 'Could not invite'); return }
+    if (!res.ok) { toast.error(`Invitation for ${inviteEmail} was not created. ${res.error ?? 'No access was granted.'}`); return }
 
     const url = `${window.location.origin}/join?token=${res.data!.token}`
     setInviteLink(url)
     setInviteEmail('')
+    toast.success(`A 7-day ${inviteRole} invitation link was created. Access begins only after it is accepted.`)
     router.refresh()
   })
 
@@ -84,6 +88,7 @@ export function SettingsWorkspace({ me, shopName, plan, members, settings }: Pro
     if (!inviteLink) return
     await navigator.clipboard.writeText(inviteLink)
     setCopied(true)
+    toast.success('Invitation link copied to the clipboard.')
     setTimeout(() => setCopied(false), 2000)
   }
 
@@ -164,7 +169,7 @@ export function SettingsWorkspace({ me, shopName, plan, members, settings }: Pro
       </section>
 
       {/* ── People ────────────────────────────────────────────────────────── */}
-      <section className="card space-y-4">
+      {staffAccessEnabled && <section className="card space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Users className="h-4 w-4 text-slate-400" />
@@ -211,11 +216,15 @@ export function SettingsWorkspace({ me, shopName, plan, members, settings }: Pro
             close and reopen loans, delete records, invite people, or change the plan.
           </p>
         )}
-      </section>
+      </section>}
 
       {/* Identity, interest and form fields — ported from the desktop's
           General Settings screen (migration 012). */}
       <IdentitySettings settings={settings} />
+
+      <AppearanceSettings initialTheme={settings.theme} />
+
+      <AccessDevices />
 
       {/* ── Screen lock ───────────────────────────────────────────────────── */}
       <section className="card space-y-4">
@@ -249,7 +258,7 @@ export function SettingsWorkspace({ me, shopName, plan, members, settings }: Pro
       <DataExport />
 
       {/* ── Invite modal ──────────────────────────────────────────────────── */}
-      <Modal open={inviting} onClose={() => setInviting(false)} title="Invite someone">
+      {staffAccessEnabled && <Modal open={inviting} onClose={() => setInviting(false)} title="Invite someone">
         {inviteLink ? (
           <div className="space-y-4">
             <p className="text-sm text-slate-600">
@@ -296,7 +305,7 @@ export function SettingsWorkspace({ me, shopName, plan, members, settings }: Pro
             </div>
           </div>
         )}
-      </Modal>
+      </Modal>}
     </div>
   )
 }

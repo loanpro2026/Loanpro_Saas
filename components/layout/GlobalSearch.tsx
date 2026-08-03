@@ -18,6 +18,7 @@ import { formatCurrency, formatDate, cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/Badge'
 import { useOffline } from '@/components/offline/OfflineProvider'
 import { searchCachedLoans } from '@/lib/offline/db'
+import { memoryCached } from '@/lib/memory-cache'
 
 interface Hit {
   id: number
@@ -80,15 +81,19 @@ export function GlobalSearch() {
     }
 
     try {
-      const supabase = createClient()
-      const { data, error } = await supabase.rpc('search_loans', {
-        p_query: q.trim(),
-        p_status: null,
-        p_limit: 12,
+      const normalized = q.trim().toLocaleLowerCase('en-IN')
+      const data = await memoryCached<Hit[]>(`loan-search:${normalized}`, 20_000, async () => {
+        const supabase = createClient()
+        const { data, error } = await supabase.rpc('search_loans', {
+          p_query: q.trim(),
+          p_status: null,
+          p_limit: 12,
+        })
+        if (error) throw error
+        return (data as Hit[]) ?? []
       })
       if (mine !== seq.current) return   // a newer query already answered
-      if (error) throw error
-      setHits((data as Hit[]) ?? [])
+      setHits(data)
       setFromCache(false)
     } catch {
       // The browser can report `online` while the connection is unusable —

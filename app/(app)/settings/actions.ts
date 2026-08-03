@@ -73,6 +73,9 @@ export async function inviteStaff(
   email: string,
   role: 'owner' | 'staff'
 ): Promise<ActionResult<{ token: string; email: string }>> {
+  if (process.env.STAFF_ACCESS_ENABLED !== 'true') {
+    return fail('Staff accounts are not enabled yet') as ActionResult<{ token: string; email: string }>
+  }
   const ctx = await getSessionContext()
   if (!ctx) return fail('Not signed in') as ActionResult<{ token: string; email: string }>
 
@@ -92,6 +95,7 @@ export async function inviteStaff(
 }
 
 export async function revokeStaff(userId: string): Promise<ActionResult> {
+  if (process.env.STAFF_ACCESS_ENABLED !== 'true') return fail('Staff accounts are not enabled yet')
   const ctx = await getSessionContext()
   if (!ctx) return fail('Not signed in')
 
@@ -104,6 +108,7 @@ export async function revokeStaff(userId: string): Promise<ActionResult> {
 }
 
 export async function cancelInvitation(id: string): Promise<ActionResult> {
+  if (process.env.STAFF_ACCESS_ENABLED !== 'true') return fail('Staff accounts are not enabled yet')
   const ctx = await getSessionContext()
   if (!ctx) return fail('Not signed in')
   if (ctx.role !== 'owner') return fail('Only the shop owner can cancel invitations')
@@ -126,6 +131,13 @@ export async function saveSetting(key: string, value: unknown): Promise<ActionRe
   // is rejected rather than letting tenant_settings become a dumping ground.
   if (!(WRITABLE_SETTINGS as readonly string[]).includes(key)) {
     return fail(`Unknown setting: ${key}`)
+  }
+
+  if (key === 'theme' && value !== 'light' && value !== 'dark') {
+    return fail('Theme must be light or dark')
+  }
+  if (key === 'photo_capture_mode' && value !== 'automatic' && value !== 'off') {
+    return fail('Photo capture mode must be automatic or off')
   }
 
   // The interest rate drives every settlement in the shop, so a fat-fingered

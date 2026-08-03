@@ -4,11 +4,22 @@
  * PUT  /api/billing        — verify payment and activate subscription
  */
 import { createClient as createServerClient, createServiceClient } from '@/lib/supabase/server'
-import { createOrder, verifyPaymentSignature, PLANS, type PlanId } from '@/lib/razorpay'
+import { createOrder, getBillingMode, verifyPaymentSignature, PLANS, type PlanId } from '@/lib/razorpay'
 import { NextResponse } from 'next/server'
+
+export async function GET() {
+  const mode = getBillingMode()
+  return NextResponse.json({ mode, enabled: mode !== 'disabled' })
+}
 
 // POST — create order
 export async function POST(req: Request) {
+  if (getBillingMode() === 'disabled') {
+    return NextResponse.json(
+      { error: 'Payments are disabled while LoanPro is in testing' },
+      { status: 503 },
+    )
+  }
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -51,6 +62,12 @@ export async function POST(req: Request) {
 
 // PUT — verify payment signature and activate
 export async function PUT(req: Request) {
+  if (getBillingMode() === 'disabled') {
+    return NextResponse.json(
+      { error: 'Payments are disabled while LoanPro is in testing' },
+      { status: 503 },
+    )
+  }
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

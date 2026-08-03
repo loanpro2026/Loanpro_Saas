@@ -37,7 +37,10 @@ export default function RegisterPage() {
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: data.email,
         password: data.password,
-        options: { data: { full_name: data.full_name, shop_name: data.shop_name } },
+        options: {
+          data: { full_name: data.full_name, shop_name: data.shop_name },
+          emailRedirectTo: `${window.location.origin}/api/auth/callback?next=/dashboard`,
+        },
       })
       if (authError) throw authError
       if (!authData.user) throw new Error('Registration failed')
@@ -79,7 +82,7 @@ export default function RegisterPage() {
     <div>
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-slate-900">Create your account</h1>
-        <p className="text-slate-500 mt-1.5 text-sm">Start your 14-day free trial. No credit card needed.</p>
+        <p className="text-slate-500 mt-1.5 text-sm">Start your 60-day free trial. No credit card needed.</p>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">

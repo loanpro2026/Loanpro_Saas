@@ -35,8 +35,9 @@ export function Sidebar({ tenant, user }: SidebarProps) {
 
   const handleSignOut = async () => {
     const supabase = createClient()
-    await supabase.auth.signOut()
-    router.push('/login')
+    await supabase.auth.signOut({ scope: 'local' })
+    router.replace('/login')
+    router.refresh()
   }
 
   const leafClass = (active: boolean, nested = false) =>

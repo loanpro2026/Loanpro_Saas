@@ -65,7 +65,11 @@ export default function LoginPage() {
   const resendConfirmation = async () => {
     if (!unconfirmed) return
     const supabase = createClient()
-    const { error } = await supabase.auth.resend({ type: 'signup', email: unconfirmed })
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email: unconfirmed,
+      options: { emailRedirectTo: `${window.location.origin}/api/auth/callback?next=/dashboard` },
+    })
     toast[error ? 'error' : 'success'](
       error ? error.message : 'Sent. It can take a minute to arrive.'
     )
@@ -128,6 +132,12 @@ export default function LoginPage() {
           >
             {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           </button>
+        </div>
+
+        <div className="-mt-1 text-right">
+          <Link href="/forgot-password" className="text-xs font-medium text-primary-700 hover:text-primary-800">
+            Forgot password?
+          </Link>
         </div>
 
         <Button type="submit" loading={loading} className="w-full">

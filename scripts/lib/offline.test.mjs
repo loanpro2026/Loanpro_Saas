@@ -240,6 +240,30 @@ section('Photo queue')
   eq('and reported',                                  r.errors.length, 1)
 }
 
+section('Offline new loan with its pledge photo')
+
+{
+  const server = makeServer()
+  let photoUploads = 0
+
+  const replayBundle = (failPhoto) => {
+    // Mirrors applyOne('loan'): the RPC is idempotent and returns the same loan
+    // row before the attached photo is attempted.
+    const loan = server.apply('loan-with-photo', 'loan', { name: 'Ramesh' })
+    if (failPhoto) throw new Error('fetch failed')
+    photoUploads++
+    return loan.id
+  }
+
+  try { replayBundle(true) } catch {}
+  eq('loan lands before an interrupted photo upload', server.log.length, 1)
+
+  const loanId = replayBundle(false)
+  eq('retry reuses the same loan ID', loanId, server.log[0].id)
+  eq('retry does not duplicate the loan', server.log.length, 1)
+  eq('pledge photo is attached on retry', photoUploads, 1)
+}
+
 section('Queue size accounting')
 
 {

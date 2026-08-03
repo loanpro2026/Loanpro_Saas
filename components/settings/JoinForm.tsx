@@ -36,7 +36,7 @@ export function JoinForm({ token }: { token: string }) {
 
     if (error) { setError(error.message); return }
 
-    toast.success('You now have access')
+    toast.success(`Invitation accepted for ${email}. This account can now open the shop dashboard.`)
     router.push('/dashboard')
     router.refresh()
   })

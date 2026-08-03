@@ -115,7 +115,7 @@ export function RemoveRecordWorkspace({ canDelete }: { canDelete: boolean }) {
       if (error) throw new Error(error.message)
       setRows(data ?? [])
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Could not search')
+      toast.error(`Active-loan search could not be completed. ${err instanceof Error ? err.message : 'The current filters are unchanged; please retry.'}`)
       setRows([])
     } finally {
       setLoading(false)
@@ -132,7 +132,7 @@ export function RemoveRecordWorkspace({ canDelete }: { canDelete: boolean }) {
       const supabase = createClient()
       const { data, error } = await supabase.rpc('loan_detail', { p_loan_id: selectedId })
       if (cancelled) return
-      if (error) { toast.error(error.message); setDetail(null); return }
+      if (error) { toast.error(`Loan #${selectedId} details could not be loaded. ${error.message}`); setDetail(null); return }
 
       const d = (data ?? null) as LoanDetailPayload | null
       setDetail(d)
@@ -154,19 +154,19 @@ export function RemoveRecordWorkspace({ canDelete }: { canDelete: boolean }) {
     if (!loan) return
     const value = Number(interest)
     if (!Number.isFinite(value) || value < 0) {
-      toast.error('Interest must be zero or more')
+      toast.error(`Enter settlement interest of zero or more for loan #${loan.id}.`)
       return
     }
     setSettling(true)
     try {
       const res = await closeLoan(loan.id, value, closureDate)
       if (!res.ok) throw new Error(res.error ?? 'Could not settle this loan')
-      toast.success(`Loan #${loan.id} settled`)
+      toast.success(`Loan #${loan.id} for ${loan.name} was settled; the cash book and deposit archive were updated.`)
       setRows(r => r.filter(x => x.id !== loan.id))
       setSelectedId(null)
       router.refresh()
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Could not settle this loan')
+      toast.error(`Loan #${loan.id} was not settled. ${err instanceof Error ? err.message : 'Its active record and cash history are unchanged.'}`)
     } finally {
       setSettling(false)
     }

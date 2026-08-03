@@ -37,6 +37,7 @@ export function DayEndWorkspace({ shopName = 'LoanPro' }: { shopName?: string })
   const [removed, setRemoved] = useState<Removed[]>([])
   const [deposits, setDeposits] = useState<DailyDeposit[]>([])
   const [loading, setLoading] = useState(true)
+  const [printing, setPrinting] = useState(false)
   const [clearing, setClearing] = useState<'removed' | 'deposits' | null>(null)
 
   const load = useCallback(async () => {
@@ -46,8 +47,13 @@ export function DayEndWorkspace({ shopName = 'LoanPro' }: { shopName?: string })
       supabase.rpc('removed_records_report', { p_date: date }),
       supabase.rpc('daily_deposits_report', { p_date: date }),
     ])
-    setRemoved((r.data as Removed[]) ?? [])
-    setDeposits((d.data as DailyDeposit[]) ?? [])
+    if (r.error || d.error) {
+      toast.error(
+        `The ${formatDate(date)} day-end lists could not be loaded. ${r.error?.message ?? d.error?.message ?? 'Please retry.'}`
+      )
+    }
+    setRemoved(r.error ? [] : (r.data as Removed[]) ?? [])
+    setDeposits(d.error ? [] : (d.data as DailyDeposit[]) ?? [])
     setLoading(false)
   }, [date])
 
@@ -62,8 +68,11 @@ export function DayEndWorkspace({ shopName = 'LoanPro' }: { shopName?: string })
     const fn = which === 'removed' ? 'clear_removed_records' : 'clear_daily_deposits'
     const { data, error } = await supabase.rpc(fn, { p_date: date })
 
-    if (error) { toast.error(error.message); return }
-    toast.success(`${data ?? 0} entr${data === 1 ? 'y' : 'ies'} cleared`)
+    if (error) {
+      toast.error(`The ${which === 'removed' ? 'settlement' : 'part-payment'} checklist was not cleared. ${error.message}`)
+      return
+    }
+    toast.success(`${data ?? 0} ${which === 'removed' ? 'settlement' : 'part-payment'} entr${data === 1 ? 'y' : 'ies'} marked as checked.`)
     setClearing(null)
     void load()
   }
@@ -79,28 +88,43 @@ export function DayEndWorkspace({ shopName = 'LoanPro' }: { shopName?: string })
         item: d.detailed_type ?? '', principal: d.loan_amount, deposits: d.deposit_amount,
       })),
     ]
-    if (rows.length === 0) { toast.error('Nothing to print'); return }
+    if (rows.length === 0) {
+      toast.error(`There are no settlements or part-payments on ${formatDate(date)} to include in a PDF.`)
+      return
+    }
 
-    const blob = await generateReportPdf({
-      title: 'End of day',
-      shopName,
-      period: formatDate(date),
-      columns: [
-        { key: 'kind', label: 'Type' },
-        { key: 'loan', label: 'Loan', numeric: true },
-        { key: 'name', label: 'Customer' },
-        { key: 'item', label: 'Item' },
-        { key: 'principal', label: 'Principal', numeric: true },
-        { key: 'deposits', label: 'Deposits', numeric: true },
-      ],
-      rows,
-      summary: [
-        { label: 'Loans settled', value: String(removed.length) },
-        { label: 'Part-payments', value: formatCurrency(depositTotal) },
-        { label: 'Deposits on settled loans', value: formatCurrency(settledDeposits) },
-      ],
-    })
-    printPdf(blob)
+    setPrinting(true)
+    const notice = toast.loading(`Generating the ${formatDate(date)} end-of-day PDF…`)
+    try {
+      const blob = await generateReportPdf({
+        title: 'End of day',
+        shopName,
+        period: formatDate(date),
+        columns: [
+          { key: 'kind', label: 'Type' },
+          { key: 'loan', label: 'Loan', numeric: true },
+          { key: 'name', label: 'Customer' },
+          { key: 'item', label: 'Item' },
+          { key: 'principal', label: 'Principal', numeric: true },
+          { key: 'deposits', label: 'Deposits', numeric: true },
+        ],
+        rows,
+        summary: [
+          { label: 'Loans settled', value: String(removed.length) },
+          { label: 'Part-payments', value: formatCurrency(depositTotal) },
+          { label: 'Deposits on settled loans', value: formatCurrency(settledDeposits) },
+        ],
+      })
+      printPdf(blob)
+      toast.success(`End-of-day PDF for ${formatDate(date)} is ready in the print window.`, { id: notice })
+    } catch (error) {
+      toast.error(
+        `The end-of-day PDF could not be generated. ${error instanceof Error ? error.message : 'Please try again.'}`,
+        { id: notice }
+      )
+    } finally {
+      setPrinting(false)
+    }
   }
 
   return (
@@ -121,8 +145,8 @@ export function DayEndWorkspace({ shopName = 'LoanPro' }: { shopName?: string })
             hand marks the day as checked.
           </p>
         </div>
-        <Button variant="secondary" size="sm" onClick={onPrint} disabled={loading}>
-          <Printer className="h-4 w-4" /> Print
+        <Button variant="secondary" size="sm" onClick={onPrint} loading={printing} disabled={loading}>
+          {!printing && <Printer className="h-4 w-4" />} {printing ? 'Generating PDF' : 'Print'}
         </Button>
       </div>
 

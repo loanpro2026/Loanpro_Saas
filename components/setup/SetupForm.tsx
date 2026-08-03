@@ -28,7 +28,7 @@ export function SetupForm({
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!shopName.trim() || !fullName.trim()) {
-      toast.error('Both fields are needed')
+      toast.error('Enter both your name and shop name before creating the workspace.')
       return
     }
     setLoading(true)
@@ -41,11 +41,11 @@ export function SetupForm({
       if (!res.ok) {
         throw new Error((await res.json().catch(() => ({}))).error || 'Setup failed')
       }
-      toast.success('All set.')
+      toast.success(`${shopName.trim()} workspace created for ${fullName.trim()}. Your 60-day trial has started.`)
       router.push('/dashboard')
       router.refresh()
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Setup failed')
+      toast.error(`The workspace for ${shopName.trim() || 'this shop'} was not created. ${err instanceof Error ? err.message : 'Please retry; no tenant was added.'}`)
     } finally {
       setLoading(false)
     }

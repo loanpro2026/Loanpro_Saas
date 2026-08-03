@@ -1,6 +1,7 @@
 import type { Config } from 'tailwindcss'
 
 const config: Config = {
+  darkMode: 'class',
   content: [
     './pages/**/*.{js,ts,jsx,tsx,mdx}',
     './components/**/*.{js,ts,jsx,tsx,mdx}',
@@ -9,6 +10,19 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        slate: {
+          50:  'rgb(var(--slate-50) / <alpha-value>)',
+          100: 'rgb(var(--slate-100) / <alpha-value>)',
+          200: 'rgb(var(--slate-200) / <alpha-value>)',
+          300: 'rgb(var(--slate-300) / <alpha-value>)',
+          400: 'rgb(var(--slate-400) / <alpha-value>)',
+          500: 'rgb(var(--slate-500) / <alpha-value>)',
+          600: 'rgb(var(--slate-600) / <alpha-value>)',
+          700: 'rgb(var(--slate-700) / <alpha-value>)',
+          800: 'rgb(var(--slate-800) / <alpha-value>)',
+          900: 'rgb(var(--slate-900) / <alpha-value>)',
+          950: 'rgb(var(--slate-950) / <alpha-value>)',
+        },
         // Brand — Deep Indigo
         primary: {
           50:  '#eef2ff',
@@ -38,10 +52,10 @@ const config: Config = {
         },
         // Surface tokens
         surface: {
-          DEFAULT: '#f8fafc',
-          card:    '#ffffff',
-          border:  '#e2e8f0',
-          muted:   '#f1f5f9',
+          DEFAULT: 'rgb(var(--surface) / <alpha-value>)',
+          card:    'rgb(var(--surface-card) / <alpha-value>)',
+          border:  'rgb(var(--surface-border) / <alpha-value>)',
+          muted:   'rgb(var(--surface-muted) / <alpha-value>)',
         },
       },
       fontFamily: {

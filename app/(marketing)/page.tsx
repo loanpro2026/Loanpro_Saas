@@ -47,7 +47,7 @@ export default function HomePage() {
 
               <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-2 max-w-lg">
                 {[
-                  'Free for 14 days',
+                  'Free for 60 days',
                   'Your data stays yours',
                   'Hindi + English support',
                 ].map(t => (
@@ -250,8 +250,9 @@ export default function HomePage() {
                 written on your tickets stay correct.
               </p>
               <p className="mt-3 text-slate-600">
-                Your desktop app keeps working throughout. Nothing is switched
-                off until you have checked the figures yourself and are happy.
+                We rehearse from a copy first. At final cutover, desktop entry
+                stops only for the overnight reconciliation window, then the
+                web application becomes the single live system.
               </p>
               <Link
                 href="/support"
@@ -264,9 +265,9 @@ export default function HomePage() {
 
             <ol className="space-y-4">
               {[
-                ['We take a copy of your records', 'Read-only. Your desktop app is never modified.'],
+                ['We rehearse from a copy', 'Read-only. Your desktop database is never modified.'],
                 ['You check the totals', 'Loan count, outstanding, cash in hand — side by side, old against new.'],
-                ['You start when you are ready', 'Usually overnight, so nothing changes mid-day.'],
+                ['We make one final cutover', 'Usually overnight, with no dual-entry period to create conflicting records.'],
               ].map(([title, body], i) => (
                 <li key={title} className="flex gap-4">
                   <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white border border-slate-200 text-sm font-semibold text-primary-700">
@@ -282,9 +283,8 @@ export default function HomePage() {
           </div>
 
           <p className="mt-8 text-xs text-slate-500 max-w-2xl">
-            One thing to know: fingerprint scanning needs the hardware attached
-            to a Windows machine, so it stays a desktop-only feature. Customer
-            photos work everywhere.
+            One thing to know: fingerprint capture is not part of the SaaS
+            application. Customer photos work directly on mobile devices.
           </p>
         </div>
       </section>
@@ -293,36 +293,29 @@ export default function HomePage() {
       <section id="pricing" className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-20">
         <div className="max-w-2xl">
           <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-slate-900">
-            Simple pricing
+            Testing access
           </h2>
           <p className="mt-3 text-slate-600">
-            Start with 14 days free. No card needed until you decide.
+            Start with 60 days free. Payments and final paid-plan limits are not active during testing.
           </p>
         </div>
 
-        <div className="mt-10 grid gap-6 md:grid-cols-3">
+        <div className="mt-10 grid gap-6 md:grid-cols-2">
           {[
             {
               name: 'Trial',
               price: 'Free',
-              period: 'for 14 days',
-              body: 'Everything included, so you can judge it properly.',
-              features: ['Up to 100 loans', '2 people', 'All reports', 'Full support'],
+              period: 'for 60 days',
+              body: 'The complete owner experience, so you can judge it properly.',
+              features: ['Unlimited loan records', 'Owner access', 'All reports', 'Full support'],
             },
             {
-              name: 'Basic',
-              price: '₹499',
-              period: 'per month',
-              body: 'For a single shop.',
-              features: ['Up to 5,000 loans', '3 people', 'All reports & exports', 'Phone photo capture'],
+              name: 'Production plans',
+              price: 'Coming later',
+              period: 'after testing',
+              body: 'Pricing, staff access and device allowances will be finalized from real usage.',
+              features: ['No payment during testing', 'Plan-based device controls', 'In-app Razorpay checkout later', 'Your records remain exportable'],
               featured: true,
-            },
-            {
-              name: 'Pro',
-              price: '₹999',
-              period: 'per month',
-              body: 'For a larger book or more staff.',
-              features: ['Unlimited loans', '10 people', 'Everything in Basic', 'Priority support'],
             },
           ].map(p => (
             <div
@@ -335,7 +328,7 @@ export default function HomePage() {
             >
               {p.featured && (
                 <span className="inline-block rounded-full bg-primary-700 px-2.5 py-0.5 text-xs font-semibold text-white">
-                  Most shops choose this
+                  Planned
                 </span>
               )}
               <h3 className={`font-semibold text-slate-900 ${p.featured ? 'mt-3' : ''}`}>
@@ -371,9 +364,8 @@ export default function HomePage() {
         </div>
 
         <p className="mt-6 text-sm text-slate-500">
-          Prices in Indian rupees, inclusive of applicable taxes. If your
-          subscription lapses you can still open, search and export everything
-          you already have — and keep recording repayments on existing loans.
+          Before paid plans go live, pricing and limits will be published clearly.
+          If a subscription later lapses, existing records remain readable and exportable.
         </p>
       </section>
 
@@ -387,7 +379,7 @@ export default function HomePage() {
             Try it with your own records
           </h2>
           <p className="mt-3 text-primary-200 max-w-xl mx-auto">
-            Fourteen days, everything included, no card. If you are moving from
+            Sixty days, everything included, no card. If you are moving from
             the desktop app we will bring your data across so you are judging it
             properly, not with an empty screen.
           </p>

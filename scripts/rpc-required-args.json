@@ -2,6 +2,9 @@
  "accept_invitation": [
   "p_token"
  ],
+ "access_device_limit": [
+  "p_plan"
+ ],
  "account_report": [
   "p_type",
   "p_start",
@@ -17,7 +20,12 @@
   "p_date",
   "p_key"
  ],
+ "append_loan_remark": [
+  "p_loan_id",
+  "p_text"
+ ],
  "assert_can_write": [],
+ "assert_device_management_session": [],
  "calculate_interest": [
   "p_principal",
   "p_issue_date"
@@ -33,6 +41,12 @@
  "close_loan": [
   "p_loan_id",
   "p_interest"
+ ],
+ "consume_api_rate_limit": [
+  "p_scope",
+  "p_identity_hash",
+  "p_limit",
+  "p_window_seconds"
  ],
  "create_loan": [
   "p_loan"
@@ -52,10 +66,19 @@
  "delete_deposit": [
   "p_deposit_id"
  ],
+ "delete_loan": [
+  "p_loan_id"
+ ],
+ "delete_loan_remark": [
+  "p_loan_id",
+  "p_index",
+  "p_expected"
+ ],
  "distinct_locations": [],
  "field_suggestions": [
   "p_field"
  ],
+ "get_app_user_id": [],
  "get_tenant_id": [],
  "has_photo": [
   "p_loan_id"
@@ -76,6 +99,7 @@
  "loan_photos_storage_delta": [],
  "loans_missing_photo": [],
  "location_report": [],
+ "my_access_devices": [],
  "my_plan": [],
  "my_settings": [],
  "my_tickets": [],
@@ -93,6 +117,7 @@
   "p_shop_name",
   "p_full_name"
  ],
+ "prune_api_rate_limits": [],
  "prune_enquiry_ips": [],
  "purge_daily_working_tables": [],
  "recalculate_cash_summary": [
@@ -115,7 +140,15 @@
   "p_amount",
   "p_reason"
  ],
+ "register_access_session": [
+  "p_session_id",
+  "p_display_name"
+ ],
  "removed_records_report": [],
+ "rename_access_device": [
+  "p_device_id",
+  "p_name"
+ ],
  "reopen_loan": [
   "p_loan_id"
  ],
@@ -127,6 +160,11 @@
   "p_tenant_id"
  ],
  "returns_report": [],
+ "revoke_access_device": [
+  "p_device_id"
+ ],
+ "revoke_all_access_devices": [],
+ "revoke_other_access_devices": [],
  "revoke_staff": [
   "p_user_id"
  ],
@@ -148,6 +186,10 @@
   "p_ticket_id"
  ],
  "trigger_set_updated_at": [],
+ "update_active_loan": [
+  "p_loan_id",
+  "p_patch"
+ ],
  "update_closed_record": [
   "p_loan_id",
   "p_patch"
@@ -156,5 +198,6 @@
   "p_deposit_id",
   "p_amount",
   "p_date"
- ]
+ ],
+ "validate_loan_chronology": []
 }

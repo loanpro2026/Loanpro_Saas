@@ -37,10 +37,12 @@ export function Button({
   return (
     <button
       disabled={disabled || loading}
+      aria-busy={loading || undefined}
       className={cn(base, variants[variant], sizes[size], className)}
       {...props}
     >
-      {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : children}
+      {loading && <Loader2 className="h-4 w-4 animate-spin shrink-0" aria-hidden />}
+      {children}
     </button>
   )
 }

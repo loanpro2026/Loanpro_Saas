@@ -57,8 +57,8 @@ export function HelpWorkspace({
   const openCount = tickets.filter(t => t.status === 'open' || t.status === 'answered').length
 
   const onRaise = () => startTransition(async () => {
-    if (!subject.trim()) { toast.error('Give it a short subject'); return }
-    if (!body.trim())    { toast.error('Describe what is happening'); return }
+    if (!subject.trim()) { toast.error('Add a short subject so this support request can be identified.'); return }
+    if (!body.trim())    { toast.error('Describe what happened before sending the support request.'); return }
 
     // Technical context, gathered automatically. Saves the first reply being
     // "what browser are you using?".
@@ -72,12 +72,12 @@ export function HelpWorkspace({
 
     const res = await createTicket(subject, body, category, context)
     if (res.ok) {
-      toast.success('Sent — we usually reply within a few hours')
+      toast.success(`Support request “${subject.trim()}” was sent. We usually reply within a few hours.`)
       setRaising(false); setSubject(''); setBody(''); setCategory('question')
       setTab('tickets')
       router.refresh()
     } else {
-      toast.error(res.error ?? 'Could not send')
+      toast.error(`Support request “${subject.trim()}” was not sent. ${res.error ?? 'Your message remains in the form.'}`)
     }
   })
 

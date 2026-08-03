@@ -1,15 +1,15 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Settings, Bell } from 'lucide-react'
+import { Settings } from 'lucide-react'
 import { getInitials } from '@/lib/utils'
 import { GlobalSearch } from '@/components/layout/GlobalSearch'
 import type { AppUser } from '@/types'
+import { NotificationMenu } from '@/components/layout/NotificationMenu'
 
 const PAGE_TITLES: Record<string, string> = {
   '/dashboard': 'Dashboard',
   '/loans':     'Loans',
-  '/deposits':  'Deposits',
   '/cash':      'Cash',
   '/reports':   'Reports',
   '/settings':  'Settings',
@@ -34,14 +34,12 @@ export function TopBar({ user }: TopBarProps) {
 
       {/* Search is the most-used control in the desktop app, so it gets prime
           position rather than hiding behind a menu. */}
-      <div className="flex flex-1 justify-center lg:justify-start xl:px-3">
+      <div className="flex flex-1 justify-center lg:absolute lg:left-1/2 lg:w-full lg:max-w-md lg:-translate-x-1/2">
         <GlobalSearch />
       </div>
 
       <div className="flex items-center gap-1">
-        <Link href="/help" aria-label="Notifications and help" className="btn-icon hidden sm:flex">
-          <Bell className="h-4 w-4" />
-        </Link>
+        <NotificationMenu />
         <Link href="/settings" aria-label="Settings" className="btn-icon hidden lg:flex">
           <Settings className="h-4 w-4" />
         </Link>

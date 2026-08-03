@@ -11,14 +11,14 @@
  * be unreachable. Same destination, same starting point as the desktop.
  */
 import Link from 'next/link'
-import { ArrowDownCircle, Wallet, ClipboardCheck, ChevronRight } from 'lucide-react'
+import { Wallet, ClipboardCheck, ChevronRight, Search } from 'lucide-react'
 
 const ACTIONS = [
   {
-    href: '/deposits',
-    label: 'Deposits',
-    hint: 'Take a part-payment',
-    icon: ArrowDownCircle,
+    href: '/remove-record',
+    label: 'Find a record',
+    hint: 'Add deposit or settle loan',
+    icon: Search,
     accent: 'text-emerald-600 bg-emerald-50',
   },
   {

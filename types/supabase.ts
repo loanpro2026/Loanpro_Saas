@@ -1282,6 +1282,10 @@ export type Database = {
         Args: { p_period?: string | null }
         Returns: Json
       }
+      dashboard_snapshot: {
+        Args: Record<string, never>
+        Returns: Json
+      }
       default_settings: {
         Args: Record<string, never>
         Returns: Json

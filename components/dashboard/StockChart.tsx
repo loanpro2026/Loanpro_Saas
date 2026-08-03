@@ -24,17 +24,6 @@ export function StockChart({ cost, weight, counts, goldBreakdown }: Props) {
   const goldShare = total > 0 ? (goldValue / total) * 100 : 0
   const silverShare = total > 0 ? (silverValue / total) * 100 : 0
 
-  if (total === 0) {
-    return (
-      <div className="card">
-        <h2 className="text-sm font-semibold text-slate-900">In the safe</h2>
-        <p className="text-sm text-slate-400 mt-2">
-          Nothing held — no active loans yet.
-        </p>
-      </div>
-    )
-  }
-
   return (
     <div className="card space-y-4">
       <div className="flex items-baseline justify-between">
@@ -71,6 +60,11 @@ export function StockChart({ cost, weight, counts, goldBreakdown }: Props) {
             count={Number(counts.silver ?? 0)}
           />
         </div>
+        {total === 0 && (
+          <p className="mt-3 text-xs text-slate-500">
+            No gold or silver is currently pledged against an active loan.
+          </p>
+        )}
       </div>
 
       {/* Gold item types */}

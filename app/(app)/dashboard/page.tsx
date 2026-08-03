@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Plus, ArrowRight, Landmark } from 'lucide-react'
-import { asObject, asArray, objectAt, numberAt, stringAt } from '@/lib/json'
+import { asObject, objectAt, numberAt, stringAt } from '@/lib/json'
 import type { Json, Tables } from '@/types/supabase'
 import { formatCurrency, formatDate, getLoanAge } from '@/lib/utils'
 import { Badge } from '@/components/ui/Badge'
@@ -15,6 +15,7 @@ import { QuickReports } from '@/components/dashboard/QuickReports'
 import { ActivityFeed } from '@/components/dashboard/ActivityFeed'
 import { StockChart } from '@/components/dashboard/StockChart'
 import { TrendChart } from '@/components/dashboard/TrendChart'
+import { CashSummary } from '@/components/dashboard/CashSummary'
 
 /**
  * Shapes for the six dashboard queries.
@@ -83,8 +84,7 @@ export default async function DashboardPage() {
    * and the Vercel log says exactly which one it was.
    */
   const settled = await Promise.allSettled([
-    supabase.rpc('lending_metrics'),
-    supabase.rpc('jewellery_stock'),
+    supabase.rpc('dashboard_snapshot'),
     supabase.from('activity_log')
       .select('id, type, description, amount, color, icon, time')
       .order('time', { ascending: false }).limit(8),
@@ -99,7 +99,7 @@ export default async function DashboardPage() {
   ])
 
   const NAMES = [
-    'lending_metrics', 'jewellery_stock', 'activity_log',
+    'dashboard_snapshot', 'activity_log',
     'recent_loans', 'jewellery_breakdown', 'chart_data', 'location_report',
   ] as const
 
@@ -119,19 +119,20 @@ export default async function DashboardPage() {
     return (data ?? null) as T | null
   }
 
-  const metrics       = unwrap<Json>(0)
-  const stock         = unwrap<Json>(1)
-  const activity      = unwrap<ActivityRow[]>(2)
-  const recentLoans   = unwrap<RecentLoanRow[]>(3)
-  const goldBreakdown = unwrap<BreakdownRow[]>(4)
-  const trend         = unwrap<TrendRow[]>(5)
-  const locations     = unwrap<LocationReportRow[]>(6)
+  const snapshot      = unwrap<Json>(0)
+  const activity      = unwrap<ActivityRow[]>(1)
+  const recentLoans   = unwrap<RecentLoanRow[]>(2)
+  const goldBreakdown = unwrap<BreakdownRow[]>(3)
+  const trend         = unwrap<TrendRow[]>(4)
+  const locations     = unwrap<LocationReportRow[]>(5)
 
   // lending_metrics() and jewellery_stock() are `RETURNS jsonb`, so their
   // generated type is the full Json union. Narrow once here, with a runtime
   // check, and hand concrete numbers to the components below — that way
   // StockChart keeps its real prop types instead of accepting loose JSON.
-  const m = asObject(metrics)
+  const m = asObject(snapshot)
+  const stock = objectAt(snapshot, 'stock')
+  const cash = objectAt(snapshot, 'cash')
   const cost = {
     gold:   numberAt(objectAt(stock, 'cost'), 'gold'),
     silver: numberAt(objectAt(stock, 'cost'), 'silver'),
@@ -172,6 +173,18 @@ export default async function DashboardPage() {
         activePrincipal={numberAt(m, 'active_principal')}
         activeCount={numberAt(m, 'active_loans')}
       />
+
+      <CashSummary data={{
+        openingBalance: numberAt(cash, 'opening_balance'),
+        cashInHand: numberAt(cash, 'cash_in_hand'),
+        addedCash: numberAt(cash, 'added_cash'),
+        removedCash: numberAt(cash, 'removed_cash'),
+        depositCredit: numberAt(cash, 'deposit_credit'),
+        depositDebit: numberAt(cash, 'deposit_debit'),
+        investments: numberAt(cash, 'investments'),
+        returns: numberAt(cash, 'returns'),
+        noActivity: cash.no_activity === true,
+      }} />
 
       <div className="grid gap-5 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-5">

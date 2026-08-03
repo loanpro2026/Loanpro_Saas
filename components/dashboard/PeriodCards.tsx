@@ -92,7 +92,7 @@ export function PeriodCards({
 
   const cards: Card[] = [
     {
-      title: 'Total Investment',
+      title: 'Active investment',
       icon: TrendingUp,
       value: activePrincipal,
       records: `${activeCount} active`,
@@ -163,11 +163,13 @@ export function PeriodCards({
               </div>
 
               <p className="mt-1.5 text-xl font-semibold tabular-nums text-slate-900">
-                {loading ? '—' : formatCurrency(c.value)}
+                {loading && c.title !== 'Active investment' ? '—' : formatCurrency(c.value)}
               </p>
 
               <div className="mt-0.5 flex items-center gap-2">
-                <span className="text-xs text-slate-500">{loading ? '' : c.records}</span>
+                <span className="text-xs text-slate-500">
+                  {loading && c.title !== 'Active investment' ? '' : c.records}
+                </span>
                 {c.trend !== null && !loading && (
                   <span
                     className={cn(

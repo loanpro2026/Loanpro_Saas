@@ -117,7 +117,20 @@ export function GlobalSearch() {
     router.push(`/loans/${id}`)
   }
 
-  const onKeyDown = (e: React.KeyboardEvent) => {
+  const normalizedQuery = query.trim().toLocaleLowerCase('en-IN')
+  const inlineCompletion = normalizedQuery.length > 0
+    ? hits.flatMap(hit => [String(hit.id), hit.name, hit.father_name, hit.location])
+        .find(value => value
+          && value.toLocaleLowerCase('en-IN').startsWith(normalizedQuery)
+          && value.toLocaleLowerCase('en-IN') !== normalizedQuery) ?? null
+    : null
+  const completionSuffix = inlineCompletion?.slice(query.trim().length) ?? ''
+
+  const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    const caretAtEnd = e.currentTarget.selectionStart === query.length
+    if (inlineCompletion && caretAtEnd && (e.key === 'Tab' || e.key === 'ArrowRight')) {
+      e.preventDefault(); setQuery(inlineCompletion); return
+    }
     if (hits.length === 0) return
     if (e.key === 'ArrowDown') { e.preventDefault(); setActive(i => (i + 1) % hits.length) }
     else if (e.key === 'ArrowUp') { e.preventDefault(); setActive(i => (i <= 0 ? hits.length - 1 : i - 1)) }
@@ -128,7 +141,7 @@ export function GlobalSearch() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="flex items-center gap-2 rounded-xl border border-surface-border bg-white px-3 py-1.5 text-sm text-slate-400 hover:border-slate-300 transition-colors w-full max-w-xs"
+        className="flex h-9 w-full max-w-sm items-center gap-2 rounded-lg border border-surface-border bg-surface-muted px-3 text-sm text-slate-500 transition-colors hover:border-slate-300 hover:bg-white"
       >
         <Search className="h-4 w-4 shrink-0" />
         <span className="flex-1 text-left">Search loans…</span>
@@ -141,23 +154,37 @@ export function GlobalSearch() {
         <div className="fixed inset-0 z-50 flex items-start justify-center pt-[10vh] px-4">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setOpen(false)} />
 
-          <div className="relative w-full max-w-xl rounded-2xl bg-white shadow-modal overflow-hidden">
-            <div className="flex items-center gap-3 px-4 py-3 border-b border-surface-border">
+          <div className="relative w-full max-w-2xl overflow-hidden rounded-xl border border-surface-border bg-white shadow-modal">
+            <div className="flex items-center gap-3 border-b border-surface-border px-4 py-3">
               {loading
                 ? <Loader2 className="h-4 w-4 text-slate-400 animate-spin shrink-0" />
                 : <Search className="h-4 w-4 text-slate-400 shrink-0" />}
-              <input
-                ref={inputRef}
-                value={query}
-                onChange={e => setQuery(e.target.value)}
-                onKeyDown={onKeyDown}
-                placeholder="Loan number, name, father's name or place…"
-                className="flex-1 text-sm outline-none placeholder:text-slate-400"
-              />
+              <div className="relative min-w-0 flex-1 rounded-md bg-white">
+                {completionSuffix && (
+                  <div className="pointer-events-none absolute inset-0 flex items-center overflow-hidden whitespace-pre text-sm" aria-hidden>
+                    <span className="invisible">{query}</span><span className="text-slate-400">{completionSuffix}</span>
+                  </div>
+                )}
+                <input
+                  ref={inputRef}
+                  value={query}
+                  onChange={e => setQuery(e.target.value)}
+                  onKeyDown={onKeyDown}
+                  placeholder="Loan number, name, father's name or place…"
+                  className="completion-input relative w-full text-sm text-slate-900 outline-none placeholder:text-slate-400"
+                  aria-autocomplete="both"
+                />
+              </div>
               <button onClick={() => setOpen(false)} className="btn-icon" aria-label="Close search">
                 <X className="h-4 w-4" />
               </button>
             </div>
+
+            {completionSuffix && (
+              <div className="border-b border-surface-border bg-surface-muted px-4 py-1.5 text-[10px] text-slate-500">
+                Press Tab or → to complete from this shop&rsquo;s records
+              </div>
+            )}
 
             {fromCache && (
               <p className="flex items-center gap-2 px-4 py-2 text-xs text-amber-900 bg-amber-50 border-b border-surface-border">

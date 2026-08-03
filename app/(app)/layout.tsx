@@ -55,17 +55,19 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <SettingsProvider settings={settings}>
     <ThemeBridge theme={appSettings.theme} />
     <OfflineProvider>
-    <div className={`${appSettings.theme === 'dark' ? 'dark ' : ''}flex min-h-dvh bg-surface`}>
+    <div className={`${appSettings.theme === 'dark' ? 'dark ' : ''}flex min-h-dvh bg-surface lg:h-dvh lg:overflow-hidden`}>
       <Sidebar tenant={tenant} user={appUser} />
 
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <TopBar user={appUser} />
         {/* Connection state sits directly under the top bar, above content —
             a shop must never have to hunt for whether their entry saved. */}
         <OfflineBanner />
 
-        <main className="flex-1 p-4 lg:p-6 pb-24 lg:pb-6">
-          {children}
+        <main className="min-h-0 flex-1 overflow-y-auto px-3 py-3 pb-24 sm:px-4 lg:px-5 lg:py-4 lg:pb-4">
+          <div className="mx-auto w-full max-w-[1600px]">
+            {children}
+          </div>
         </main>
       </div>
 

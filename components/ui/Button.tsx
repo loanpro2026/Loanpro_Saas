@@ -18,19 +18,19 @@ export function Button({
   children,
   ...props
 }: ButtonProps) {
-  const base = 'inline-flex items-center justify-center gap-2 rounded-xl font-medium transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 active:scale-[0.98]'
+  const base = 'inline-flex items-center justify-center gap-2 rounded-lg font-semibold transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/70 focus-visible:ring-offset-2 active:scale-[0.98]'
 
   const variants = {
-    primary:   'bg-primary-700 text-white hover:bg-primary-800 shadow-sm',
+    primary:   'bg-primary-600 text-white hover:bg-primary-700 shadow-sm',
     secondary: 'bg-surface-muted text-slate-700 hover:bg-slate-200 border border-surface-border',
     danger:    'bg-red-600 text-white hover:bg-red-700 shadow-sm',
     ghost:     'text-slate-600 hover:bg-slate-100',
   }
 
   const sizes = {
-    sm:   'px-3.5 py-1.5 text-xs',
-    md:   'px-5 py-2.5 text-sm',
-    lg:   'px-6 py-3 text-base',
+    sm:   'h-8 px-3 text-xs',
+    md:   'h-10 px-4 text-sm',
+    lg:   'h-11 px-5 text-base',
     icon: 'p-2',
   }
 

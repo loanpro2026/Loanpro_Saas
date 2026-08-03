@@ -12,6 +12,7 @@ import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import {
   Store, Users, CreditCard, UserPlus, Trash2, Copy, Check, Lock,
+  SlidersHorizontal, ShieldCheck, Database,
 } from 'lucide-react'
 import { PinSettings } from '@/components/settings/PinSettings'
 import { IdentitySettings } from '@/components/settings/IdentitySettings'
@@ -24,7 +25,6 @@ import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Modal } from '@/components/ui/Modal'
 import { Badge } from '@/components/ui/Badge'
-import { formatDate } from '@/lib/utils'
 import {
   updateShopName, updateMyName, inviteStaff, revokeStaff, saveSetting,
 } from '@/app/(app)/settings/actions'
@@ -59,6 +59,7 @@ export function SettingsWorkspace({ me, shopName, plan, members, settings, staff
   const [inviteRole, setInviteRole] = useState<'owner' | 'staff'>('staff')
   const [inviteLink, setInviteLink] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
+  const [tab, setTab] = useState<'business' | 'preferences' | 'security' | 'data'>('business')
 
   const isOwner = me.role === 'owner'
   const planName = String(plan.plan ?? 'trial')
@@ -93,7 +94,28 @@ export function SettingsWorkspace({ me, shopName, plan, members, settings, staff
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
+      <nav className="flex gap-1 overflow-x-auto rounded-xl border border-surface-border bg-white p-1" aria-label="Settings sections">
+        {([
+          ['business', Store, 'Business'],
+          ['preferences', SlidersHorizontal, 'Preferences'],
+          ['security', ShieldCheck, 'Security'],
+          ['data', Database, 'Data'],
+        ] as const).map(([value, Icon, label]) => (
+          <button
+            key={value}
+            type="button"
+            onClick={() => setTab(value)}
+            className={`flex min-w-max flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
+              tab === value ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-950' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800'
+            }`}
+          >
+            <Icon className="h-4 w-4" /> {label}
+          </button>
+        ))}
+      </nav>
+
+      {tab === 'business' && <div className="grid gap-4 xl:grid-cols-2">
 
       {/* ── Plan ──────────────────────────────────────────────────────────── */}
       <section className="card space-y-3">
@@ -218,12 +240,16 @@ export function SettingsWorkspace({ me, shopName, plan, members, settings, staff
         )}
       </section>}
 
+      </div>}
+
       {/* Identity, interest and form fields — ported from the desktop's
           General Settings screen (migration 012). */}
-      <IdentitySettings settings={settings} />
+      {tab === 'preferences' && <div className="grid gap-4 xl:grid-cols-2">
+        <IdentitySettings settings={settings} />
+        <AppearanceSettings initialTheme={settings.theme} />
+      </div>}
 
-      <AppearanceSettings initialTheme={settings.theme} />
-
+      {tab === 'security' && <div className="grid gap-4 xl:grid-cols-2">
       <AccessDevices />
 
       {/* ── Screen lock ───────────────────────────────────────────────────── */}
@@ -252,10 +278,11 @@ export function SettingsWorkspace({ me, shopName, plan, members, settings, staff
           <PinSettings timeoutMinutes={Number(settings.lock_after_minutes ?? 0)} />
         </div>
       </section>
+      </div>}
 
       {/* Replaces the desktop's export/backup — a shop must be able to take
           their own records out whenever they like. */}
-      <DataExport />
+      {tab === 'data' && <div className="max-w-3xl"><DataExport /></div>}
 
       {/* ── Invite modal ──────────────────────────────────────────────────── */}
       {staffAccessEnabled && <Modal open={inviting} onClose={() => setInviting(false)} title="Invite someone">

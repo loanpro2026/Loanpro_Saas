@@ -113,7 +113,7 @@ export default async function ClosedRecordsPage({ searchParams }: Props) {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <div className="page-header">
         <div>
           <h1 className="page-title">Closed Records</h1>
@@ -142,7 +142,7 @@ export default async function ClosedRecordsPage({ searchParams }: Props) {
           }
         />
       ) : (
-        <div className="table-container">
+        <div className="table-container lg:max-h-[calc(100dvh-17rem)] lg:overflow-auto">
           <table className="table">
             <thead>
               <tr>

@@ -31,11 +31,11 @@ export default async function SettingsPage() {
 
 
   return (
-    <div className="space-y-5 max-w-3xl">
+    <div className="mx-auto max-w-6xl space-y-4">
       <div className="page-header">
         <div>
           <h1 className="page-title">Settings</h1>
-          <p className="page-subtitle">{tenant?.shop_name}</p>
+          <p className="page-subtitle">{tenant?.shop_name} · business preferences, identity, devices and data</p>
         </div>
       </div>
 

@@ -33,6 +33,7 @@ import { Select } from '@/components/ui/Select'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { AutoSuggest } from '@/components/ui/AutoSuggest'
 import { DepositHistory } from '@/components/loans/DepositHistory'
 import { RemarksLog } from '@/components/loans/RemarksLog'
 import { LoanPhoto } from '@/components/loans/LoanPhoto'
@@ -173,10 +174,10 @@ export function RemoveRecordWorkspace({ canDelete }: { canDelete: boolean }) {
   }
 
   return (
-    <div className="grid gap-5 lg:grid-cols-5">
+    <div className="grid gap-3 lg:h-[calc(100dvh-9.75rem)] lg:min-h-[500px] lg:grid-cols-5">
       {/* ── Search ────────────────────────────────────────────────────────── */}
-      <div className="lg:col-span-2 space-y-4">
-        <div className="card space-y-3">
+      <div className="flex min-h-0 flex-col gap-3 lg:col-span-2">
+        <div className="card grid gap-3 sm:grid-cols-2">
           <Select
             label="Search By"
             value={searchBy}
@@ -196,11 +197,13 @@ export function RemoveRecordWorkspace({ canDelete }: { canDelete: boolean }) {
               onChange={e => setSearchDate(e.target.value)}
             />
           ) : (
-            <Input
+            <AutoSuggest
+              field={searchBy === 'Name' ? 'name' : 'location'}
               label={searchBy}
-              placeholder={`Enter ${searchBy.toLowerCase()}`}
+              placeholder={`Start typing ${searchBy.toLowerCase()}`}
               value={term}
-              onChange={e => setTerm(e.target.value)}
+              onChange={setTerm}
+              showCompletionHint={false}
             />
           )}
 
@@ -222,12 +225,22 @@ export function RemoveRecordWorkspace({ canDelete }: { canDelete: boolean }) {
           />
         </div>
 
-        <div className="card p-0 overflow-hidden">
+        <div className="card flex min-h-0 flex-1 flex-col overflow-hidden p-0">
           <p className="px-4 py-2.5 text-xs font-medium text-slate-500 border-b border-surface-border">
             {loading ? 'Searching…' : `${rows.length} active record${rows.length === 1 ? '' : 's'}`}
           </p>
 
-          {!loading && rows.length === 0 ? (
+          {loading ? (
+            <div className="space-y-1 p-2" role="status" aria-label="Searching active records">
+              {Array.from({ length: 7 }, (_, index) => (
+                <div key={index} className="flex items-center gap-3 rounded-lg px-2 py-2.5">
+                  <div className="skeleton h-3 w-9" />
+                  <div className="min-w-0 flex-1 space-y-2"><div className="skeleton h-3.5 w-2/3" /><div className="skeleton h-3 w-1/2" /></div>
+                  <div className="skeleton h-4 w-20" />
+                </div>
+              ))}
+            </div>
+          ) : rows.length === 0 ? (
             <div className="p-4">
               <EmptyState
                 icon={Search}
@@ -236,7 +249,7 @@ export function RemoveRecordWorkspace({ canDelete }: { canDelete: boolean }) {
               />
             </div>
           ) : (
-            <ul className="divide-y divide-surface-border max-h-[26rem] overflow-y-auto">
+            <ul className="min-h-0 flex-1 divide-y divide-surface-border overflow-y-auto">
               {rows.map(r => (
                 <li key={r.id}>
                   <button
@@ -269,7 +282,7 @@ export function RemoveRecordWorkspace({ canDelete }: { canDelete: boolean }) {
       </div>
 
       {/* ── The chosen record ─────────────────────────────────────────────── */}
-      <div className="lg:col-span-3 space-y-4">
+      <div className="min-h-0 space-y-3 lg:col-span-3 lg:overflow-y-auto lg:pr-1">
         {!loan ? (
           <div className="card">
             <EmptyState

@@ -9,6 +9,7 @@
  * value has been used, so the common ones surface first.
  */
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { CornerDownLeft, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 import { memoryCached } from '@/lib/memory-cache'
@@ -26,37 +27,47 @@ interface Props {
   helper?: string
   name?: string
   id?: string
+  inputClassName?: string
+  ariaLabel?: string
+  showCompletionHint?: boolean
 }
 
 interface Suggestion { value: string; uses: number }
 
 export function AutoSuggest({
   field, label, value, onChange, placeholder, required, error, helper, name, id,
+  inputClassName, ariaLabel, showCompletionHint = true,
 }: Props) {
   const [items, setItems] = useState<Suggestion[]>([])
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(-1)
+  const [loading, setLoading] = useState(false)
   const boxRef = useRef<HTMLDivElement>(null)
   const inputId = id ?? name ?? field
   const listId = `${inputId}-suggestions`
 
   const fetchSuggestions = useCallback(async (prefix: string) => {
     const normalized = prefix.trim().toLocaleLowerCase('en-IN')
-    const suggestions = await memoryCached<Suggestion[]>(
-      `field-suggestions:${field}:${normalized}`,
-      120_000,
-      async () => {
-        const supabase = createClient()
-        const { data, error } = await supabase.rpc('field_suggestions', {
-          p_field: field,
-          p_prefix: prefix,
-          p_limit: 8,
-        })
-        if (error) throw error
-        return (data as Suggestion[]) ?? []
-      }
-    ).catch(() => [])
-    setItems(suggestions)
+    setLoading(true)
+    try {
+      const suggestions = await memoryCached<Suggestion[]>(
+        `field-suggestions:${field}:${normalized}`,
+        120_000,
+        async () => {
+          const supabase = createClient()
+          const { data, error } = await supabase.rpc('field_suggestions', {
+            p_field: field,
+            p_prefix: prefix,
+            p_limit: 8,
+          })
+          if (error) throw error
+          return (data as Suggestion[]) ?? []
+        }
+      ).catch(() => [])
+      setItems(suggestions)
+    } finally {
+      setLoading(false)
+    }
   }, [field])
 
   // Debounced: this fires on every keystroke at a busy counter, and each one
@@ -85,7 +96,16 @@ export function AutoSuggest({
     setActive(-1)
   }
 
-  const onKeyDown = (e: React.KeyboardEvent) => {
+  const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    const completion = items.find(item =>
+      value.trim().length > 0
+      && item.value.toLocaleLowerCase('en-IN').startsWith(value.toLocaleLowerCase('en-IN'))
+      && item.value.toLocaleLowerCase('en-IN') !== value.trim().toLocaleLowerCase('en-IN')
+    )
+    const caretAtEnd = e.currentTarget.selectionStart === value.length
+    if (completion && caretAtEnd && (e.key === 'Tab' || e.key === 'ArrowRight')) {
+      e.preventDefault(); choose(completion.value); return
+    }
     if (!open || items.length === 0) return
     if (e.key === 'ArrowDown') {
       e.preventDefault(); setActive(i => (i + 1) % items.length)
@@ -103,6 +123,11 @@ export function AutoSuggest({
   const visible = items.filter(
     i => i.value.toLowerCase() !== value.trim().toLowerCase()
   )
+  const completion = visible.find(i =>
+    value.trim().length > 0
+    && i.value.toLocaleLowerCase('en-IN').startsWith(value.toLocaleLowerCase('en-IN'))
+  )
+  const completionSuffix = completion?.value.slice(value.length) ?? ''
 
   return (
     <div className="w-full relative" ref={boxRef}>
@@ -113,22 +138,35 @@ export function AutoSuggest({
         </label>
       )}
 
-      <input
-        id={inputId}
-        name={name}
-        className={cn('input', error && 'input-error')}
-        value={value}
-        placeholder={placeholder}
-        required={required}
-        autoComplete="off"
-        role="combobox"
-        aria-controls={listId}
-        aria-expanded={open && visible.length > 0}
-        aria-autocomplete="list"
-        onChange={e => { onChange(e.target.value); setOpen(true); setActive(-1) }}
-        onFocus={() => { setOpen(true); fetchSuggestions(value.trim()) }}
-        onKeyDown={onKeyDown}
-      />
+      <div className="relative rounded-lg bg-white">
+        {completionSuffix && (
+          <div
+            className="pointer-events-none absolute inset-0 flex h-10 items-center overflow-hidden whitespace-pre px-3 text-sm"
+            aria-hidden
+          >
+            <span className="invisible">{value}</span>
+            <span className="text-slate-400">{completionSuffix}</span>
+          </div>
+        )}
+        <input
+          id={inputId}
+          name={name}
+          aria-label={ariaLabel}
+          className={cn('input completion-input relative', loading && 'pr-9', error && 'input-error', inputClassName)}
+          value={value}
+          placeholder={placeholder}
+          required={required}
+          autoComplete="off"
+          role="combobox"
+          aria-controls={listId}
+          aria-expanded={open && visible.length > 0}
+          aria-autocomplete="both"
+          onChange={e => { onChange(e.target.value); setOpen(true); setActive(-1) }}
+          onFocus={() => { setOpen(true); fetchSuggestions(value.trim()) }}
+          onKeyDown={onKeyDown}
+        />
+        {loading && <Loader2 className="pointer-events-none absolute right-3 top-3 h-4 w-4 animate-spin text-primary-500" aria-hidden />}
+      </div>
 
       {open && visible.length > 0 && (
         <ul id={listId} className="suggest-panel" role="listbox">
@@ -143,11 +181,17 @@ export function AutoSuggest({
                 onClick={() => choose(s.value)}
               >
                 <span className="truncate">{s.value}</span>
-                <span className="text-xs text-slate-400 shrink-0">{s.uses}</span>
+                <span className="shrink-0 text-[10px] font-medium text-slate-400">used {s.uses}×</span>
               </button>
             </li>
           ))}
         </ul>
+      )}
+
+      {showCompletionHint && completionSuffix && !error && !helper && (
+        <p className="mt-1 flex items-center gap-1 text-[10px] text-slate-400">
+          <CornerDownLeft className="h-3 w-3" /> Tab or → to complete
+        </p>
       )}
 
       {error  && <p className="error-msg">{error}</p>}

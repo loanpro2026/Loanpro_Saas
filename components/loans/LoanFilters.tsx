@@ -4,6 +4,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import { Loader2, Search } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useTransition, useState } from 'react'
+import { AutoSuggest } from '@/components/ui/AutoSuggest'
 
 interface Props {
   currentStatus: string
@@ -92,14 +93,28 @@ export function LoanFilters({
             <option value="location">Location</option>
           </select>
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            {isPending && <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-primary-600" />}
-            <input
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder={field === 'id' ? 'Exact loan number…' : `Search by ${field === 'father_name' ? "father's name" : field}…`}
-              className="input h-9 pl-9 pr-9 text-sm"
-            />
+            <Search className="absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            {isPending && <Loader2 className="absolute right-3 top-1/2 z-20 h-4 w-4 -translate-y-1/2 animate-spin text-primary-600" />}
+            {field === 'id' ? (
+              <input
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Exact loan number…"
+                className="input h-9 pl-9 pr-9 text-sm"
+                inputMode="numeric"
+                aria-label="Search by exact loan number"
+              />
+            ) : (
+              <AutoSuggest
+                field={field as 'name' | 'father_name' | 'location'}
+                value={search}
+                onChange={setSearch}
+                ariaLabel={`Search by ${field === 'father_name' ? "father's name" : field}`}
+                placeholder={`Search by ${field === 'father_name' ? "father's name" : field}…`}
+                inputClassName="h-9 pl-9 pr-9 text-sm"
+                showCompletionHint={false}
+              />
+            )}
           </div>
         </form>
 

@@ -116,7 +116,7 @@ export default async function ActiveRecordsPage({ searchParams }: Props) {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <div className="page-header">
         <div>
           <h1 className="page-title">Active Records</h1>
@@ -145,7 +145,7 @@ export default async function ActiveRecordsPage({ searchParams }: Props) {
           action={<Link href="/add-record"><Button size="sm"><Plus className="h-4 w-4" /> Add Loan</Button></Link>}
         />
       ) : (
-        <div className="table-container">
+        <div className="table-container lg:max-h-[calc(100dvh-17rem)] lg:overflow-auto">
           <table className="table">
             <thead>
               <tr>

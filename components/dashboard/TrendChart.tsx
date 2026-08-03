@@ -1,18 +1,12 @@
 'use client'
-/**
- * Money lent out vs money returned, by month.
- *
- * The gap between the two lines is the shop's working capital moving in and
- * out. Interest is drawn separately because it is the actual earnings and is
- * an order of magnitude smaller — plotted on the same scale it would be a flat
- * line along the axis.
- */
+
+import Link from 'next/link'
 import { useState } from 'react'
 import {
-  ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, Legend,
-  ResponsiveContainer, CartesianGrid,
+  CartesianGrid, Legend, Line, LineChart, ResponsiveContainer,
+  Tooltip, XAxis, YAxis,
 } from 'recharts'
-import { TrendingUp } from 'lucide-react'
+import { BarChart3, RefreshCw } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 
 interface Row {
@@ -22,119 +16,95 @@ interface Row {
   interest: number
 }
 
-export function TrendChart({ rows }: { rows: Row[] }) {
-  const [showInterest, setShowInterest] = useState(true)
-
-  if (!rows?.length) return null
-
-  const data = rows.map(r => ({
-    label: new Date(r.month).toLocaleDateString('en-IN', { month: 'short', year: '2-digit' }),
-    month: r.month,
-    invested: Number(r.invested),
-    returned: Number(r.returned),
-    interest: Number(r.interest),
+export function TrendChart({ rows, error = false }: { rows: Row[]; error?: boolean }) {
+  const [showInterest, setShowInterest] = useState(false)
+  const data = rows.map(row => ({
+    label: new Date(row.month).toLocaleDateString('en-IN', { month: 'short' }),
+    invested: Number(row.invested),
+    returned: Number(row.returned),
+    interest: Number(row.interest),
   }))
 
-  const totalInterest = data.reduce((s, d) => s + d.interest, 0)
-  const totalInvested = data.reduce((s, d) => s + d.invested, 0)
-  const totalReturned = data.reduce((s, d) => s + d.returned, 0)
-
-  // Positive means more money came back than went out over the window — the
-  // shop's capital grew. Negative means they lent more than they recovered,
-  // which is normal for a growing book and worth not mislabelling as bad.
-  const netFlow = totalReturned - totalInvested
+  const totalInterest = data.reduce((sum, item) => sum + item.interest, 0)
+  const totalInvested = data.reduce((sum, item) => sum + item.invested, 0)
+  const totalReturned = data.reduce((sum, item) => sum + item.returned, 0)
 
   return (
-    <div className="card space-y-4">
-      <div className="flex items-start justify-between gap-3 flex-wrap">
+    <section className="card flex min-h-[310px] flex-col" aria-labelledby="trend-title">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-sm font-semibold text-slate-900">Last 12 months</h2>
-          <p className="text-xs text-slate-500">
-            {formatCurrency(totalInterest)} interest earned
-          </p>
+          <h2 id="trend-title" className="text-sm font-bold text-slate-900">Invested vs returned · last 12 months</h2>
+          {!error && data.length > 0 && (
+            <p className="mt-0.5 text-xs text-slate-500">{formatCurrency(totalInterest)} interest collected</p>
+          )}
         </div>
-
-        <button
-          onClick={() => setShowInterest(v => !v)}
-          className="text-xs text-slate-500 hover:text-slate-900 underline"
-        >
-          {showInterest ? 'Hide' : 'Show'} interest
-        </button>
+        {!error && data.length > 0 && (
+          <button type="button" onClick={() => setShowInterest(value => !value)} className="text-xs font-medium text-primary-700 hover:underline">
+            {showInterest ? 'Hide' : 'Show'} interest
+          </button>
+        )}
       </div>
 
-      <div className="h-64">
-        <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: 4 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-            <XAxis
-              dataKey="label" tick={{ fontSize: 11, fill: '#64748b' }}
-              axisLine={false} tickLine={false}
-            />
-            <YAxis
-              yAxisId="left"
-              tick={{ fontSize: 11, fill: '#64748b' }}
-              axisLine={false} tickLine={false}
-              tickFormatter={compact}
-            />
-            {/* Interest is ~1/20th of the principal figures, so it needs its
-                own axis or it disappears into the baseline. */}
-            {showInterest && (
-              <YAxis
-                yAxisId="right" orientation="right"
-                tick={{ fontSize: 11, fill: '#d97706' }}
-                axisLine={false} tickLine={false}
-                tickFormatter={compact}
-              />
-            )}
-            <Tooltip
-              formatter={(v: number, name: string) => [formatCurrency(v), name]}
-              contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 13 }}
-            />
-            <Legend
-              wrapperStyle={{ fontSize: 12, paddingTop: 8 }}
-              iconType="circle" iconSize={8}
-            />
-            <Bar yAxisId="left" dataKey="invested" name="Lent out"
-                 fill="#4338ca" radius={[3, 3, 0, 0]} maxBarSize={28} />
-            <Bar yAxisId="left" dataKey="returned" name="Returned"
-                 fill="#a5b4fc" radius={[3, 3, 0, 0]} maxBarSize={28} />
-            {showInterest && (
-              <Line yAxisId="right" type="monotone" dataKey="interest" name="Interest"
-                    stroke="#d97706" strokeWidth={2} dot={{ r: 2.5 }} />
-            )}
-          </ComposedChart>
-        </ResponsiveContainer>
-      </div>
+      {error ? (
+        <div className="flex flex-1 flex-col items-center justify-center px-4 py-10 text-center">
+          <BarChart3 className="h-7 w-7 text-red-300" />
+          <p className="mt-3 text-sm font-semibold text-slate-800">Monthly trend could not be loaded</p>
+          <p className="mt-1 max-w-sm text-xs text-slate-500">Other dashboard figures remain available. No loan or cash data was changed.</p>
+          <button type="button" onClick={() => location.reload()} className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-primary-700">
+            <RefreshCw className="h-3.5 w-3.5" /> Retry trend
+          </button>
+        </div>
+      ) : data.length === 0 ? (
+        <div className="flex flex-1 flex-col items-center justify-center px-4 py-10 text-center">
+          <BarChart3 className="h-7 w-7 text-slate-300" />
+          <p className="mt-3 text-sm font-semibold text-slate-800">No lending trend yet</p>
+          <p className="mt-1 max-w-sm text-xs text-slate-500">Monthly invested and returned figures will appear after the first loan is recorded.</p>
+          <Link href="/add-record" className="mt-3 text-xs font-semibold text-primary-700 hover:underline">Add your first loan</Link>
+        </div>
+      ) : (
+        <>
+          <div className="mt-4 grid grid-cols-2 gap-2 sm:hidden">
+            <Summary label="Invested" value={totalInvested} tone="primary" />
+            <Summary label="Returned" value={totalReturned} tone="positive" />
+          </div>
 
-      <div className="grid grid-cols-3 gap-4 pt-3 border-t border-surface-border">
-        <Figure label="Lent out"  value={formatCurrency(totalInvested)} />
-        <Figure label="Returned"  value={formatCurrency(totalReturned)} />
-        <Figure
-          label={netFlow >= 0 ? 'Capital recovered' : 'Capital deployed'}
-          value={formatCurrency(Math.abs(netFlow))}
-          tone={netFlow >= 0 ? 'good' : undefined}
-        />
-      </div>
-    </div>
+          <div className="mt-3 hidden h-56 min-h-0 sm:block">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+                <CartesianGrid stroke="rgb(var(--surface-border))" vertical={false} />
+                <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'rgb(var(--slate-500))' }} />
+                <YAxis axisLine={false} tickLine={false} width={42} tickFormatter={compact} tick={{ fontSize: 11, fill: 'rgb(var(--slate-500))' }} />
+                <Tooltip
+                  formatter={(value: number, name: string) => [formatCurrency(value), name]}
+                  contentStyle={{ borderRadius: 10, border: '1px solid rgb(var(--surface-border))', background: 'rgb(var(--surface-card))', fontSize: 12 }}
+                />
+                <Legend wrapperStyle={{ fontSize: 11, paddingTop: 8 }} iconType="plainline" />
+                <Line type="monotone" dataKey="invested" name="Invested" stroke="#2563eb" strokeWidth={2.25} dot={false} activeDot={{ r: 4 }} />
+                <Line type="monotone" dataKey="returned" name="Returned" stroke="#0a7d54" strokeWidth={2.25} dot={false} activeDot={{ r: 4 }} />
+                {showInterest && <Line type="monotone" dataKey="interest" name="Interest" stroke="#d97706" strokeWidth={1.75} dot={false} />}
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </>
+      )}
+    </section>
   )
 }
 
-function compact(v: number): string {
-  if (Math.abs(v) >= 10_000_000) return `${(v / 10_000_000).toFixed(1)}Cr`
-  if (Math.abs(v) >= 100_000) return `${(v / 100_000).toFixed(1)}L`
-  if (Math.abs(v) >= 1000) return `${(v / 1000).toFixed(0)}K`
-  return String(v)
-}
-
-function Figure({ label, value, tone }: { label: string; value: string; tone?: 'good' }) {
+function Summary({ label, value, tone }: { label: string; value: number; tone: 'primary' | 'positive' }) {
   return (
-    <div>
-      <p className="text-xs text-slate-500">{label}</p>
-      <p className={`text-sm font-semibold tabular-nums ${
-        tone === 'good' ? 'text-emerald-600' : 'text-slate-900'
-      }`}>
-        {value}
+    <div className="rounded-lg border border-surface-border bg-surface-muted p-3">
+      <p className="text-[11px] text-slate-500">{label}</p>
+      <p className={`mt-1 text-sm font-bold tabular-nums ${tone === 'positive' ? 'text-emerald-700' : 'text-primary-700'}`}>
+        {formatCurrency(value)}
       </p>
     </div>
   )
+}
+
+function compact(value: number): string {
+  if (Math.abs(value) >= 10_000_000) return `${(value / 10_000_000).toFixed(1)}Cr`
+  if (Math.abs(value) >= 100_000) return `${(value / 100_000).toFixed(1)}L`
+  if (Math.abs(value) >= 1000) return `${(value / 1000).toFixed(0)}K`
+  return String(value)
 }

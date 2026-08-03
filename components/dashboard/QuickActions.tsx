@@ -11,7 +11,7 @@
  * be unreachable. Same destination, same starting point as the desktop.
  */
 import Link from 'next/link'
-import { Wallet, ClipboardCheck, ChevronRight, Search } from 'lucide-react'
+import { Wallet, ClipboardCheck, Search } from 'lucide-react'
 
 const ACTIONS = [
   {
@@ -44,24 +44,23 @@ const ACTIONS = [
 export function QuickActions() {
   return (
     <div className="card">
-      <h2 className="text-sm font-semibold text-slate-900 mb-3">Quick Actions</h2>
-      <ul className="space-y-1 -mx-2">
+      <h2 className="mb-3 text-sm font-bold text-slate-900">Quick actions</h2>
+      <ul className="grid grid-cols-1 gap-2 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
         {ACTIONS.map(a => {
           const Icon = a.icon
           return (
             <li key={a.href}>
               <Link
                 href={a.href}
-                className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-slate-50 transition-colors"
+                className="flex min-h-14 items-center gap-2 rounded-lg border border-surface-border bg-surface-muted px-3 py-2 transition-colors hover:border-primary-300 hover:bg-primary-50"
               >
-                <span className={`h-7 w-7 rounded-lg flex items-center justify-center shrink-0 ${a.accent}`}>
+                <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${a.accent}`}>
                   <Icon className="h-3.5 w-3.5" />
                 </span>
                 <span className="flex-1 min-w-0">
-                  <span className="block text-sm font-medium text-slate-900">{a.label}</span>
-                  <span className="block text-xs text-slate-400">{a.hint}</span>
+                  <span className="block text-xs font-semibold text-slate-900">{a.label}</span>
+                  <span className="hidden text-[11px] text-slate-400 2xl:block">{a.hint}</span>
                 </span>
-                <ChevronRight className="h-3.5 w-3.5 text-slate-300 shrink-0" />
               </Link>
             </li>
           )

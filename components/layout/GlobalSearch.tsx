@@ -144,9 +144,9 @@ export function GlobalSearch() {
         className="flex h-9 w-full max-w-sm items-center gap-2 rounded-lg border border-surface-border bg-surface-muted px-3 text-sm text-slate-500 transition-colors hover:border-slate-300 hover:bg-white"
       >
         <Search className="h-4 w-4 shrink-0" />
-        <span className="flex-1 text-left">Search loans…</span>
+        <span className="flex-1 truncate text-left text-xs sm:text-sm">Search loan no., customer, father&rsquo;s name or location&hellip;</span>
         <kbd className="hidden sm:inline text-[10px] text-slate-400 border border-surface-border rounded px-1 py-0.5">
-          ⌘K
+          Ctrl K
         </kbd>
       </button>
 

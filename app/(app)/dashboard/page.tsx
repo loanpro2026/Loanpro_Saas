@@ -1,30 +1,22 @@
-import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { Plus, ArrowRight, Landmark } from 'lucide-react'
-import { asObject, objectAt, numberAt, stringAt } from '@/lib/json'
+import { redirect } from 'next/navigation'
+import { ArrowRight, Landmark, Plus } from 'lucide-react'
+import { createClient } from '@/lib/supabase/server'
+import { asObject, numberAt, objectAt, stringAt } from '@/lib/json'
 import type { Json, Tables } from '@/types/supabase'
 import { formatCurrency, formatDate, getLoanAge } from '@/lib/utils'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { ActivityFeed } from '@/components/dashboard/ActivityFeed'
+import { CashSummary } from '@/components/dashboard/CashSummary'
 import { PeriodCards } from '@/components/dashboard/PeriodCards'
 import { QuickActions } from '@/components/dashboard/QuickActions'
-import { TopLocations, type LocationRow } from '@/components/dashboard/TopLocations'
 import { QuickReports } from '@/components/dashboard/QuickReports'
-import { ActivityFeed } from '@/components/dashboard/ActivityFeed'
 import { StockChart } from '@/components/dashboard/StockChart'
+import { TopLocations, type LocationRow } from '@/components/dashboard/TopLocations'
 import { TrendChart } from '@/components/dashboard/TrendChart'
-import { CashSummary } from '@/components/dashboard/CashSummary'
 
-/**
- * Shapes for the six dashboard queries.
- *
- * The table selects are narrowed from the generated Row types, so a renamed
- * column breaks here. The two RETURNS TABLE functions are restated because
- * their columns are typed nullable — Postgres allows a null even where these
- * particular functions COALESCE.
- */
 type ActivityRow = Pick<
   Tables<'activity_log'>,
   'id' | 'type' | 'description' | 'amount' | 'color' | 'icon' | 'time'
@@ -55,7 +47,6 @@ type TrendRow = {
   interest: number | null
 }
 
-
 export const dynamic = 'force-dynamic'
 
 export default async function DashboardPage() {
@@ -67,22 +58,8 @@ export default async function DashboardPage() {
     .from('users').select('tenant_id, full_name').eq('auth_id', user.id).single()
   if (!appUser) redirect('/login')
 
-  // Everything comes from the report functions in migration 009, which resolve
-  // "today" in Asia/Kolkata. The previous version used
-  // `new Date().toISOString()` — that is UTC, so after 18:30 UTC a shop in
-  // India would have been shown tomorrow's (empty) figures.
-  /**
-   * allSettled, not all.
-   *
-   * With Promise.all, one rejected query takes the entire dashboard down and
-   * the error boundary shows a digest with no indication of which of the six
-   * failed. A shop then sees "this page could not load" because a single
-   * sparkline could not be drawn.
-   *
-   * Each result is unwrapped independently and its failure logged by name, so
-   * a broken widget renders empty while the rest of the page still works —
-   * and the Vercel log says exactly which one it was.
-   */
+  // A failed widget must not take down the whole counter workspace or silently
+  // turn unavailable money into a believable zero.
   const settled = await Promise.allSettled([
     supabase.rpc('dashboard_snapshot'),
     supabase.from('activity_log')
@@ -93,197 +70,182 @@ export default async function DashboardPage() {
       .eq('status', 'active').order('issue_date', { ascending: false }).limit(5),
     supabase.rpc('jewellery_breakdown', { p_category: 'Gold', p_limit: 4 }),
     supabase.rpc('chart_data', { p_months: 12 }),
-    // No date bounds: Top Locations shows the whole book, since a shop
-    // wants to know where it is exposed overall.
     supabase.rpc('location_report', { p_locations: null, p_start: null, p_end: null }),
+    // The approved compact financial row uses the live deposit balance already
+    // exposed by this existing tenant-scoped report function.
+    supabase.rpc('lending_metrics'),
   ])
 
-  const NAMES = [
-    'dashboard_snapshot', 'activity_log',
-    'recent_loans', 'jewellery_breakdown', 'chart_data', 'location_report',
+  const names = [
+    'dashboard_snapshot', 'activity_log', 'recent_loans', 'jewellery_breakdown',
+    'chart_data', 'location_report', 'lending_metrics',
   ] as const
+  const failures = new Set<number>()
 
-  function unwrap<T>(i: number): T | null {
-    const r = settled[i]
-    if (r.status === 'rejected') {
-      console.error(`[dashboard] ${NAMES[i]} threw:`, r.reason)
+  function unwrap<T>(index: number): T | null {
+    const result = settled[index]
+    if (result.status === 'rejected') {
+      failures.add(index)
+      console.error(`[dashboard] ${names[index]} threw:`, result.reason)
       return null
     }
-    // A PostgREST error is returned, not thrown — worth logging too, since a
-    // missing GRANT or a renamed function looks identical to "no data" here.
-    const { data, error } = r.value as { data: unknown; error: unknown }
+    const { data, error } = result.value as { data: unknown; error: unknown }
     if (error) {
-      console.error(`[dashboard] ${NAMES[i]} errored:`, error)
+      failures.add(index)
+      console.error(`[dashboard] ${names[index]} errored:`, error)
       return null
     }
     return (data ?? null) as T | null
   }
 
-  const snapshot      = unwrap<Json>(0)
-  const activity      = unwrap<ActivityRow[]>(1)
-  const recentLoans   = unwrap<RecentLoanRow[]>(2)
+  const snapshot = unwrap<Json>(0)
+  const activity = unwrap<ActivityRow[]>(1)
+  const recentLoans = unwrap<RecentLoanRow[]>(2)
   const goldBreakdown = unwrap<BreakdownRow[]>(3)
-  const trend         = unwrap<TrendRow[]>(4)
-  const locations     = unwrap<LocationReportRow[]>(5)
+  const trend = unwrap<TrendRow[]>(4)
+  const locations = unwrap<LocationReportRow[]>(5)
+  const lendingMetrics = unwrap<Json>(6)
 
-  // lending_metrics() and jewellery_stock() are `RETURNS jsonb`, so their
-  // generated type is the full Json union. Narrow once here, with a runtime
-  // check, and hand concrete numbers to the components below — that way
-  // StockChart keeps its real prop types instead of accepting loose JSON.
-  const m = asObject(snapshot)
+  const metrics = asObject(snapshot)
   const stock = objectAt(snapshot, 'stock')
   const cash = objectAt(snapshot, 'cash')
+  const depositMetrics = asObject(lendingMetrics)
   const cost = {
-    gold:   numberAt(objectAt(stock, 'cost'), 'gold'),
+    gold: numberAt(objectAt(stock, 'cost'), 'gold'),
     silver: numberAt(objectAt(stock, 'cost'), 'silver'),
   }
   const weight = {
-    gold:        numberAt(objectAt(stock, 'weight'), 'gold'),
-    silver:      numberAt(objectAt(stock, 'weight'), 'silver'),
-    gold_unit:   stringAt(objectAt(stock, 'weight'), 'gold_unit', 'g'),
+    gold: numberAt(objectAt(stock, 'weight'), 'gold'),
+    silver: numberAt(objectAt(stock, 'weight'), 'silver'),
+    gold_unit: stringAt(objectAt(stock, 'weight'), 'gold_unit', 'g'),
     silver_unit: stringAt(objectAt(stock, 'weight'), 'silver_unit', 'kg'),
   }
   const counts = {
-    gold:   numberAt(objectAt(stock, 'count'), 'gold'),
+    gold: numberAt(objectAt(stock, 'count'), 'gold'),
     silver: numberAt(objectAt(stock, 'count'), 'silver'),
   }
-
-  const firstName = (appUser.full_name ?? '').split(' ')[0]
+  const firstName = (appUser.full_name ?? '').trim().split(/\s+/)[0] ?? ''
 
   return (
-    <div className="space-y-5">
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">
-            {firstName ? `Hello, ${firstName}` : 'Dashboard'}
-          </h1>
-          <p className="page-subtitle">
-            {numberAt(m, 'active_loans')} active loans ·{' '}
-            {formatCurrency(numberAt(m, 'active_principal'))} lent out
-          </p>
-        </div>
-        <Link href="/add-record">
-          <Button size="sm"><Plus className="h-4 w-4" /> Add New Record</Button>
-        </Link>
-      </div>
-
-      {/* The desktop's four cards, driven by the period selector on the row.
-          Replaces the balance-snapshot cards the web had invented. */}
+    <div
+      className="dashboard-reference space-y-3.5"
+      style={{ fontFamily: "'IBM Plex Sans', Inter, system-ui, sans-serif" }}
+    >
       <PeriodCards
-        activePrincipal={numberAt(m, 'active_principal')}
-        activeCount={numberAt(m, 'active_loans')}
+        activePrincipal={numberAt(metrics, 'active_principal')}
+        activeCount={numberAt(metrics, 'active_loans')}
+        firstName={firstName}
+        activeError={failures.has(0)}
       />
 
-      <CashSummary data={{
-        openingBalance: numberAt(cash, 'opening_balance'),
-        cashInHand: numberAt(cash, 'cash_in_hand'),
-        addedCash: numberAt(cash, 'added_cash'),
-        removedCash: numberAt(cash, 'removed_cash'),
-        depositCredit: numberAt(cash, 'deposit_credit'),
-        depositDebit: numberAt(cash, 'deposit_debit'),
-        investments: numberAt(cash, 'investments'),
-        returns: numberAt(cash, 'returns'),
-        noActivity: cash.no_activity === true,
-      }} />
+      <CashSummary
+        data={{
+          cashInHand: numberAt(cash, 'cash_in_hand'),
+          totalDeposits: numberAt(depositMetrics, 'total_deposits'),
+          depositCredit: numberAt(cash, 'deposit_credit'),
+          depositDebit: numberAt(cash, 'deposit_debit'),
+          noActivity: cash.no_activity === true,
+        }}
+        cashError={failures.has(0)}
+        depositsError={failures.has(6)}
+      />
 
-      <div className="grid gap-5 lg:grid-cols-3">
-        <div className="lg:col-span-2 space-y-5">
-          {/* chart_data() and jewellery_breakdown() are RETURNS TABLE, so every
-              column is typed nullable — Postgres permits it even where these
-              particular functions COALESCE. Normalise here rather than loosening
-              the chart props, which would push the nulls into rendering. */}
+      <div className="grid items-stretch gap-3 lg:grid-cols-3">
+        <div className="lg:col-span-2">
           <TrendChart
-            rows={(trend ?? []).map(r => ({
-              month:    r.month ?? '',
-              invested: r.invested ?? 0,
-              returned: r.returned ?? 0,
-              interest: r.interest ?? 0,
+            error={failures.has(4)}
+            rows={(trend ?? []).map(row => ({
+              month: row.month ?? '',
+              invested: row.invested ?? 0,
+              returned: row.returned ?? 0,
+              interest: row.interest ?? 0,
             }))}
           />
+        </div>
+        <StockChart
+          error={failures.has(0)}
+          breakdownError={failures.has(3)}
+          cost={cost}
+          weight={weight}
+          counts={counts}
+          goldBreakdown={(goldBreakdown ?? []).map(item => ({
+            name: item.name ?? 'Other',
+            total_amount: item.total_amount ?? 0,
+            percentage: item.percentage ?? 0,
+          }))}
+        />
+      </div>
 
-          <StockChart
-            cost={cost}
-            weight={weight}
-            counts={counts}
-            goldBreakdown={(goldBreakdown ?? []).map(b => ({
-              name:         b.name ?? 'Other',
-              total_amount: b.total_amount ?? 0,
-              percentage:   b.percentage ?? 0,
-            }))}
-          />
-
-          {/* Recent loans */}
-          <div className="card">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-semibold text-slate-900">Latest loans</h2>
-              <Link
-                href="/view-records/active"
-                className="text-xs text-primary-700 hover:underline inline-flex items-center gap-1"
-              >
-                View all <ArrowRight className="h-3 w-3" />
-              </Link>
-            </div>
-
-            {!recentLoans?.length ? (
-              <EmptyState
-                icon={Landmark}
-                title="No loans yet"
-                description="Add your first loan to get started."
-                action={
-                  <Link href="/add-record">
-                    <Button size="sm"><Plus className="h-4 w-4" /> Add record</Button>
-                  </Link>
-                }
-              />
-            ) : (
-              <ul className="divide-y divide-surface-border -my-1">
-                {recentLoans.map(l => (
-                  <li key={l.id}>
-                    <Link
-                      href={`/loans/${l.id}`}
-                      className="flex items-center gap-3 py-2.5 hover:bg-slate-50 -mx-2 px-2 rounded-lg transition-colors"
-                    >
-                      <span className="text-xs text-slate-400 tabular-nums w-12 shrink-0">
-                        #{l.id}
-                      </span>
-                      <span className="flex-1 min-w-0">
-                        <span className="block text-sm font-medium truncate">{l.name}</span>
-                        <span className="block text-xs text-slate-400">
-                          {formatDate(l.issue_date)} · {getLoanAge(l.issue_date)} ago
-                        </span>
-                      </span>
-                      <Badge variant={l.category_type === 'Gold' ? 'gold' : 'silver'}>
-                        {l.detailed_type || l.category_type}
-                      </Badge>
-                      <span className="text-sm font-semibold tabular-nums shrink-0">
-                        {formatCurrency(l.amount)}
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
+      <div className="grid items-start gap-3 lg:grid-cols-3">
+        <section className="card overflow-hidden p-0 lg:col-span-2" aria-labelledby="latest-loans-title">
+          <div className="flex items-center justify-between border-b border-surface-border px-4 py-3">
+            <h2 id="latest-loans-title" className="text-sm font-bold text-slate-900">Latest active loans</h2>
+            <Link href="/view-records/active" className="inline-flex items-center gap-1 text-xs font-semibold text-primary-700 hover:underline">
+              View all <ArrowRight className="h-3 w-3" />
+            </Link>
           </div>
-        </div>
 
-        <div className="space-y-5">
-          <TopLocations
-            rows={(locations ?? []).reduce<LocationRow[]>((acc, r) => {
-              // A loan with no location recorded has nothing to show here.
-              if (r.location) {
-                acc.push({
-                  location: r.location,
-                  active_count: r.active_count ?? 0,
-                  active_amount: r.active_amount ?? 0,
-                })
+          {failures.has(2) ? (
+            <div className="px-4 py-8 text-center">
+              <p className="text-sm font-semibold text-red-700">Latest active loans could not be loaded</p>
+              <p className="mt-1 text-xs text-slate-500">Existing loan records are unchanged. Other dashboard figures remain available.</p>
+            </div>
+          ) : !recentLoans?.length ? (
+            <EmptyState
+              icon={Landmark}
+              title="No loans yet"
+              description="Add your first loan to begin the active portfolio."
+              action={
+                <Link href="/add-record">
+                  <Button size="sm"><Plus className="h-4 w-4" /> Add your first loan</Button>
+                </Link>
               }
-              return acc
-            }, [])}
-          />
-          <QuickActions />
-          <QuickReports />
-          <ActivityFeed items={activity ?? []} />
-        </div>
+            />
+          ) : (
+            <ul className="divide-y divide-surface-border">
+              {recentLoans.map(loan => (
+                <li key={loan.id}>
+                  <Link
+                    href={`/loans/${loan.id}`}
+                    className="grid min-h-12 grid-cols-[3.5rem_minmax(0,1fr)_auto] items-center gap-2 px-4 py-2 text-sm transition-colors hover:bg-slate-50 sm:grid-cols-[4rem_minmax(0,1.3fr)_auto_minmax(7rem,1fr)_9rem_auto]"
+                  >
+                    <span className="font-semibold tabular-nums text-slate-700">#{loan.id}</span>
+                    <span className="min-w-0">
+                      <span className="block truncate font-medium text-slate-900">{loan.name}</span>
+                      <span className="block truncate text-[11px] text-slate-400 sm:hidden">{formatDate(loan.issue_date)}</span>
+                    </span>
+                    <Badge variant={loan.category_type === 'Gold' ? 'gold' : 'silver'}>{loan.category_type}</Badge>
+                    <span className="hidden truncate text-xs text-slate-500 sm:block">{loan.detailed_type || '—'}</span>
+                    <span className="hidden text-xs text-slate-500 sm:block">{formatDate(loan.issue_date)} · {getLoanAge(loan.issue_date)}</span>
+                    <span className="col-span-3 text-right font-semibold tabular-nums text-slate-900 sm:col-span-1">
+                      {formatCurrency(loan.amount)}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <QuickActions />
+      </div>
+
+      <div className="grid items-start gap-3 md:grid-cols-2 xl:grid-cols-3">
+        <TopLocations
+          error={failures.has(5)}
+          rows={(locations ?? []).reduce<LocationRow[]>((all, row) => {
+            if (row.location) {
+              all.push({
+                location: row.location,
+                active_count: row.active_count ?? 0,
+                active_amount: row.active_amount ?? 0,
+              })
+            }
+            return all
+          }, [])}
+        />
+        <QuickReports />
+        <ActivityFeed items={activity ?? []} error={failures.has(1)} />
       </div>
     </div>
   )

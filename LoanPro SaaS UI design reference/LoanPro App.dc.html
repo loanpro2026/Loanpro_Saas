@@ -1,0 +1,1001 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f4f5f7;--surface:#ffffff;--surface2:#f8f9fb;--border:#e5e8ee;--text:#1b2437;--text2:#5c6784;--text3:#8a93a8;--primary:#2557d6;--primaryTint:rgba(37,87,214,.08);--gold:#a16207;--goldBg:#faf3e0;--silver:#5b6472;--silverBg:#eef1f5;--green:#0a7d54;--greenBg:#e8f6ef;--amber:#b45309;--amberBg:#fdf1e2;--red:#d92d20;--redBg:#fdecec;--shadow:0 1px 2px rgba(16,24,40,.06);}
+body.dark{--bg:#141619;--surface:#1d2025;--surface2:#23272d;--border:#2f343c;--text:#e7eaf0;--text2:#9aa3b5;--text3:#707a8c;--primary:#6f97ee;--primaryTint:rgba(111,151,238,.13);--gold:#d4a545;--goldBg:rgba(212,165,69,.13);--silver:#9aa6b8;--silverBg:rgba(154,166,184,.13);--green:#34b98a;--greenBg:rgba(52,185,138,.13);--amber:#e09a3e;--amberBg:rgba(224,154,62,.13);--red:#e5645c;--redBg:rgba(229,100,92,.13);--shadow:none;}
+body{margin:0;overflow-x:auto;background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',-apple-system,'Segoe UI',sans-serif;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased;}
+a{color:var(--primary);text-decoration:none;}a:hover{color:var(--primary);text-decoration:underline;}
+input,select,textarea,button{font-family:inherit;font-variant-numeric:tabular-nums;}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--primary) !important;}
+input::placeholder,textarea::placeholder{color:var(--text3);}
+::-webkit-scrollbar{width:8px;height:8px;}::-webkit-scrollbar-track{background:transparent;}::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;}
+</style>
+</helmet>
+<sc-if value="{{isLogin}}" hint-placeholder-val="{{ false }}">
+<div style="min-height:100vh;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:24px;">
+  <div style="width:400px;background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);padding:36px;">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:28px;">
+      <div style="width:40px;height:40px;border-radius:10px;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;">LP</div>
+      <div>
+        <div style="font-size:17px;font-weight:700;">LoanPro</div>
+        <div style="font-size:12px;color:var(--text2);">Sign in to {{ shopName }}</div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:14px;">
+      <div><label style="display:block;font-size:12.5px;font-weight:600;color:var(--text2);margin-bottom:6px;">Email</label>
+        <input type="email" placeholder="you@shop.in" style="width:100%;box-sizing:border-box;height:40px;padding:0 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:14px;"></input></div>
+      <div><label style="display:block;font-size:12.5px;font-weight:600;color:var(--text2);margin-bottom:6px;">Password</label>
+        <input type="password" placeholder="••••••••" style="width:100%;box-sizing:border-box;height:40px;padding:0 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:14px;"></input></div>
+      <button onClick="{{ goDashboard }}" style="height:40px;border:none;border-radius:8px;background:var(--primary);color:#fff;font-size:14px;font-weight:600;cursor:pointer;margin-top:4px;" style-hover="filter:brightness(1.07);">Sign in</button>
+      <div style="display:flex;justify-content:space-between;font-size:12.5px;"><a href="#">Forgot password?</a><span style="color:var(--text3);">Device-locked session</span></div>
+    </div>
+  </div>
+</div>
+</sc-if>
+<sc-if value="{{inApp}}" hint-placeholder-val="{{ true }}">
+<div style="display:flex;height:100vh;min-width:1180px;overflow:hidden;background:var(--bg);">
+  <aside style="width:232px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;">
+    <div style="height:60px;display:flex;align-items:center;gap:10px;padding:0 16px;border-bottom:1px solid var(--border);">
+      <div style="width:30px;height:30px;border-radius:8px;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;">LP</div>
+      <div style="min-width:0;">
+        <div style="font-size:13.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ shopName }}</div>
+        <div style="font-size:10.5px;color:var(--green);font-weight:600;">● Pro plan · Synced</div>
+      </div>
+    </div>
+    <nav style="flex:1;overflow-y:auto;padding:10px 10px;display:flex;flex-direction:column;gap:1px;">
+      <sc-for list="{{ navItems }}" as="it" hint-placeholder-count="8">
+        <sc-if value="{{ it.h }}"><div style="font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--text3);padding:12px 8px 4px;">{{ it.h }}</div></sc-if>
+        <sc-if value="{{ it.label }}">
+          <button onClick="{{ it.on }}" style="display:flex;align-items:center;gap:10px;height:34px;padding:0 8px;border:none;border-radius:7px;background:{{ it.bg }};color:{{ it.col }};font-size:13px;font-weight:{{ it.w }};cursor:pointer;text-align:left;width:100%;" style-hover="background:var(--primaryTint);">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-left:{{ it.ind }}px;"><path d="{{ it.d }}"></path></svg>
+            <span>{{ it.label }}</span>
+          </button>
+        </sc-if>
+      </sc-for>
+    </nav>
+    <div style="border-top:1px solid var(--border);padding:12px 14px;display:flex;align-items:center;gap:10px;">
+      <div style="width:30px;height:30px;border-radius:50%;background:var(--primaryTint);color:var(--primary);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">{{ ownerInitial }}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:12.5px;font-weight:600;">{{ ownerName }}</div>
+        <div style="font-size:11px;color:var(--text3);">Owner</div>
+      </div>
+      <button onClick="{{ goLogin }}" title="Sign out" style="border:none;background:none;color:var(--text3);cursor:pointer;padding:4px;" style-hover="color:var(--red);"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"></path></svg></button>
+    </div>
+  </aside>
+  <div style="flex:1;display:flex;flex-direction:column;min-width:0;">
+    <header style="height:60px;flex-shrink:0;background:var(--surface);border-bottom:1px solid var(--border);display:grid;grid-template-columns:1fr minmax(320px,560px) 1fr;align-items:center;padding:0 20px;gap:16px;">
+      <div style="font-size:13px;color:var(--text2);font-weight:500;">{{ pageTitle }}</div>
+      <div style="position:relative;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text3);"><path d="M10 4a6 6 0 100 12 6 6 0 000-12zM14.5 14.5L20 20"></path></svg>
+        <input placeholder="Search customer, father's name, location or amount…" style="width:100%;box-sizing:border-box;height:38px;padding:0 64px 0 34px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:13px;"></input>
+        <span style="position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:11px;color:var(--text3);border:1px solid var(--border);border-radius:5px;padding:2px 6px;background:var(--surface);">Ctrl K</span>
+      </div>
+      <div style="display:flex;justify-content:flex-end;align-items:center;gap:6px;">
+        <button onClick="{{ toggleTheme }}" title="Toggle theme" style="width:34px;height:34px;border:none;border-radius:8px;background:none;color:var(--text2);cursor:pointer;display:flex;align-items:center;justify-content:center;" style-hover="background:var(--surface2);"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="{{ themeIconD }}"></path></svg></button>
+        <div style="position:relative;">
+          <button onClick="{{ toggleBell }}" title="Recent activity" style="width:34px;height:34px;border:none;border-radius:8px;background:none;color:var(--text2);cursor:pointer;display:flex;align-items:center;justify-content:center;" style-hover="background:var(--surface2);"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16v-5a6 6 0 1112 0v5l1.5 2h-15zM10 20a2 2 0 004 0"></path></svg></button>
+          <sc-if value="{{ bellOpen }}" hint-placeholder-val="{{ false }}">
+            <div style="position:absolute;right:0;top:42px;width:360px;background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:0 8px 24px rgba(16,24,40,.14);z-index:60;overflow:hidden;">
+              <div style="padding:14px 16px 10px;border-bottom:1px solid var(--border);">
+                <div style="font-size:13.5px;font-weight:700;">Recent activity</div>
+                <div style="font-size:11.5px;color:var(--text3);">Committed changes in your shop</div>
+              </div>
+              <sc-for list="{{ activity }}" as="a" hint-placeholder-count="4">
+                <div style="display:flex;gap:10px;padding:10px 16px;border-bottom:1px solid var(--border);align-items:flex-start;">
+                  <div style="width:26px;height:26px;border-radius:7px;background:{{ a.bg }};color:{{ a.col }};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;">{{ a.sign }}</div>
+                  <div style="flex:1;min-width:0;"><div style="font-size:12.5px;font-weight:500;">{{ a.desc }}</div><div style="font-size:11px;color:var(--text3);">{{ a.time }}</div></div>
+                  <div style="font-size:12.5px;font-weight:600;color:{{ a.col }};">{{ a.amt }}</div>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+        </div>
+        <button onClick="{{ goSettings }}" title="Settings" style="width:34px;height:34px;border:none;border-radius:8px;background:none;color:var(--text2);cursor:pointer;display:flex;align-items:center;justify-content:center;" style-hover="background:var(--surface2);"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8a4 4 0 100 8 4 4 0 000-8zM12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1"></path></svg></button>
+        <div style="width:32px;height:32px;border-radius:50%;background:var(--primaryTint);color:var(--primary);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;margin-left:2px;">{{ ownerInitial }}</div>
+      </div>
+    </header>
+    <main style="flex:1;overflow-y:auto;">
+      <div style="max-width:1600px;margin:0 auto;padding:20px 24px 40px;">
+
+      <!-- ============ DASHBOARD ============ -->
+      <sc-if value="{{isDashboard}}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:16px;">
+          <div style="font-size:20px;font-weight:700;line-height:1.2;white-space:nowrap;">Good morning, {{ ownerName }}</div>
+          <div style="display:flex;gap:10px;align-items:center;">
+            <div style="display:flex;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:3px;gap:2px;">
+              <sc-for list="{{ periods }}" as="p" hint-placeholder-count="5">
+                <button onClick="{{ p.on }}" style="border:none;border-radius:6px;padding:5px 12px;font-size:12.5px;font-weight:{{ p.w }};background:{{ p.bg }};color:{{ p.col }};cursor:pointer;">{{ p.label }}</button>
+              </sc-for>
+            </div>
+            <button onClick="{{ goAdd }}" style="height:36px;padding:0 16px;border:none;border-radius:8px;background:var(--primary);color:#fff;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:7px;white-space:nowrap;" style-hover="filter:brightness(1.07);"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>Add New Record</button>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px;">
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;box-shadow:var(--shadow);">
+            <div style="display:flex;justify-content:space-between;align-items:center;"><span style="font-size:12px;font-weight:600;color:var(--text2);">Active investment</span><span style="font-size:10px;font-weight:700;color:var(--green);background:var(--greenBg);border-radius:5px;padding:2px 6px;">LIVE</span></div>
+            <div style="font-size:22px;font-weight:700;margin-top:6px;">₹24,80,000</div>
+            <div style="font-size:12px;color:var(--text3);margin-top:2px;">128 active loans</div>
+          </div>
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;box-shadow:var(--shadow);">
+            <div style="font-size:12px;font-weight:600;color:var(--text2);">Investment · {{ periodLabel }}</div>
+            <div style="font-size:22px;font-weight:700;margin-top:6px;color:var(--amber);">₹1,50,000</div>
+            <div style="font-size:12px;color:var(--text3);margin-top:2px;">3 new loans issued</div>
+          </div>
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;box-shadow:var(--shadow);">
+            <div style="font-size:12px;font-weight:600;color:var(--text2);">Removals · {{ periodLabel }}</div>
+            <div style="font-size:22px;font-weight:700;margin-top:6px;color:var(--green);">₹82,000</div>
+            <div style="font-size:12px;color:var(--text3);margin-top:2px;">2 loans settled</div>
+          </div>
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;box-shadow:var(--shadow);">
+            <div style="font-size:12px;font-weight:600;color:var(--text2);">Interest · {{ periodLabel }}</div>
+            <div style="font-size:22px;font-weight:700;margin-top:6px;">₹4,100</div>
+            <div style="font-size:12px;color:var(--text3);margin-top:2px;">2 collections on settlement</div>
+          </div>
+        </div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);margin-bottom:12px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);gap:12px;">
+            <div style="font-size:13.5px;font-weight:700;white-space:nowrap;">Current financial position</div>
+            <div style="display:flex;gap:14px;align-items:center;">
+              <div style="font-size:12px;color:var(--text2);white-space:nowrap;">Cash in hand <span style="font-size:17px;font-weight:700;color:var(--text);">₹2,94,600</span></div>
+              <button onClick="{{ openAddCash }}" style="height:30px;padding:0 12px;border:1px solid var(--green);border-radius:7px;background:var(--greenBg);color:var(--green);font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap;">+ Add cash</button>
+              <button onClick="{{ goCash }}" style="height:30px;padding:0 12px;border:1px solid var(--amber);border-radius:7px;background:var(--amberBg);color:var(--amber);font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap;">− Remove cash</button>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0;">
+            <sc-for list="{{ cashMoves }}" as="m" hint-placeholder-count="3">
+              <div onClick="{{ m.on }}" style="padding:13px 16px;border-right:1px solid var(--border);cursor:{{ m.cursor }};" style-hover="background:var(--surface2);">
+                <div style="display:flex;align-items:center;gap:6px;"><span style="font-size:11.5px;color:var(--text2);">{{ m.label }}</span><span style="font-size:11px;color:var(--primary);font-weight:600;">{{ m.link }}</span></div>
+                <div style="font-size:17px;font-weight:700;color:{{ m.col }};margin-top:3px;">{{ m.sign }}{{ m.amt }}</div>
+                <div style="font-size:11.5px;color:var(--text3);margin-top:2px;">{{ m.sub }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-bottom:12px;">
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;box-shadow:var(--shadow);">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+              <div style="font-size:13.5px;font-weight:700;">Invested vs returned · last 12 months</div>
+              <div style="display:flex;gap:14px;font-size:11.5px;color:var(--text2);">
+                <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:3px;border-radius:2px;background:var(--primary);display:inline-block;"></span>Invested</span>
+                <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:3px;border-radius:2px;background:var(--green);display:inline-block;"></span>Returned</span>
+              </div>
+            </div>
+            <svg viewBox="0 0 600 210" style="width:100%;display:block;">
+              <line x1="0" y1="45" x2="600" y2="45" stroke="var(--border)" stroke-width="1"></line>
+              <line x1="0" y1="95" x2="600" y2="95" stroke="var(--border)" stroke-width="1"></line>
+              <line x1="0" y1="145" x2="600" y2="145" stroke="var(--border)" stroke-width="1"></line>
+              <line x1="0" y1="195" x2="600" y2="195" stroke="var(--border)" stroke-width="1"></line>
+              <polyline points="25,140 75,118 125,130 175,100 225,112 275,85 325,105 375,72 425,92 475,60 525,80 575,88" fill="none" stroke="var(--primary)" stroke-width="2.2" stroke-linejoin="round"></polyline>
+              <polyline points="25,172 75,162 125,166 175,152 225,158 275,144 325,152 375,136 425,146 475,128 525,140 575,144" fill="none" stroke="var(--green)" stroke-width="2.2" stroke-linejoin="round"></polyline>
+              <circle cx="575" cy="88" r="4" fill="var(--primary)"></circle>
+              <circle cx="575" cy="144" r="4" fill="var(--green)"></circle>
+            </svg>
+            <div style="display:flex;justify-content:space-between;font-size:10.5px;color:var(--text3);padding:4px 6px 0;">
+              <span>Aug</span><span>Sep</span><span>Oct</span><span>Nov</span><span>Dec</span><span>Jan</span><span>Feb</span><span>Mar</span><span>Apr</span><span>May</span><span>Jun</span><span>Jul</span>
+            </div>
+          </div>
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:12px;">
+            <div style="font-size:13.5px;font-weight:700;">In the safe</div>
+            <div style="display:flex;height:8px;border-radius:4px;overflow:hidden;">
+              <div style="width:79%;background:var(--gold);"></div>
+              <div style="width:21%;background:var(--silver);"></div>
+            </div>
+            <div onClick="{{ goGoldReport }}" style="border:1px solid var(--border);border-radius:10px;padding:12px;background:var(--goldBg);cursor:pointer;" style-hover="border-color:var(--gold);">
+              <div style="display:flex;justify-content:space-between;align-items:center;"><span style="font-size:12.5px;font-weight:700;color:var(--gold);display:flex;align-items:center;gap:5px;">Gold <span style="font-size:11px;">→</span></span><span style="font-size:12px;color:var(--text2);">94 items · 79%</span></div>
+              <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:6px;"><span style="font-size:18px;font-weight:700;">₹19,60,000</span><span style="font-size:13px;font-weight:600;color:var(--text2);">1,842.5 g</span></div>
+            </div>
+            <div onClick="{{ goSilverReport }}" style="border:1px solid var(--border);border-radius:10px;padding:12px;background:var(--silverBg);cursor:pointer;" style-hover="border-color:var(--silver);">
+              <div style="display:flex;justify-content:space-between;align-items:center;"><span style="font-size:12.5px;font-weight:700;color:var(--silver);display:flex;align-items:center;gap:5px;">Silver <span style="font-size:11px;">→</span></span><span style="font-size:12px;color:var(--text2);">34 items · 21%</span></div>
+              <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:6px;"><span style="font-size:18px;font-weight:700;">₹5,20,000</span><span style="font-size:13px;font-weight:600;color:var(--text2);">12.480 kg</span></div>
+            </div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:2fr 1fr;gap:12px;">
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);overflow:hidden;">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);">
+              <div style="font-size:13.5px;font-weight:700;">Latest active loans</div>
+              <button onClick="{{ goActive }}" style="border:none;background:none;color:var(--primary);font-size:12.5px;font-weight:600;cursor:pointer;">View all →</button>
+            </div>
+            <sc-for list="{{ latestLoans }}" as="l" hint-placeholder-count="5">
+              <div onClick="{{ l.on }}" style="display:grid;grid-template-columns:100px 1.4fr 1fr 1fr 76px;gap:10px;align-items:center;padding:9px 16px;border-bottom:1px solid var(--border);cursor:pointer;font-size:12.5px;" style-hover="background:var(--surface2);">
+                <span style="font-weight:600;">{{ l.amt }}</span>
+                <span style="font-weight:500;">{{ l.name }}</span>
+                <span style="color:var(--text2);">{{ l.type }}</span>
+                <span style="color:var(--text2);">{{ l.date }}</span>
+                <span style="font-size:11px;font-weight:700;color:{{ l.mCol }};background:{{ l.mBg }};border-radius:5px;padding:2px 8px;justify-self:end;">{{ l.metal }}</span>
+              </div>
+            </sc-for>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:12px;">
+            <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;box-shadow:var(--shadow);">
+              <div style="font-size:13.5px;font-weight:700;margin-bottom:10px;">Quick actions</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                <button onClick="{{ goRemove }}" style="height:38px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:12.5px;font-weight:600;cursor:pointer;" style-hover="border-color:var(--primary);color:var(--primary);">Settle a loan</button>
+                <button onClick="{{ goCash }}" style="height:38px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:12.5px;font-weight:600;cursor:pointer;" style-hover="border-color:var(--primary);color:var(--primary);">Cash drawer</button>
+                <button onClick="{{ goCash }}" style="height:38px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:12.5px;font-weight:600;cursor:pointer;" style-hover="border-color:var(--primary);color:var(--primary);">End of day</button>
+                <button onClick="{{ goInvestment }}" style="height:38px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:12.5px;font-weight:600;cursor:pointer;" style-hover="border-color:var(--primary);color:var(--primary);">Quick reports</button>
+              </div>
+            </div>
+            <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;box-shadow:var(--shadow);">
+              <div style="font-size:13.5px;font-weight:700;margin-bottom:8px;">Top locations by active principal</div>
+              <sc-for list="{{ topLocations }}" as="t" hint-placeholder-count="4">
+                <div style="display:flex;align-items:center;gap:10px;padding:5px 0;font-size:12.5px;">
+                  <span style="flex:1;color:var(--text2);">{{ t.name }}</span>
+                  <div style="width:90px;height:6px;border-radius:3px;background:var(--surface2);overflow:hidden;"><div style="height:100%;background:var(--primary);width:{{ t.pct }};"></div></div>
+                  <span style="font-weight:600;width:76px;text-align:right;">{{ t.amt }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- ============ ACTIVE / CLOSED RECORDS ============ -->
+      <sc-if value="{{isRecordsPage}}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:14px;">
+          <div>
+            <div style="font-size:20px;font-weight:700;">{{ recordsTitle }}</div>
+            <div style="font-size:13px;color:var(--text2);margin-top:2px;">{{ recordsSub }}</div>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <select style="height:36px;padding:0 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:13px;"><option>Customer name</option><option>Father's name</option><option>Location</option><option>Issue date</option><option>Amount</option><option>Jewellery type</option></select>
+            <input placeholder="Type to search…" style="height:36px;width:210px;padding:0 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:13px;box-sizing:border-box;"></input>
+            <button title="Search" style="height:36px;width:38px;border:none;border-radius:8px;background:var(--primary);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;" style-hover="filter:brightness(1.07);"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M10 4a6 6 0 100 12 6 6 0 000-12zM14.5 14.5L20 20"></path></svg></button>
+            <select style="height:36px;padding:0 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:13px;"><option>All metals</option><option>Gold</option><option>Silver</option></select>
+            <select style="height:36px;padding:0 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:13px;"><option>Newest first</option><option>Oldest first</option><option>Amount high–low</option></select>
+          </div>
+        </div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);overflow:hidden;">
+          <div style="max-height:calc(100vh - 260px);overflow-y:auto;">
+            <div style="position:sticky;top:0;z-index:5;display:grid;grid-template-columns:110px 1.3fr 1.1fr 1fr 100px 76px 1fr 90px 84px;gap:10px;padding:10px 16px;background:var(--surface2);border-bottom:1px solid var(--border);font-size:11px;font-weight:700;letter-spacing:.04em;color:var(--text3);text-transform:uppercase;">
+              <span>Amount</span><span>Customer</span><span>Father's name</span><span>Location</span><span>{{ recordsDateCol }}</span><span>Metal</span><span>Type</span><span style="text-align:right;">Weight</span><span style="text-align:right;">Actions</span>
+            </div>
+            <sc-for list="{{ recordRows }}" as="r" hint-placeholder-count="8">
+              <div onClick="{{ r.on }}" style="display:grid;grid-template-columns:110px 1.3fr 1.1fr 1fr 100px 76px 1fr 90px 84px;gap:10px;align-items:center;padding:10px 16px;border-bottom:1px solid var(--border);font-size:12.5px;cursor:pointer;" style-hover="background:var(--surface2);">
+                <span style="font-weight:600;">{{ r.amt }}</span>
+                <span style="font-weight:500;">{{ r.name }}</span>
+                <span style="color:var(--text2);">{{ r.father }}</span>
+                <span style="color:var(--text2);">{{ r.loc }}</span>
+                <span style="color:var(--text2);">{{ r.date }}</span>
+                <span style="font-size:11px;font-weight:700;color:{{ r.mCol }};background:{{ r.mBg }};border-radius:5px;padding:2px 8px;justify-self:start;">{{ r.metal }}</span>
+                <span style="color:var(--text2);">{{ r.type }}</span>
+                <span style="color:var(--text2);text-align:right;">{{ r.wt }}</span>
+                <div style="display:flex;gap:4px;justify-content:flex-end;">
+                  <button onClick="{{ r.onEdit }}" title="Edit record" style="width:28px;height:28px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text2);cursor:pointer;display:flex;align-items:center;justify-content:center;" style-hover="color:var(--primary);border-color:var(--primary);"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L20 8l-4-4L4 16z"></path></svg></button>
+                  <button onClick="{{ r.onDelete }}" title="Delete record" style="width:28px;height:28px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text2);cursor:pointer;display:flex;align-items:center;justify-content:center;" style-hover="color:var(--red);border-color:var(--red);"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"></path></svg></button>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 16px;border-top:1px solid var(--border);font-size:12.5px;color:var(--text2);">
+            <span>{{ recordsCount }}</span>
+            <div style="display:flex;gap:6px;">
+              <button style="height:30px;padding:0 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--text3);font-size:12px;cursor:default;">← Prev</button>
+              <button style="height:30px;padding:0 12px;border:1px solid var(--border);border-radius:7px;background:var(--primaryTint);color:var(--primary);font-size:12px;font-weight:600;cursor:pointer;">1</button>
+              <button style="height:30px;padding:0 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--text);font-size:12px;cursor:pointer;">2</button>
+              <button style="height:30px;padding:0 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--text);font-size:12px;cursor:pointer;">3</button>
+              <button style="height:30px;padding:0 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--text);font-size:12px;cursor:pointer;">Next →</button>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- ============ LOAN DETAIL (read-only view + settlement workspace) ============ -->
+      <sc-if value="{{isLoan}}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:14px;">
+          <div style="display:flex;align-items:center;gap:14px;">
+            <button onClick="{{ loanBack }}" style="width:32px;height:32px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text2);cursor:pointer;font-size:15px;flex-shrink:0;" style-hover="color:var(--primary);border-color:var(--primary);">←</button>
+            <div style="width:44px;height:44px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;color:var(--text3);flex-shrink:0;overflow:hidden;">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M12 11a4 4 0 100-8 4 4 0 000 8zM4.5 21a7.5 7.5 0 0115 0"></path></svg>
+            </div>
+            <div>
+              <div style="display:flex;align-items:center;gap:10px;">
+                <span style="font-size:19px;font-weight:700;">Ramesh Kumar</span>
+                <span style="font-size:11px;font-weight:700;color:{{ statusCol }};background:{{ statusBg }};border-radius:5px;padding:3px 8px;">{{ statusLabel }}</span>
+                <span style="font-size:11.5px;color:var(--text3);">{{ loanContext }}</span>
+              </div>
+              <div style="font-size:12.5px;color:var(--text2);margin-top:2px;">S/o Suresh Kumar · Sarafa Bazaar, Indore · 14, Bada Sarafa, near Rajwada, Indore 452002</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;flex-shrink:0;">
+            <sc-if value="{{ modeView }}" hint-placeholder-val="{{ true }}">
+              <button style="height:36px;padding:0 14px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:7px;" style-hover="border-color:var(--primary);color:var(--primary);"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L20 8l-4-4L4 16z"></path></svg>Edit record</button>
+              <button onClick="{{ openDelete }}" style="height:36px;padding:0 14px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--red);font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:7px;" style-hover="border-color:var(--red);background:var(--redBg);"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"></path></svg>Delete</button>
+            </sc-if>
+            <sc-if value="{{ modeSettle }}" hint-placeholder-val="{{ false }}">
+              <button onClick="{{ openDeposit }}" style="height:36px;padding:0 14px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:13px;font-weight:600;cursor:pointer;" style-hover="border-color:var(--primary);color:var(--primary);">+ Add deposit</button>
+              <button onClick="{{ openSettle }}" style="height:36px;padding:0 16px;border:none;border-radius:8px;background:var(--primary);color:#fff;font-size:13px;font-weight:600;cursor:pointer;" style-hover="filter:brightness(1.07);">Settle loan</button>
+            </sc-if>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0;background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);margin-bottom:14px;overflow:hidden;">
+          <div style="padding:12px 16px;border-right:1px solid var(--border);"><div style="font-size:11.5px;color:var(--text2);">Loan amount</div><div style="font-size:17px;font-weight:700;margin-top:3px;">₹50,000</div></div>
+          <div style="padding:12px 16px;border-right:1px solid var(--border);"><div style="font-size:11.5px;color:var(--text2);">Deposits paid</div><div style="font-size:17px;font-weight:700;margin-top:3px;color:var(--green);">₹12,000</div></div>
+          <div style="padding:12px 16px;border-right:1px solid var(--border);"><div style="font-size:11.5px;color:var(--text2);">{{ interestLabel }}</div><div style="font-size:17px;font-weight:700;margin-top:3px;color:var(--amber);">₹4,350</div></div>
+          <div style="padding:12px 16px;background:var(--primaryTint);">
+            <div style="font-size:11.5px;color:var(--primary);font-weight:600;">{{ durationLabel }}</div>
+            <div style="display:flex;align-items:baseline;gap:6px;margin-top:3px;"><span style="font-size:17px;font-weight:700;color:var(--primary);">172</span><span style="font-size:12.5px;color:var(--primary);font-weight:600;">days · 5 mo 21 d</span></div>
+            <div style="font-size:11px;color:var(--text3);margin-top:2px;">12 Feb 2026 → {{ durationEnd }}</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:2fr 1fr;gap:14px;align-items:start;">
+          <div style="display:flex;flex-direction:column;gap:14px;">
+            <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;box-shadow:var(--shadow);">
+              <div style="font-size:13.5px;font-weight:700;margin-bottom:12px;">Collateral</div>
+              <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;font-size:13px;">
+                <div><div style="font-size:11.5px;color:var(--text3);">Metal</div><div style="margin-top:3px;"><span style="font-size:11px;font-weight:700;color:var(--gold);background:var(--goldBg);border-radius:5px;padding:2px 8px;">Gold</span></div></div>
+                <div><div style="font-size:11.5px;color:var(--text3);">Jewellery type</div><div style="font-weight:600;margin-top:2px;">Chain</div></div>
+                <div><div style="font-size:11.5px;color:var(--text3);">Weight</div><div style="font-weight:600;margin-top:2px;">24.6 g</div></div>
+                <div><div style="font-size:11.5px;color:var(--text3);">Issue date</div><div style="font-weight:600;margin-top:2px;">12 Feb 2026</div></div>
+              </div>
+              <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);">
+                <div style="font-size:11.5px;color:var(--text3);">Remarks</div>
+                <div style="font-size:13px;color:var(--text2);margin-top:3px;line-height:1.5;">Customer requested a settlement reminder before Diwali. Item stored in tray 4.</div>
+              </div>
+            </div>
+            <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);overflow:hidden;">
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);">
+                <div>
+                  <span style="font-size:13.5px;font-weight:700;">Deposits</span>
+                  <span style="font-size:12px;color:var(--text2);margin-left:10px;">₹12,000 received across 3 part-payments · 24% of the loan amount</span>
+                </div>
+                <sc-if value="{{ modeSettle }}" hint-placeholder-val="{{ false }}">
+                  <button onClick="{{ openDeposit }}" style="height:32px;padding:0 12px;border:1px solid var(--primary);border-radius:7px;background:var(--primaryTint);color:var(--primary);font-size:12.5px;font-weight:600;cursor:pointer;">+ Add deposit</button>
+                </sc-if>
+              </div>
+              <div style="display:grid;grid-template-columns:110px 1fr 130px 120px;gap:10px;padding:8px 16px;background:var(--surface2);border-bottom:1px solid var(--border);font-size:11px;font-weight:700;letter-spacing:.04em;color:var(--text3);text-transform:uppercase;">
+                <span>Amount</span><span>Date</span><span>Entered by</span><span>Status</span>
+              </div>
+              <sc-for list="{{ deposits }}" as="d" hint-placeholder-count="3">
+                <div style="display:grid;grid-template-columns:110px 1fr 130px 120px;gap:10px;align-items:center;padding:10px 16px;border-bottom:1px solid var(--border);font-size:12.5px;">
+                  <span style="font-weight:600;">{{ d.amt }}</span>
+                  <span style="color:var(--text2);">{{ d.date }}</span>
+                  <span style="color:var(--text2);">{{ d.by }}</span>
+                  <span style="font-size:11px;font-weight:700;color:var(--green);background:var(--greenBg);border-radius:5px;padding:2px 8px;justify-self:start;">Committed</span>
+                </div>
+              </sc-for>
+            </div>
+            <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;box-shadow:var(--shadow);">
+              <div style="font-size:13.5px;font-weight:700;margin-bottom:8px;">Activity</div>
+              <sc-for list="{{ loanActivity }}" as="a" hint-placeholder-count="4">
+                <div style="display:flex;gap:12px;padding:5px 0;font-size:12.5px;align-items:baseline;">
+                  <span style="color:var(--text3);width:74px;flex-shrink:0;">{{ a.time }}</span>
+                  <span style="color:var(--text2);">{{ a.desc }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:14px;">
+            <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;box-shadow:var(--shadow);">
+              <div style="font-size:13.5px;font-weight:700;margin-bottom:12px;">Identity on file</div>
+              <div style="aspect-ratio:3/4;border-radius:10px;background:var(--surface2);border:1px solid var(--border);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--text3);overflow:hidden;">
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"><path d="M12 11a4 4 0 100-8 4 4 0 000 8zM4.5 21a7.5 7.5 0 0115 0"></path></svg>
+                <span style="font-size:11.5px;">Pledge photo</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-size:11.5px;">
+                <span style="color:var(--text2);">Captured 12 Feb 2026 · webcam</span>
+                <span style="color:var(--green);font-weight:600;">✓ Verified</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
+                <div style="width:44px;height:44px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;color:var(--text3);flex-shrink:0;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 8h3l2-3h8l2 3h3v12H3zM12 17a4 4 0 100-8 4 4 0 000 8z"></path></svg></div>
+                <div style="min-width:0;">
+                  <div style="font-size:12.5px;font-weight:600;">Collection photo</div>
+                  <div style="font-size:11.5px;color:{{ collectionCol }};">{{ collectionText }}</div>
+                </div>
+              </div>
+            </div>
+            <sc-if value="{{ modeSettle }}" hint-placeholder-val="{{ false }}">
+              <div style="background:var(--surface);border:1px solid var(--primary);border-radius:12px;padding:16px;box-shadow:var(--shadow);">
+                <div style="font-size:12px;color:var(--text2);">Customer pays if settled today</div>
+                <div style="font-size:24px;font-weight:700;margin-top:4px;color:var(--primary);">₹42,350</div>
+                <div style="font-size:11.5px;color:var(--text3);margin-top:4px;line-height:1.5;">₹50,000 loan − ₹12,000 deposits + ₹4,350 interest</div>
+                <button onClick="{{ openSettle }}" style="width:100%;height:38px;margin-top:12px;border:none;border-radius:8px;background:var(--primary);color:#fff;font-size:13px;font-weight:600;cursor:pointer;" style-hover="filter:brightness(1.07);">Settle loan</button>
+              </div>
+            </sc-if>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- ============ ADD RECORD ============ -->
+      <sc-if value="{{isAdd}}" hint-placeholder-val="{{ false }}">
+        <div style="margin-bottom:14px;">
+          <div style="font-size:20px;font-weight:700;">Add New Record</div>
+          <div style="font-size:13px;color:var(--text2);margin-top:2px;">Issue a new loan against pledged gold or silver. Fields marked * are required.</div>
+        </div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);padding:20px;max-width:1180px;">
+          <div style="display:grid;grid-template-columns:2fr 300px;gap:24px;align-items:start;">
+            <div>
+              <div style="font-size:12px;font-weight:700;letter-spacing:.06em;color:var(--text3);text-transform:uppercase;margin-bottom:12px;">Personal information</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                <div><label style="display:block;font-size:12.5px;font-weight:600;color:var(--text2);margin-bottom:5px;">Customer name *</label><input placeholder="Enter customer name" style="width:100%;box-sizing:border-box;height:38px;padding:0 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:13.5px;"></input></div>
+                <div><label style="display:block;font-size:12.5px;font-weight:600;color:var(--text2);margin-bottom:5px;">Father's name *</label><input placeholder="Enter father's name" style="width:100%;box-sizing:border-box;height:38px;padding:0 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:13.5px;"></input></div>
+                <div><label style="display:block;font-size:12.5px;font-weight:600;color:var(--text2);margin-bottom:5px;">Location *</label><input placeholder="Area or bazaar" style="width:100%;box-sizing:border-box;height:38px;padding:0 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:13.5px;"></input></div>
+                <div><label style="display:block;font-size:12.5px;font-weight:600;color:var(--text2);margin-bottom:5px;">Address <span style="color:var(--text3);font-weight:400;">(optional)</span></label><input placeholder="House no., street, city" style="width:100%;box-sizing:border-box;height:38px;padding:0 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:13.5px;"></input></div>
+              </div>
+            </div>
+            <div>
+              <div style="font-size:12px;font-weight:700;letter-spacing:.06em;color:var(--text3);text-transform:uppercase;margin-bottom:12px;">Customer photo *</div>
+              <div style="aspect-ratio:3/4;border:1px dashed var(--border);border-radius:10px;background:var(--surface2);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--text3);font-size:12px;text-align:center;padding:12px;">
+                <svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><path d="M12 11a4 4 0 100-8 4 4 0 000 8zM4.5 21a7.5 7.5 0 0115 0"></path></svg>
+                <span style="font-weight:600;color:var(--text2);">Capture customer face</span>
+                <span style="font-size:11.5px;">Stored securely, never shared</span>
+              </div>
+              <button style="width:100%;height:38px;margin-top:10px;border:1px solid var(--primary);border-radius:8px;background:var(--primaryTint);color:var(--primary);font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 8h3l2-3h8l2 3h3v12H3zM12 17a4 4 0 100-8 4 4 0 000 8z"></path></svg>Capture photo</button>
+              <div style="font-size:11.5px;color:var(--text2);margin-top:8px;line-height:1.5;">Uses <b>motorola edge 40</b>, the default capture device. Change it in Settings → Devices &amp; capture.</div>
+            </div>
+          </div>
+          <div style="margin-top:22px;padding-top:18px;border-top:1px solid var(--border);">
+            <div style="font-size:12px;font-weight:700;letter-spacing:.06em;color:var(--text3);text-transform:uppercase;margin-bottom:12px;">Loan details</div>
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
+              <div><label style="display:block;font-size:12.5px;font-weight:600;color:var(--text2);margin-bottom:5px;">Loan amount (₹) *</label><input placeholder="50,000" style="width:100%;box-sizing:border-box;height:40px;padding:0 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:16px;font-weight:600;"></input></div>
+              <div><label style="display:block;font-size:12.5px;font-weight:600;color:var(--text2);margin-bottom:5px;">Metal *</label>
+                <div style="display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;height:40px;">
+                  <button onClick="{{ setGold }}" style="flex:1;border:none;background:{{ goldBtnBg }};color:{{ goldBtnCol }};font-size:13px;font-weight:600;cursor:pointer;">Gold</button>
+                  <button onClick="{{ setSilver }}" style="flex:1;border:none;border-left:1px solid var(--border);background:{{ silverBtnBg }};color:{{ silverBtnCol }};font-size:13px;font-weight:600;cursor:pointer;">Silver</button>
+                </div></div>
+              <div><label style="display:block;font-size:12.5px;font-weight:600;color:var(--text2);margin-bottom:5px;">Jewellery type *</label><input placeholder="Chain, kada, payal…" style="width:100%;box-sizing:border-box;height:40px;padding:0 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:13.5px;"></input></div>
+              <div><label style="display:block;font-size:12.5px;font-weight:600;color:var(--text2);margin-bottom:5px;">Weight ({{ weightUnit }}) *</label><input placeholder="24.6" style="width:100%;box-sizing:border-box;height:40px;padding:0 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:13.5px;"></input></div>
+              <div><label style="display:block;font-size:12.5px;font-weight:600;color:var(--text2);margin-bottom:5px;">Loan date *</label><input type="date" value="2026-08-03" style="width:100%;box-sizing:border-box;height:40px;padding:0 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:13.5px;"></input></div>
+              <div style="grid-column:2/5;"><label style="display:block;font-size:12.5px;font-weight:600;color:var(--text2);margin-bottom:5px;">Additional information <span style="color:var(--text3);font-weight:400;">(optional)</span></label><input placeholder="Any note about the item or terms" style="width:100%;box-sizing:border-box;height:40px;padding:0 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:13.5px;"></input></div>
+            </div>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:20px;padding-top:16px;border-top:1px solid var(--border);">
+            <div style="font-size:12px;color:var(--text3);">Cash in hand after issuing this loan: <span style="font-weight:600;color:var(--text);">₹2,44,600</span></div>
+            <div style="display:flex;gap:10px;">
+              <button onClick="{{ goDashboard }}" style="height:38px;padding:0 16px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:13px;font-weight:600;cursor:pointer;">Cancel</button>
+              <button style="height:38px;padding:0 20px;border:none;border-radius:8px;background:var(--primary);color:#fff;font-size:13px;font-weight:600;cursor:pointer;" style-hover="filter:brightness(1.07);">Create loan record</button>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- ============ REMOVE RECORD ============ -->
+      <sc-if value="{{isRemove}}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:16px;">
+          <div>
+            <div style="font-size:20px;font-weight:700;">Remove Record</div>
+            <div style="font-size:13px;color:var(--text2);margin-top:2px;">Find an active loan, then add a deposit or settle and close it. Settlement happens only here.</div>
+          </div>
+          <div style="display:flex;gap:20px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 16px;box-shadow:var(--shadow);">
+            <div><div style="font-size:11.5px;color:var(--text2);">Active loans</div><div style="font-size:15px;font-weight:700;margin-top:2px;">128</div></div>
+            <div style="width:1px;background:var(--border);"></div>
+            <div><div style="font-size:11.5px;color:var(--text2);">Settled today</div><div style="font-size:15px;font-weight:700;margin-top:2px;color:var(--green);">2</div></div>
+          </div>
+        </div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);padding:18px;margin-bottom:14px;">
+          <div style="display:flex;gap:8px;align-items:flex-end;">
+            <div style="width:190px;flex-shrink:0;">
+              <label style="display:block;font-size:12px;font-weight:600;color:var(--text2);margin-bottom:5px;">Search by</label>
+              <select value="{{ removeField }}" onChange="{{ onRemoveField }}" style="width:100%;box-sizing:border-box;height:44px;padding:0 12px;border:1px solid var(--border);border-radius:9px;background:var(--surface2);color:var(--text);font-size:13.5px;font-weight:600;">
+                <option value="name">Customer name</option><option value="father">Father's name</option><option value="loc">Location</option><option value="date">Issue date</option><option value="amount">Loan amount</option>
+              </select>
+            </div>
+            <div style="flex:1;">
+              <label style="display:block;font-size:12px;font-weight:600;color:var(--text2);margin-bottom:5px;">{{ removeFieldLabel }}</label>
+              <div style="position:relative;">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--text3);"><path d="M10 4a6 6 0 100 12 6 6 0 000-12zM14.5 14.5L20 20"></path></svg>
+                <input value="{{ removeQ }}" onChange="{{ onRemoveInput }}" placeholder="{{ removePlaceholder }}" style="width:100%;box-sizing:border-box;height:44px;padding:0 14px 0 40px;border:1px solid var(--border);border-radius:9px;background:var(--surface2);color:var(--text);font-size:14.5px;"></input>
+              </div>
+            </div>
+            <button style="height:44px;padding:0 24px;border:none;border-radius:9px;background:var(--primary);color:#fff;font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px;flex-shrink:0;" style-hover="filter:brightness(1.07);"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M10 4a6 6 0 100 12 6 6 0 000-12zM14.5 14.5L20 20"></path></svg>Search</button>
+            <button onClick="{{ clearRemove }}" style="height:44px;padding:0 16px;border:1px solid var(--border);border-radius:9px;background:var(--surface);color:var(--text2);font-size:13.5px;font-weight:600;cursor:pointer;flex-shrink:0;" style-hover="color:var(--text);">Clear</button>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:12px;align-items:center;">
+            <span style="font-size:11.5px;color:var(--text3);font-weight:600;">Narrow down</span>
+            <select style="height:32px;padding:0 10px;border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--text);font-size:12.5px;"><option>Any metal</option><option>Gold</option><option>Silver</option></select>
+            <select style="height:32px;padding:0 10px;border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--text);font-size:12.5px;"><option>Any amount</option><option>Under ₹25,000</option><option>₹25,000–₹1,00,000</option><option>Above ₹1,00,000</option></select>
+            <select style="height:32px;padding:0 10px;border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--text);font-size:12.5px;"><option>Any duration</option><option>Held over 6 months</option><option>Held over 1 year</option></select>
+            <select style="height:32px;padding:0 10px;border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--text);font-size:12.5px;"><option>Longest held first</option><option>Newest first</option><option>Amount high–low</option></select>
+          </div>
+        </div>
+        <sc-if value="{{ removeEmpty }}" hint-placeholder-val="{{ true }}">
+          <div style="border:1px dashed var(--border);border-radius:12px;padding:56px 24px;display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;background:var(--surface);">
+            <div style="width:44px;height:44px;border-radius:50%;background:var(--surface2);display:flex;align-items:center;justify-content:center;color:var(--text3);"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M10 4a6 6 0 100 12 6 6 0 000-12zM14.5 14.5L20 20"></path></svg></div>
+            <div style="font-size:14.5px;font-weight:700;">Search for an active record</div>
+            <div style="font-size:12.5px;color:var(--text2);max-width:420px;line-height:1.5;">Active loans are not listed automatically. Pick a field above and search by customer name, father's name, location, issue date or amount — then open the record to add a deposit or settle it.</div>
+          </div>
+        </sc-if>
+        <sc-if value="{{ removeHasQ }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <div style="font-size:12.5px;color:var(--text2);"><b>{{ removeCount }}</b> active records match {{ removeFieldLabel }} "<b>{{ removeQ }}</b>"</div>
+            <div style="font-size:12px;color:var(--text3);">Open a record to add a deposit or settle it</div>
+          </div>
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);overflow:hidden;">
+            <div style="display:grid;grid-template-columns:120px 1.4fr 1fr 110px 76px 1fr 130px 40px;gap:12px;padding:9px 16px;background:var(--surface2);border-bottom:1px solid var(--border);font-size:11px;font-weight:700;letter-spacing:.04em;color:var(--text3);text-transform:uppercase;">
+              <span>Amount</span><span>Customer</span><span>Location</span><span>Issued</span><span>Metal</span><span>Type &amp; weight</span><span style="text-align:right;">Days held</span><span></span>
+            </div>
+            <sc-for list="{{ removeResults }}" as="r" hint-placeholder-count="3">
+              <div onClick="{{ r.on }}" style="display:grid;grid-template-columns:120px 1.4fr 1fr 110px 76px 1fr 130px 40px;gap:12px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);font-size:12.5px;cursor:pointer;" style-hover="background:var(--surface2);">
+                <span style="font-weight:700;font-size:13.5px;">{{ r.amt }}</span>
+                <div><div style="font-weight:600;">{{ r.name }}</div><div style="font-size:11.5px;color:var(--text3);">S/o {{ r.father }}</div></div>
+                <span style="color:var(--text2);">{{ r.loc }}</span>
+                <span style="color:var(--text2);">{{ r.date }}</span>
+                <span style="font-size:11px;font-weight:700;color:{{ r.mCol }};background:{{ r.mBg }};border-radius:5px;padding:2px 8px;justify-self:start;">{{ r.metal }}</span>
+                <span style="color:var(--text2);">{{ r.type }} · {{ r.wt }}</span>
+                <span style="text-align:right;font-weight:600;">{{ r.age }}</span>
+                <span style="color:var(--text3);text-align:right;font-size:15px;">→</span>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+      </sc-if>
+
+      <!-- ============ ACCOUNTS ============ -->
+      <sc-if value="{{isAccounts}}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:14px;">
+          <div>
+            <div style="font-size:20px;font-weight:700;">View Accounts · {{ acctTitle }}</div>
+            <div style="font-size:13px;color:var(--text2);margin-top:2px;">{{ acctSub }}</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input type="date" value="2026-07-01" style="height:34px;padding:0 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:12.5px;"></input>
+            <span style="color:var(--text3);font-size:12px;">to</span>
+            <input type="date" value="2026-08-03" style="height:34px;padding:0 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:12.5px;"></input>
+            <button style="height:34px;padding:0 14px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:12.5px;font-weight:600;cursor:pointer;" style-hover="border-color:var(--primary);color:var(--primary);">Export PDF</button>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:12px;">
+          <sc-for list="{{ acctStats }}" as="s" hint-placeholder-count="3">
+            <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;box-shadow:var(--shadow);">
+              <div style="font-size:12px;font-weight:600;color:var(--text2);">{{ s.label }}</div>
+              <div style="font-size:20px;font-weight:700;margin-top:5px;color:{{ s.col }};">{{ s.val }}</div>
+              <div style="font-size:12px;color:var(--text3);margin-top:2px;">{{ s.sub }}</div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);overflow:hidden;">
+          <div style="display:grid;grid-template-columns:120px 1.3fr 1fr 110px 76px 1fr;gap:10px;padding:10px 16px;background:var(--surface2);border-bottom:1px solid var(--border);font-size:11px;font-weight:700;letter-spacing:.04em;color:var(--text3);text-transform:uppercase;">
+            <span>Amount</span><span>Customer</span><span>Location</span><span>Date</span><span>Metal</span><span>Type</span>
+          </div>
+          <sc-for list="{{ acctRows }}" as="r" hint-placeholder-count="6">
+            <div style="display:grid;grid-template-columns:120px 1.3fr 1fr 110px 76px 1fr;gap:10px;align-items:center;padding:10px 16px;border-bottom:1px solid var(--border);font-size:12.5px;">
+              <span style="font-weight:600;">{{ r.amt }}</span>
+              <span style="font-weight:500;">{{ r.name }}</span>
+              <span style="color:var(--text2);">{{ r.loc }}</span>
+              <span style="color:var(--text2);">{{ r.date }}</span>
+              <span style="font-size:11px;font-weight:700;color:{{ r.mCol }};background:{{ r.mBg }};border-radius:5px;padding:2px 8px;justify-self:start;">{{ r.metal }}</span>
+              <span style="color:var(--text2);">{{ r.type }}</span>
+            </div>
+          </sc-for>
+          <div style="display:flex;justify-content:flex-end;padding:11px 16px;font-size:13px;background:var(--surface2);"><span style="color:var(--text2);margin-right:12px;">Period total</span><span style="font-weight:700;">{{ acctTotal }}</span></div>
+        </div>
+      </sc-if>
+
+      <!-- ============ CASH & DAY-END ============ -->
+      <sc-if value="{{isCash}}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:14px;">
+          <div>
+            <div style="font-size:20px;font-weight:700;">Cash &amp; Day-end</div>
+            <div style="font-size:13px;color:var(--text2);margin-top:2px;">Sunday, 3 August 2026 · books last closed yesterday 8:41 pm</div>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button onClick="{{ openAddCash }}" style="height:36px;padding:0 14px;border:1px solid var(--green);border-radius:8px;background:var(--greenBg);color:var(--green);font-size:13px;font-weight:600;cursor:pointer;">+ Add cash</button>
+            <button style="height:36px;padding:0 14px;border:1px solid var(--amber);border-radius:8px;background:var(--amberBg);color:var(--amber);font-size:13px;font-weight:600;cursor:pointer;">− Remove cash</button>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px;">
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;box-shadow:var(--shadow);"><div style="font-size:12px;font-weight:600;color:var(--text2);">Opening balance</div><div style="font-size:20px;font-weight:700;margin-top:5px;">₹3,20,000</div><div style="font-size:12px;color:var(--text3);margin-top:2px;">Carried from 2 Aug closing</div></div>
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;box-shadow:var(--shadow);"><div style="font-size:12px;font-weight:600;color:var(--text2);">Net movement today</div><div style="font-size:20px;font-weight:700;margin-top:5px;color:var(--amber);">− ₹25,400</div><div style="font-size:12px;color:var(--text3);margin-top:2px;">₹1,10,000 in · ₹1,35,400 out</div></div>
+          <div style="background:var(--surface);border:1px solid var(--primary);border-radius:12px;padding:14px 16px;box-shadow:var(--shadow);"><div style="font-size:12px;font-weight:600;color:var(--primary);">Cash in hand</div><div style="font-size:20px;font-weight:700;margin-top:5px;color:var(--primary);">₹2,94,600</div><div style="font-size:12px;color:var(--text3);margin-top:2px;">Expected in the drawer now</div></div>
+        </div>
+        <div style="display:grid;grid-template-columns:2fr 1fr;gap:12px;align-items:start;">
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);overflow:hidden;">
+            <div style="padding:12px 16px;border-bottom:1px solid var(--border);font-size:13.5px;font-weight:700;">Today's cash ledger</div>
+            <div style="display:grid;grid-template-columns:70px 1fr 110px 110px 120px;gap:10px;padding:8px 16px;background:var(--surface2);border-bottom:1px solid var(--border);font-size:11px;font-weight:700;letter-spacing:.04em;color:var(--text3);text-transform:uppercase;">
+              <span>Time</span><span>Entry</span><span style="text-align:right;">In</span><span style="text-align:right;">Out</span><span style="text-align:right;">Balance</span>
+            </div>
+            <sc-for list="{{ cashLedger }}" as="c" hint-placeholder-count="6">
+              <div style="display:grid;grid-template-columns:70px 1fr 110px 110px 120px;gap:10px;align-items:center;padding:9px 16px;border-bottom:1px solid var(--border);font-size:12.5px;">
+                <span style="color:var(--text3);">{{ c.time }}</span>
+                <span>{{ c.desc }}</span>
+                <span style="text-align:right;font-weight:600;color:var(--green);">{{ c.in }}</span>
+                <span style="text-align:right;font-weight:600;color:var(--amber);">{{ c.out }}</span>
+                <span style="text-align:right;font-weight:600;">{{ c.bal }}</span>
+              </div>
+            </sc-for>
+          </div>
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;box-shadow:var(--shadow);">
+            <div style="font-size:13.5px;font-weight:700;">End of day</div>
+            <div style="font-size:12.5px;color:var(--text2);margin-top:4px;line-height:1.5;">Count the drawer, confirm the closing balance and lock today's entries.</div>
+            <div style="margin-top:14px;display:flex;flex-direction:column;gap:8px;font-size:12.5px;">
+              <div style="display:flex;justify-content:space-between;"><span style="color:var(--text2);">Expected closing</span><span style="font-weight:700;">₹2,94,600</span></div>
+              <div style="display:flex;justify-content:space-between;align-items:center;"><span style="color:var(--text2);">Counted amount</span><input placeholder="₹" style="width:110px;height:32px;padding:0 10px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:13px;text-align:right;box-sizing:border-box;"></input></div>
+            </div>
+            <button style="width:100%;height:38px;margin-top:14px;border:none;border-radius:8px;background:var(--primary);color:#fff;font-size:13px;font-weight:600;cursor:pointer;" style-hover="filter:brightness(1.07);">Close the day</button>
+            <div style="margin-top:10px;font-size:11.5px;color:var(--text3);line-height:1.5;">Closing creates tomorrow's opening balance. Entries stay visible but locked.</div>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- ============ SETTINGS ============ -->
+      <sc-if value="{{isSettings}}" hint-placeholder-val="{{ false }}">
+        <div style="margin-bottom:14px;">
+          <div style="font-size:20px;font-weight:700;">Settings</div>
+          <div style="font-size:13px;color:var(--text2);margin-top:2px;">Preferences apply to this shop. Devices and backups are managed per workspace.</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start;">
+          <div style="display:flex;flex-direction:column;gap:14px;">
+            <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);overflow:hidden;">
+              <div style="padding:14px 16px 10px;font-size:13.5px;font-weight:700;">General</div>
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-top:1px solid var(--border);">
+                <div><div style="font-size:13px;font-weight:600;">Interest rate</div><div style="font-size:12px;color:var(--text2);">Simple interest, charged on settlement</div></div>
+                <div style="display:flex;align-items:center;gap:6px;"><input value="2.0" style="width:56px;height:32px;padding:0 8px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:13px;text-align:right;box-sizing:border-box;"></input><span style="font-size:12.5px;color:var(--text2);">% / month</span></div>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-top:1px solid var(--border);">
+                <div><div style="font-size:13px;font-weight:600;">Language</div><div style="font-size:12px;color:var(--text2);">Display language for the app</div></div>
+                <select style="height:32px;padding:0 10px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12.5px;"><option>English</option><option>हिन्दी</option></select>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-top:1px solid var(--border);">
+                <div><div style="font-size:13px;font-weight:600;">Theme</div><div style="font-size:12px;color:var(--text2);">Light or dark workspace</div></div>
+                <button onClick="{{ toggleTheme }}" style="height:32px;padding:0 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12.5px;font-weight:600;cursor:pointer;">{{ themeLabel }}</button>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-top:1px solid var(--border);">
+                <div><div style="font-size:13px;font-weight:600;">Identity photo mandatory</div><div style="font-size:12px;color:var(--text2);">Require a customer photo when creating a record</div></div>
+                <div style="width:36px;height:20px;border-radius:10px;background:var(--green);position:relative;cursor:pointer;"><div style="width:16px;height:16px;border-radius:50%;background:#fff;position:absolute;top:2px;right:2px;"></div></div>
+              </div>
+            </div>
+            <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);overflow:hidden;">
+              <div style="padding:14px 16px 10px;font-size:13.5px;font-weight:700;">Devices &amp; capture</div>
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-top:1px solid var(--border);">
+                <div><div style="font-size:13px;font-weight:600;">Default capture device</div><div style="font-size:12px;color:var(--text2);">Used for customer photos on new records</div></div>
+                <select style="height:32px;padding:0 10px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12.5px;"><option>motorola edge 40</option><option>Akshat's Pixel</option><option>This computer's webcam</option></select>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-top:1px solid var(--border);">
+                <div><div style="font-size:13px;font-weight:600;">motorola edge 40</div><div style="font-size:12px;color:var(--amber);">● Local endpoint unavailable · cloud relay in use</div></div>
+                <button style="height:32px;padding:0 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12.5px;font-weight:600;cursor:pointer;">Manage</button>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-top:1px solid var(--border);">
+                <div><div style="font-size:13px;font-weight:600;">Pair a new device</div><div style="font-size:12px;color:var(--text2);">Scan a QR code from the phone</div></div>
+                <button style="height:32px;padding:0 12px;border:1px solid var(--primary);border-radius:7px;background:var(--primaryTint);color:var(--primary);font-size:12.5px;font-weight:600;cursor:pointer;">Show QR</button>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:14px;">
+            <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);overflow:hidden;">
+              <div style="padding:14px 16px 10px;font-size:13.5px;font-weight:700;">Data &amp; backup</div>
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-top:1px solid var(--border);">
+                <div><div style="font-size:13px;font-weight:600;">Automatic cloud backup</div><div style="font-size:12px;color:var(--green);">Last backup today 6:00 am · healthy</div></div>
+                <div style="width:36px;height:20px;border-radius:10px;background:var(--green);position:relative;cursor:pointer;"><div style="width:16px;height:16px;border-radius:50%;background:#fff;position:absolute;top:2px;right:2px;"></div></div>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-top:1px solid var(--border);">
+                <div><div style="font-size:13px;font-weight:600;">Export records</div><div style="font-size:12px;color:var(--text2);">Download all records as Excel or PDF</div></div>
+                <button style="height:32px;padding:0 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12.5px;font-weight:600;cursor:pointer;">Export</button>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-top:1px solid var(--border);">
+                <div><div style="font-size:13px;font-weight:600;">Import from desktop app</div><div style="font-size:12px;color:var(--text2);">Migrate your LoanPro Desktop data</div></div>
+                <button style="height:32px;padding:0 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12.5px;font-weight:600;cursor:pointer;">Import</button>
+              </div>
+            </div>
+            <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);overflow:hidden;">
+              <div style="padding:14px 16px 10px;font-size:13.5px;font-weight:700;">Workspace</div>
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-top:1px solid var(--border);">
+                <div><div style="font-size:13px;font-weight:600;">Shop name</div><div style="font-size:12px;color:var(--text2);">Shown across the app and on receipts</div></div>
+                <input value="{{ shopName }}" style="width:180px;height:32px;padding:0 10px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12.5px;box-sizing:border-box;"></input>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-top:1px solid var(--border);">
+                <div><div style="font-size:13px;font-weight:600;">Keyboard shortcuts</div><div style="font-size:12px;color:var(--text2);">Ctrl K search · Ctrl N new record · Ctrl D day-end</div></div>
+                <button style="height:32px;padding:0 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12.5px;font-weight:600;cursor:pointer;">View all</button>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-top:1px solid var(--border);">
+                <div><div style="font-size:13px;font-weight:600;">Plan &amp; billing</div><div style="font-size:12px;color:var(--text2);">Pro plan · renews 15 Aug 2026</div></div>
+                <button style="height:32px;padding:0 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12.5px;font-weight:600;cursor:pointer;">Manage</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- ============ HELP ============ -->
+      <sc-if value="{{isHelp}}" hint-placeholder-val="{{ false }}">
+        <div style="margin-bottom:14px;">
+          <div style="font-size:20px;font-weight:700;">Help &amp; Support</div>
+          <div style="font-size:13px;color:var(--text2);margin-top:2px;">Guides for daily work, plus direct support when you need it.</div>
+        </div>
+        <div style="display:grid;grid-template-columns:2fr 1fr;gap:14px;align-items:start;">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <sc-for list="{{ helpTopics }}" as="h" hint-placeholder-count="6">
+              <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;box-shadow:var(--shadow);cursor:pointer;" style-hover="border-color:var(--primary);">
+                <div style="font-size:13.5px;font-weight:700;">{{ h.title }}</div>
+                <div style="font-size:12.5px;color:var(--text2);margin-top:4px;line-height:1.5;">{{ h.desc }}</div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;box-shadow:var(--shadow);">
+            <div style="font-size:13.5px;font-weight:700;">Raise a support ticket</div>
+            <div style="font-size:12.5px;color:var(--text2);margin-top:4px;">We reply within one business day.</div>
+            <input placeholder="Subject" style="width:100%;box-sizing:border-box;height:36px;margin-top:12px;padding:0 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:13px;"></input>
+            <textarea rows="4" placeholder="Describe the problem…" style="width:100%;box-sizing:border-box;margin-top:8px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:13px;resize:vertical;"></textarea>
+            <button style="width:100%;height:36px;margin-top:10px;border:none;border-radius:8px;background:var(--primary);color:#fff;font-size:13px;font-weight:600;cursor:pointer;" style-hover="filter:brightness(1.07);">Submit ticket</button>
+          </div>
+        </div>
+      </sc-if>
+
+      </div>
+    </main>
+  </div>
+</div>
+<!-- ============ MODALS ============ -->
+<sc-if value="{{ depositOpen }}" hint-placeholder-val="{{ false }}">
+  <div onClick="{{ closeModals }}" style="position:fixed;inset:0;background:rgba(15,20,30,.45);z-index:100;display:flex;align-items:center;justify-content:center;padding:24px;">
+    <div onClick="{{ stop }}" style="width:400px;background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:0 16px 40px rgba(16,24,40,.2);padding:22px;">
+      <div style="font-size:15.5px;font-weight:700;">Add deposit · Ramesh Kumar</div>
+      <div style="font-size:12.5px;color:var(--text2);margin-top:3px;">₹50,000 loan · ₹12,000 already received</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px;">
+        <div><label style="display:block;font-size:12.5px;font-weight:600;color:var(--text2);margin-bottom:5px;">Amount (₹)</label><input value="{{ depAmt }}" onChange="{{ onDepAmt }}" placeholder="5,000" style="width:100%;box-sizing:border-box;height:40px;padding:0 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:15px;font-weight:600;"></input></div>
+        <div><label style="display:block;font-size:12.5px;font-weight:600;color:var(--text2);margin-bottom:5px;">Date</label><input type="date" value="2026-08-03" style="width:100%;box-sizing:border-box;height:40px;padding:0 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:13.5px;"></input></div>
+      </div>
+      <div style="margin-top:12px;padding:10px 12px;border-radius:8px;background:var(--greenBg);font-size:12.5px;color:var(--green);font-weight:500;">Deposits after saving: <b>{{ depAfter }}</b> of ₹50,000</div>
+      <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px;">
+        <button onClick="{{ closeModals }}" style="height:36px;padding:0 14px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:13px;font-weight:600;cursor:pointer;">Cancel</button>
+        <button onClick="{{ closeModals }}" style="height:36px;padding:0 16px;border:none;border-radius:8px;background:var(--primary);color:#fff;font-size:13px;font-weight:600;cursor:pointer;" style-hover="filter:brightness(1.07);">Save deposit</button>
+      </div>
+    </div>
+  </div>
+</sc-if>
+<sc-if value="{{ settleOpen }}" hint-placeholder-val="{{ false }}">
+  <div onClick="{{ closeModals }}" style="position:fixed;inset:0;background:rgba(15,20,30,.45);z-index:100;display:flex;align-items:center;justify-content:center;padding:24px;">
+    <div onClick="{{ stop }}" style="width:460px;background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:0 16px 40px rgba(16,24,40,.2);padding:22px;">
+      <div style="font-size:15.5px;font-weight:700;">Settle loan · Ramesh Kumar</div>
+      <div style="font-size:12.5px;color:var(--text2);margin-top:3px;">Gold chain 24.6 g · held 172 days. The record moves to Closed Records; deposit and cash history are preserved.</div>
+      <div style="display:flex;flex-direction:column;gap:9px;margin-top:16px;font-size:13px;">
+        <div style="display:flex;justify-content:space-between;"><span style="color:var(--text2);">Loan amount</span><span style="font-weight:600;">₹50,000</span></div>
+        <div style="display:flex;justify-content:space-between;"><span style="color:var(--text2);">Deposits already received</span><span style="font-weight:600;color:var(--green);">− ₹12,000</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;"><span style="color:var(--text2);">Interest (₹, editable)</span><input value="{{ interestAmt }}" onChange="{{ onInterest }}" style="width:110px;height:34px;padding:0 10px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:14px;font-weight:600;text-align:right;box-sizing:border-box;"></input></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;"><span style="color:var(--text2);">Closure date</span><input type="date" value="2026-08-03" style="width:150px;height:34px;padding:0 10px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12.5px;box-sizing:border-box;"></input></div>
+      </div>
+      <div style="margin-top:14px;padding:14px;border-radius:10px;background:var(--primaryTint);display:flex;justify-content:space-between;align-items:baseline;">
+        <span style="font-size:13px;font-weight:600;color:var(--primary);">Customer pays now</span>
+        <span style="font-size:22px;font-weight:700;color:var(--primary);">{{ settleTotal }}</span>
+      </div>
+      <div style="margin-top:12px;padding:10px 12px;border-radius:8px;background:var(--amberBg);font-size:12.5px;color:var(--amber);font-weight:500;">Collection photo required — <u style="cursor:pointer;">capture now</u> to enable settlement.</div>
+      <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px;">
+        <button onClick="{{ closeModals }}" style="height:38px;padding:0 14px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:13px;font-weight:600;cursor:pointer;">Cancel</button>
+        <button onClick="{{ closeModals }}" style="height:38px;padding:0 16px;border:none;border-radius:8px;background:var(--primary);color:#fff;font-size:13px;font-weight:600;cursor:pointer;" style-hover="filter:brightness(1.07);">Settle and close loan</button>
+      </div>
+    </div>
+  </div>
+</sc-if>
+<sc-if value="{{ deleteOpen }}" hint-placeholder-val="{{ false }}">
+  <div onClick="{{ closeModals }}" style="position:fixed;inset:0;background:rgba(15,20,30,.45);z-index:100;display:flex;align-items:center;justify-content:center;padding:24px;">
+    <div onClick="{{ stop }}" style="width:420px;background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:0 16px 40px rgba(16,24,40,.2);padding:22px;">
+      <div style="font-size:15.5px;font-weight:700;color:var(--red);">Delete this record?</div>
+      <div style="font-size:12.5px;color:var(--text2);margin-top:6px;line-height:1.55;">Ramesh Kumar · ₹50,000 · gold chain 24.6 g. Deleting removes the record and its ₹12,000 deposit history, and adjusts the cash book. This cannot be undone.</div>
+      <div style="margin-top:14px;"><label style="display:block;font-size:12.5px;font-weight:600;color:var(--text2);margin-bottom:5px;">Type DELETE to confirm</label><input placeholder="DELETE" style="width:100%;box-sizing:border-box;height:38px;padding:0 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:13.5px;"></input></div>
+      <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px;">
+        <button onClick="{{ closeModals }}" style="height:36px;padding:0 14px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:13px;font-weight:600;cursor:pointer;">Cancel</button>
+        <button onClick="{{ closeModals }}" style="height:36px;padding:0 16px;border:none;border-radius:8px;background:var(--red);color:#fff;font-size:13px;font-weight:600;cursor:pointer;" style-hover="filter:brightness(1.07);">Delete record</button>
+      </div>
+    </div>
+  </div>
+</sc-if>
+<sc-if value="{{ addCashOpen }}" hint-placeholder-val="{{ false }}">
+  <div onClick="{{ closeModals }}" style="position:fixed;inset:0;background:rgba(15,20,30,.45);z-index:100;display:flex;align-items:center;justify-content:center;padding:24px;">
+    <div onClick="{{ stop }}" style="width:400px;background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:0 16px 40px rgba(16,24,40,.2);padding:22px;">
+      <div style="font-size:15.5px;font-weight:700;">Add cash to drawer</div>
+      <div style="font-size:12.5px;color:var(--text2);margin-top:3px;">Increases today's cash in hand with a reason on record.</div>
+      <div style="margin-top:16px;"><label style="display:block;font-size:12.5px;font-weight:600;color:var(--text2);margin-bottom:5px;">Amount (₹)</label><input placeholder="10,000" style="width:100%;box-sizing:border-box;height:40px;padding:0 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:15px;font-weight:600;"></input></div>
+      <div style="margin-top:12px;"><label style="display:block;font-size:12.5px;font-weight:600;color:var(--text2);margin-bottom:5px;">Reason</label><textarea rows="2" placeholder="Morning opening float…" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:13px;resize:none;"></textarea></div>
+      <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px;">
+        <button onClick="{{ closeModals }}" style="height:36px;padding:0 14px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:13px;font-weight:600;cursor:pointer;">Cancel</button>
+        <button onClick="{{ closeModals }}" style="height:36px;padding:0 16px;border:none;border-radius:8px;background:var(--green);color:#fff;font-size:13px;font-weight:600;cursor:pointer;" style-hover="filter:brightness(1.07);">Add cash</button>
+      </div>
+    </div>
+  </div>
+</sc-if>
+</sc-if>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;shopName&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Vaishnav Jewellers&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Branding&quot;},&quot;ownerName&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Akshat&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Branding&quot;},&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;light&quot;,&quot;dark&quot;],&quot;default&quot;:&quot;light&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Appearance&quot;}}">
+class Component extends DCLogic {
+  state = {
+    route: 'dashboard', mode: 'view', from: 'active', theme: 'light', period: 'Today',
+    bellOpen: false, settleOpen: false, depositOpen: false, addCashOpen: false, deleteOpen: false,
+    removeQ: '', removeField: 'name', interestAmt: '4,350', depAmt: '5,000', metal: 'Gold'
+  };
+  componentDidMount() {
+    if (this.props.theme === 'dark') { document.body.classList.add('dark'); this.setState({ theme: 'dark' }); }
+  }
+  fmt(n) { return '₹' + new Intl.NumberFormat('en-IN').format(Math.max(0, Math.round(n))); }
+  num(s) { const n = parseFloat(String(s).replace(/[^0-9.]/g, '')); return isNaN(n) ? 0 : n; }
+  renderVals() {
+    const s = this.state;
+    const cap = r => r.charAt(0).toUpperCase() + r.slice(1);
+    const go = r => () => this.setState({ route: r, bellOpen: false, settleOpen: false, depositOpen: false, addCashOpen: false, deleteOpen: false });
+    const v = {};
+    ['dashboard','active','closed','loan','add','remove','investment','returns','interest','cash','settings','help','login'].forEach(r => {
+      v['is' + cap(r)] = s.route === r;
+      v['go' + cap(r)] = go(r);
+    });
+    v.inApp = s.route !== 'login';
+    v.shopName = this.props.shopName ?? 'Vaishnav Jewellers';
+    v.ownerName = this.props.ownerName ?? 'Akshat';
+    v.ownerInitial = v.ownerName.charAt(0).toUpperCase();
+    const titles = { dashboard:'Dashboard', active:'View Records · Active', closed:'View Records · Closed', add:'Add New Record', remove:'Remove Record', investment:'View Accounts · Investment', returns:'View Accounts · Returns', interest:'View Accounts · Interest', cash:'Cash & Day-end', settings:'Settings', help:'Help & Support' };
+    v.pageTitle = s.route === 'loan' ? (s.mode === 'settle' ? 'Remove Record · settlement workspace' : 'View Records · record detail') : (titles[s.route] || '');
+    const icons = {
+      dash:'M3 3h8v8H3zM13 3h8v5h-8zM13 12h8v9h-8zM3 15h8v6H3z',
+      rec:'M6 3h9l4 4v14H6zM9 9h7M9 13h7M9 17h5',
+      acct:'M3 7h17v12H3zM3 10h17M15 14h3',
+      add:'M12 5v14M5 12h14',
+      rem:'M12 3a9 9 0 100 18 9 9 0 000-18zM8 12h8',
+      cashI:'M2 7h20v10H2zM12 10a2 2 0 100 4 2 2 0 000-4z',
+      set:'M12 8a4 4 0 100 8 4 4 0 000-8zM12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1',
+      help:'M12 3a9 9 0 100 18 9 9 0 000-18zM9.8 9.5a2.2 2.2 0 113.4 1.9c-.8.5-1.2 1-1.2 1.9M12 16.8v.2'
+    };
+    const activeKey = s.route === 'loan' ? (s.mode === 'settle' ? 'remove' : s.from) : s.route;
+    const item = (label, route, d, ind) => {
+      const on = activeKey === route;
+      return { label, on: go(route), d, ind: ind ? 14 : 0, bg: on ? 'var(--primaryTint)' : 'transparent', col: on ? 'var(--primary)' : 'var(--text2)', w: on ? 600 : 500 };
+    };
+    v.navItems = [
+      item('Dashboard','dashboard',icons.dash),
+      { h: 'VIEW RECORDS' }, item('Active','active',icons.rec,1), item('Closed','closed',icons.rec,1),
+      { h: 'VIEW ACCOUNTS' }, item('Investment','investment',icons.acct,1), item('Returns','returns',icons.acct,1), item('Interest','interest',icons.acct,1),
+      { h: 'ACTIONS' }, item('Add New Record','add',icons.add), item('Remove Record','remove',icons.rem), item('Cash & Day-end','cash',icons.cashI),
+      { h: 'SYSTEM' }, item('Settings','settings',icons.set), item('Help & Support','help',icons.help)
+    ];
+    v.toggleTheme = () => {
+      const next = s.theme === 'light' ? 'dark' : 'light';
+      document.body.classList.toggle('dark', next === 'dark');
+      this.setState({ theme: next });
+    };
+    v.themeLabel = s.theme === 'light' ? 'Light — switch to dark' : 'Dark — switch to light';
+    v.themeIconD = s.theme === 'light' ? 'M20 14A8 8 0 1110 4a6.5 6.5 0 0010 10z' : 'M12 8a4 4 0 100 8 4 4 0 000-8zM12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4';
+    v.toggleBell = () => this.setState({ bellOpen: !s.bellOpen });
+    v.bellOpen = s.bellOpen;
+    v.stop = e => e.stopPropagation();
+    v.closeModals = () => this.setState({ settleOpen:false, depositOpen:false, addCashOpen:false, deleteOpen:false, bellOpen:false });
+    v.openSettle = () => this.setState({ settleOpen: true });
+    v.openDeposit = () => this.setState({ depositOpen: true });
+    v.openAddCash = () => this.setState({ addCashOpen: true });
+    v.openDelete = e => { if (e && e.stopPropagation) e.stopPropagation(); this.setState({ deleteOpen: true }); };
+    v.periods = ['Today','Week','Month','Quarter','Year'].map(p => ({
+      label: p, on: () => this.setState({ period: p }),
+      bg: s.period === p ? 'var(--primaryTint)' : 'transparent',
+      col: s.period === p ? 'var(--primary)' : 'var(--text2)', w: s.period === p ? 600 : 500
+    }));
+    v.periodLabel = s.period;
+    const gold = { mCol:'var(--gold)', mBg:'var(--goldBg)' }, silver = { mCol:'var(--silver)', mBg:'var(--silverBg)' };
+    v.goGoldReport = go('investment'); v.goSilverReport = go('investment');
+    v.cashMoves = [
+      { label:'Total deposits held', amt:'₹1,86,500', sign:'', col:'var(--text)', sub:'Across 46 active loans', link:'', cursor:'default', on: () => {} },
+      { label:'Deposits received', amt:'₹18,000', sign:'+ ', col:'var(--green)', sub:'Today · 4 part-payments', link:'View →', cursor:'pointer', on: go('cash') },
+      { label:'Deposits adjusted', amt:'₹7,500', sign:'− ', col:'var(--amber)', sub:'Today · offset at settlement', link:'View →', cursor:'pointer', on: go('cash') }
+    ];
+    v.activity = [
+      { desc:'Loan issued to Mohan Verma · gold', amt:'₹65,000', time:'22 min ago', sign:'−', col:'var(--amber)', bg:'var(--amberBg)' },
+      { desc:'Deposit received · Ramesh Kumar', amt:'₹5,000', time:'1 h ago', sign:'+', col:'var(--green)', bg:'var(--greenBg)' },
+      { desc:'Loan settled · Kavita Bai', amt:'₹44,200', time:'2 h ago', sign:'+', col:'var(--green)', bg:'var(--greenBg)' },
+      { desc:'Cash added to drawer — opening float', amt:'₹10,000', time:'9:02 am', sign:'+', col:'var(--green)', bg:'var(--greenBg)' },
+      { desc:'Loan issued to Sita Devi · silver', amt:'₹28,000', time:'Yesterday', sign:'−', col:'var(--amber)', bg:'var(--amberBg)' },
+      { desc:'Day closed at ₹3,20,000', amt:'', time:'Yesterday 8:41 pm', sign:'✓', col:'var(--primary)', bg:'var(--primaryTint)' }
+    ];
+    const loans = [
+      { name:'Mohan Verma', father:'Ramlal Verma', loc:'Rajwada', date:'3 Aug 2026', age:'Today', metal:'Gold', type:'Necklace', wt:'31.2 g', a:65000, d:0, ...gold },
+      { name:'Sita Devi', father:'Hariram Patel', loc:'Palasia', date:'2 Aug 2026', age:'1 day', metal:'Silver', type:'Anklets', wt:'1.240 kg', a:28000, d:0, ...silver },
+      { name:'Arjun Malviya', father:'Kishore Malviya', loc:'Vijay Nagar', date:'28 Jul 2026', age:'6 days', metal:'Gold', type:'Bangles', wt:'18.4 g', a:42000, d:5000, ...gold },
+      { name:'Ramesh Kumar', father:'Suresh Kumar', loc:'Sarafa Bazaar', date:'12 Feb 2026', age:'172 days', metal:'Gold', type:'Chain', wt:'24.6 g', a:50000, d:12000, ...gold },
+      { name:'Pooja Sharma', father:'Dinesh Sharma', loc:'Bhawarkua', date:'30 Jun 2026', age:'34 days', metal:'Gold', type:'Ring', wt:'12.1 g', a:30000, d:8000, ...gold },
+      { name:'Rakesh Yadav', father:'Munna Yadav', loc:'Mhow Naka', date:'18 Jun 2026', age:'46 days', metal:'Silver', type:'Payal', wt:'2.850 kg', a:36000, d:6000, ...silver },
+      { name:'Kavita Bai', father:'Shankar Lal', loc:'Rajwada', date:'2 Jun 2026', age:'62 days', metal:'Gold', type:'Earrings', wt:'9.8 g', a:24000, d:4000, ...gold },
+      { name:'Imran Khan', father:'Yusuf Khan', loc:'Khajrana', date:'21 May 2026', age:'74 days', metal:'Gold', type:'Kada', wt:'40.5 g', a:98000, d:20000, ...gold },
+      { name:'Lakshmi Nair', father:'Raghavan Nair', loc:'Palasia', date:'9 May 2026', age:'86 days', metal:'Silver', type:'Thali set', wt:'4.020 kg', a:52000, d:10000, ...silver },
+      { name:'Deepak Solanki', father:'Bhagwan Solanki', loc:'Vijay Nagar', date:'27 Apr 2026', age:'98 days', metal:'Gold', type:'Chain', wt:'15.7 g', a:38000, d:0, ...gold }
+    ];
+    // opening a record: from active/closed = read-only view; from remove = settlement workspace
+    const openRecord = mode => () => this.setState({ route:'loan', mode, from: s.route === 'closed' ? 'closed' : 'active' });
+    v.latestLoans = loans.slice(0, 5).map(l => ({ ...l, amt: this.fmt(l.a), on: openRecord('view') }));
+    v.topLocations = [
+      { name:'Sarafa Bazaar', amt:'₹6,20,000', pct:'100%' }, { name:'Rajwada', amt:'₹4,85,000', pct:'78%' },
+      { name:'Vijay Nagar', amt:'₹3,90,000', pct:'63%' }, { name:'Palasia', amt:'₹3,10,000', pct:'50%' },
+      { name:'Khajrana', amt:'₹2,45,000', pct:'40%' }
+    ];
+    v.isRecordsPage = s.route === 'active' || s.route === 'closed';
+    const isClosed = s.route === 'closed';
+    v.recordsTitle = isClosed ? 'Closed Records' : 'Active Records';
+    v.recordsSub = isClosed ? '312 settled loans · deposits and interest are archived, records stay editable by the owner' : '128 active loans · ₹24,80,000 outstanding principal. Settlement happens on the Remove Record page.';
+    v.recordsDateCol = isClosed ? 'Closed' : 'Issued';
+    v.recordsCount = isClosed ? 'Showing 1–10 of 312 closed records' : 'Showing 1–10 of 128 active records';
+    v.recordRows = loans.map(l => ({
+      ...l, amt: this.fmt(l.a), on: openRecord('view'), onEdit: e => e.stopPropagation(), onDelete: v.openDelete
+    }));
+    // loan detail
+    v.modeView = s.mode === 'view'; v.modeSettle = s.mode === 'settle';
+    v.loanBack = s.mode === 'settle' ? go('remove') : go(s.from);
+    const closedView = s.mode === 'view' && s.from === 'closed';
+    v.statusLabel = closedView ? 'CLOSED' : 'ACTIVE';
+    v.statusCol = closedView ? 'var(--text2)' : 'var(--green)';
+    v.statusBg = closedView ? 'var(--surface2)' : 'var(--greenBg)';
+    v.loanContext = s.mode === 'settle' ? 'Settlement workspace' : (closedView ? 'Archived record' : 'Read-only record');
+    v.interestLabel = closedView ? 'Interest collected' : 'Interest if closed today';
+    v.durationLabel = closedView ? 'Duration held' : 'Days held';
+    v.durationEnd = closedView ? '3 Aug 2026 (closed)' : 'today';
+    v.collectionText = closedView ? 'Captured 3 Aug 2026 at settlement' : 'Captured at settlement';
+    v.collectionCol = closedView ? 'var(--green)' : 'var(--text3)';
+    v.deposits = [
+      { amt:'₹5,000', date:'2 Aug 2026 · 11:20 am', by:'Akshat' },
+      { amt:'₹4,000', date:'14 Jun 2026 · 5:44 pm', by:'Akshat' },
+      { amt:'₹3,000', date:'2 May 2026 · 12:10 pm', by:'Akshat' }
+    ];
+    v.loanActivity = [
+      { time:'2 Aug', desc:'Deposit ₹5,000 received in cash' }, { time:'14 Jun', desc:'Deposit ₹4,000 received in cash' },
+      { time:'2 May', desc:'Deposit ₹3,000 received in cash' }, { time:'12 Feb', desc:'Loan issued · ₹50,000 · gold chain 24.6 g · photo captured' }
+    ];
+    v.setGold = () => this.setState({ metal:'Gold' }); v.setSilver = () => this.setState({ metal:'Silver' });
+    const g = s.metal === 'Gold';
+    v.goldBtnBg = g ? 'var(--goldBg)' : 'var(--surface)'; v.goldBtnCol = g ? 'var(--gold)' : 'var(--text2)';
+    v.silverBtnBg = g ? 'var(--surface)' : 'var(--silverBg)'; v.silverBtnCol = g ? 'var(--text2)' : 'var(--silver)';
+    v.weightUnit = g ? 'grams' : 'kg';
+    // remove record
+    v.removeQ = s.removeQ;
+    v.removeField = s.removeField;
+    v.onRemoveField = e => this.setState({ removeField: e.target.value });
+    const labels = { name:'Customer name', father:"Father's name", loc:'Location', date:'Issue date', amount:'Loan amount' };
+    v.removeFieldLabel = labels[s.removeField];
+    v.removePlaceholder = { name:'e.g. Ramesh Kumar', father:'e.g. Suresh Kumar', loc:'e.g. Sarafa Bazaar', date:'dd-mm-yyyy', amount:'e.g. 50000' }[s.removeField];
+    v.onRemoveInput = e => this.setState({ removeQ: e.target.value });
+    v.clearRemove = () => this.setState({ removeQ: '' });
+    const q = s.removeQ.trim().toLowerCase();
+    v.removeEmpty = q === '';
+    v.removeHasQ = q !== '';
+    const fieldVal = l => ({ name:l.name, father:l.father, loc:l.loc, date:l.date, amount:String(l.a) }[s.removeField] || '');
+    const matches = loans.filter(l => fieldVal(l).toLowerCase().includes(q));
+    v.removeCount = matches.length;
+    v.removeResults = matches.map(l => ({ ...l, amt: this.fmt(l.a), on: openRecord('settle') }));
+    // accounts
+    v.isAccounts = ['investment','returns','interest'].includes(s.route);
+    const acct = {
+      investment: { title:'Investment', sub:'Principal issued on new loans in the selected period',
+        stats:[{label:'Principal issued',val:'₹4,20,000',sub:'11 new loans',col:'var(--amber)'},{label:'Gold loans',val:'₹3,45,000',sub:'8 loans',col:'var(--text)'},{label:'Silver loans',val:'₹75,000',sub:'3 loans',col:'var(--text)'}], total:'₹4,20,000',
+        rows: loans.slice(0,7).map(l => ({ ...l, amt: this.fmt(l.a) })) },
+      returns: { title:'Returns', sub:'Principal returned from loans settled in the selected period',
+        stats:[{label:'Principal returned',val:'₹2,10,000',sub:'6 settlements',col:'var(--green)'},{label:'Deposits adjusted',val:'₹38,500',sub:'offset at settlement',col:'var(--text)'},{label:'Average duration',val:'118 days',sub:'across settled loans',col:'var(--text)'}], total:'₹2,10,000',
+        rows: loans.slice(2,9).map(l => ({ ...l, amt: this.fmt(Math.round(l.a * 0.9)) })) },
+      interest: { title:'Interest', sub:'Rupee interest collected on settlements — an amount, never a rate',
+        stats:[{label:'Interest collected',val:'₹21,400',sub:'6 settlements',col:'var(--text)'},{label:'Average per settlement',val:'₹3,566',sub:'this period',col:'var(--text)'},{label:'Effective yield',val:'₹5,090 / lakh',sub:'on returned principal',col:'var(--text)'}], total:'₹21,400',
+        rows: loans.slice(1,8).map(l => ({ ...l, amt: this.fmt(Math.round(l.a * 0.082)) })) }
+    }[s.route] || { title:'', sub:'', stats:[], rows:[], total:'' };
+    v.acctTitle = acct.title; v.acctSub = acct.sub;
+    v.acctStats = acct.stats; v.acctRows = acct.rows; v.acctTotal = acct.total;
+    v.cashLedger = [
+      { time:'9:02 am', desc:'Cash added — morning float', in:'₹10,000', out:'', bal:'₹3,30,000' },
+      { time:'10:15 am', desc:'Loan issued · Mohan Verma', in:'', out:'₹65,000', bal:'₹2,65,000' },
+      { time:'11:20 am', desc:'Deposit received · Ramesh Kumar', in:'₹5,000', out:'', bal:'₹2,70,000' },
+      { time:'12:40 pm', desc:'Loan settled · Kavita Bai', in:'₹44,200', out:'', bal:'₹3,14,200' },
+      { time:'1:05 pm', desc:'Deposit received · Pooja Sharma', in:'₹8,000', out:'', bal:'₹3,22,200' },
+      { time:'2:30 pm', desc:'Loan issued · Nandini Joshi', in:'', out:'₹85,000', bal:'₹2,37,200' },
+      { time:'3:48 pm', desc:'Deposit received · Rakesh Yadav', in:'₹6,000', out:'', bal:'₹2,43,200' },
+      { time:'4:10 pm', desc:'Loan settled · Prem Chand', in:'₹56,400', out:'', bal:'₹2,99,600' },
+      { time:'5:22 pm', desc:'Cash removed — bank deposit', in:'', out:'₹5,000', bal:'₹2,94,600' }
+    ];
+    v.helpTopics = [
+      { title:'Start the day', desc:'Sign in, check cash in hand, review what needs attention.' },
+      { title:'Create a record', desc:'Issue a loan with customer details, collateral and a photo.' },
+      { title:'Deposits & settlement', desc:'Both happen on the Remove Record page, inside the loan.' },
+      { title:'Cash & day-end', desc:'Track the drawer through the day and close the books.' },
+      { title:'Migrate from desktop', desc:'Bring your LoanPro Desktop data into the web app.' },
+      { title:'Devices & photos', desc:'Pair a phone for capture; set the default capture device.' }
+    ];
+    v.interestAmt = s.interestAmt;
+    v.onInterest = e => this.setState({ interestAmt: e.target.value });
+    v.settleTotal = this.fmt(38000 + this.num(s.interestAmt));
+    v.depAmt = s.depAmt;
+    v.onDepAmt = e => this.setState({ depAmt: e.target.value });
+    v.depAfter = this.fmt(12000 + this.num(s.depAmt));
+    v.settleOpen = s.settleOpen; v.depositOpen = s.depositOpen; v.addCashOpen = s.addCashOpen; v.deleteOpen = s.deleteOpen;
+    return v;
+  }
+}
+</script>
+</body>
+</html>

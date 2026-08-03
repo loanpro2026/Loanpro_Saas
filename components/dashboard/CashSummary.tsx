@@ -1,98 +1,128 @@
-import {
-  ArrowDownLeft, ArrowUpRight, Banknote, Landmark, MinusCircle,
-  PlusCircle, ReceiptIndianRupee, WalletCards,
-} from 'lucide-react'
-import { formatCurrency, cn } from '@/lib/utils'
+import Link from 'next/link'
+import { ArrowDownLeft, ArrowUpRight, Banknote, RefreshCw } from 'lucide-react'
+import { cn, formatCurrency } from '@/lib/utils'
 
 export interface CashSnapshot {
-  openingBalance: number
   cashInHand: number
-  addedCash: number
-  removedCash: number
+  totalDeposits: number
   depositCredit: number
   depositDebit: number
-  investments: number
-  returns: number
   noActivity: boolean
 }
 
-const movements = [
-  { key: 'addedCash', label: 'Cash added', hint: 'Put into drawer', sign: '+', icon: PlusCircle, tone: 'positive' },
-  { key: 'depositCredit', label: 'Deposits received', hint: 'Part-payments taken', sign: '+', icon: ArrowDownLeft, tone: 'positive' },
-  { key: 'returns', label: 'Loan returns', hint: 'Settlements received', sign: '+', icon: ReceiptIndianRupee, tone: 'positive' },
-  { key: 'removedCash', label: 'Cash removed', hint: 'Taken from drawer', sign: '−', icon: MinusCircle, tone: 'negative' },
-  { key: 'investments', label: 'New investments', hint: 'Loans issued today', sign: '−', icon: Landmark, tone: 'negative' },
-  { key: 'depositDebit', label: 'Deposits adjusted', hint: 'Offset at settlement', sign: '−', icon: ArrowUpRight, tone: 'negative' },
-] as const
+interface FinancialItem {
+  label: string
+  value: number
+  sign: string
+  sub: string
+  tone: 'neutral' | 'positive' | 'negative'
+  error: boolean
+  href?: string
+}
 
-export function CashSummary({ data }: { data: CashSnapshot }) {
+export function CashSummary({
+  data,
+  cashError = false,
+  depositsError = false,
+}: {
+  data: CashSnapshot
+  cashError?: boolean
+  depositsError?: boolean
+}) {
+  const items: FinancialItem[] = [
+    {
+      label: 'Total deposits held', value: data.totalDeposits, sign: '',
+      sub: 'Across active loan deposit history', tone: 'neutral', error: depositsError,
+    },
+    {
+      label: 'Deposits received', value: data.depositCredit, sign: '+ ',
+      sub: 'Today · customer part-payments', tone: 'positive', error: cashError,
+      href: '/day-end',
+    },
+    {
+      label: 'Deposits adjusted', value: data.depositDebit, sign: '− ',
+      sub: 'Today · offset at settlement', tone: 'negative', error: cashError,
+      href: '/day-end',
+    },
+  ]
+
   return (
-    <section className="card p-0 overflow-hidden" aria-labelledby="cash-summary-title">
+    <section className="card overflow-hidden p-0" aria-labelledby="cash-summary-title">
       <div className="flex flex-col gap-3 border-b border-surface-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <div className="flex items-center gap-2">
-            <WalletCards className="h-4 w-4 text-primary-700" />
-            <h2 id="cash-summary-title" className="text-sm font-semibold text-slate-900">Today&rsquo;s cash position</h2>
+        <h2 id="cash-summary-title" className="text-sm font-bold text-slate-900">Current financial position</h2>
+
+        <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+          <div className="mr-auto text-xs text-slate-500 sm:mr-1">
+            Cash in hand{' '}
+            {cashError ? (
+              <span className="font-semibold text-red-700">Unavailable</span>
+            ) : (
+              <span className="text-lg font-bold tabular-nums text-slate-900">{formatCurrency(data.cashInHand)}</span>
+            )}
           </div>
-          <p className="mt-0.5 text-xs text-slate-500">Opening balance plus today&rsquo;s committed cash movements</p>
-        </div>
-        <div className="flex items-center gap-5">
-          <div className="text-right">
-            <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">Opening</p>
-            <p className="text-sm font-semibold tabular-nums text-slate-700">{formatCurrency(data.openingBalance)}</p>
-          </div>
-          <div className="h-8 w-px bg-surface-border" aria-hidden />
-          <div className="text-right">
-            <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">Cash in hand</p>
-            <p className="text-xl font-bold tabular-nums text-primary-800">{formatCurrency(data.cashInHand)}</p>
-          </div>
+          <Link href="/cash" className="inline-flex min-h-9 items-center rounded-lg border border-emerald-600 bg-emerald-50 px-3 text-xs font-semibold text-emerald-700 hover:bg-emerald-100">
+            + Add cash
+          </Link>
+          <Link href="/cash" className="inline-flex min-h-9 items-center rounded-lg border border-amber-600 bg-amber-50 px-3 text-xs font-semibold text-amber-700 hover:bg-amber-100">
+            − Remove cash
+          </Link>
         </div>
       </div>
 
-      <div className="grid sm:grid-cols-2 xl:grid-cols-3">
-        {movements.map((movement, index) => {
-          const Icon = movement.icon
-          const value = data[movement.key]
-          return (
-            <div
-              key={movement.key}
-              className={cn(
-                'flex items-center gap-3 px-4 py-3',
-                index > 0 && 'border-t border-surface-border sm:border-t-0',
-                index % 2 === 1 && 'sm:border-l',
-                index >= 2 && 'sm:border-t',
-                index % 3 !== 0 && 'xl:border-l',
-                index >= 3 && 'xl:border-t',
-                index === 2 && 'sm:border-l-0',
-              )}
-            >
-              <span className={cn(
-                'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg',
-                movement.tone === 'positive'
-                  ? 'bg-emerald-50 text-emerald-700'
-                  : 'bg-amber-50 text-amber-700'
-              )}>
-                <Icon className="h-4 w-4" />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-medium text-slate-700">{movement.label}</p>
-                <p className="truncate text-[11px] text-slate-400">{movement.hint}</p>
+      {cashError && (
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-red-200 bg-red-50 px-4 py-2 text-xs text-red-700">
+          <span>Cash position could not be loaded; loan and portfolio figures remain available. No committed data was changed.</span>
+          <Link href="/dashboard" className="inline-flex items-center gap-1 font-semibold text-red-700 hover:underline">
+            <RefreshCw className="h-3 w-3" /> Retry
+          </Link>
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 sm:grid-cols-3">
+        {items.map((item, index) => {
+          const content = item.error ? (
+            <>
+              <p className="text-xs font-semibold text-slate-600">{item.label}</p>
+              <p className="mt-2 text-xs font-medium text-red-700">Could not be loaded</p>
+            </>
+          ) : (
+            <>
+              <div className="flex items-center gap-1.5">
+                {item.tone === 'positive' && <ArrowDownLeft className="h-3.5 w-3.5 text-emerald-700" />}
+                {item.tone === 'negative' && <ArrowUpRight className="h-3.5 w-3.5 text-amber-700" />}
+                <p className="text-xs font-medium text-slate-600">{item.label}</p>
               </div>
               <p className={cn(
-                'text-sm font-semibold tabular-nums',
-                value === 0 ? 'text-slate-400' : movement.tone === 'positive' ? 'text-emerald-700' : 'text-amber-700'
+                'mt-1 text-base font-bold tabular-nums',
+                item.tone === 'positive' ? 'text-emerald-700' : item.tone === 'negative' ? 'text-amber-700' : 'text-slate-900'
               )}>
-                {movement.sign}{formatCurrency(value)}
+                {item.sign}{formatCurrency(item.value)}
               </p>
-            </div>
+              <p className="mt-0.5 text-[11px] text-slate-400">{item.sub}</p>
+            </>
+          )
+
+          const classes = cn(
+            'min-h-[92px] p-3.5 sm:p-4',
+            index === 0 && 'col-span-2 border-b border-surface-border sm:col-span-1 sm:border-b-0',
+            index > 1 && 'border-l border-surface-border',
+            index === 1 && 'sm:border-l sm:border-surface-border',
+          )
+
+          return item.href ? (
+            <Link key={item.label} href={item.href} className={`${classes} transition-colors hover:bg-slate-50`}>
+              {content}
+            </Link>
+          ) : (
+            <div key={item.label} className={classes}>{content}</div>
           )
         })}
       </div>
 
-      {data.noActivity && (
+      {data.noActivity && !cashError && (
         <p className="flex items-center gap-2 border-t border-surface-border bg-slate-50 px-4 py-2 text-xs text-slate-500">
           <Banknote className="h-3.5 w-3.5" />
-          No cash movement today; the latest closing balance has been carried forward.
+          No deposit movement today; the latest cash balance is still carried forward.
         </p>
       )}
     </section>

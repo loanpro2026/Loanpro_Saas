@@ -56,13 +56,21 @@ function relativeTime(iso: string): string {
   })
 }
 
-export function ActivityFeed({ items }: { items: Item[] }) {
+export function ActivityFeed({ items, error = false }: { items: Item[]; error?: boolean }) {
   return (
     <div className="card">
-      <h2 className="text-sm font-semibold text-slate-900 mb-3">Recent activity</h2>
+      <h2 className="text-sm font-bold text-slate-900 mb-3">Recent activity</h2>
 
-      {!items?.length ? (
-        <p className="text-sm text-slate-400 py-4">Nothing has happened yet today.</p>
+      {error ? (
+        <div className="py-4">
+          <p className="text-sm font-medium text-red-700">Recent activity could not be loaded</p>
+          <p className="mt-1 text-xs text-slate-500">Committed changes are unaffected. Reload when the connection is stable.</p>
+        </div>
+      ) : !items?.length ? (
+        <div className="py-4">
+          <p className="text-sm font-medium text-slate-700">No committed changes yet</p>
+          <p className="mt-1 text-xs text-slate-500">New loans, deposits, cash entries and settlements will appear here.</p>
+        </div>
       ) : (
         <ul className="space-y-3">
           {items.map(it => {

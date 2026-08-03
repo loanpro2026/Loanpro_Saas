@@ -14,9 +14,11 @@ interface Props {
   weight: { gold: number; silver: number; gold_unit?: string; silver_unit?: string }
   counts: { gold: number; silver: number }
   goldBreakdown: Array<{ name: string; total_amount: number; percentage: number }>
+  error?: boolean
+  breakdownError?: boolean
 }
 
-export function StockChart({ cost, weight, counts, goldBreakdown }: Props) {
+export function StockChart({ cost, weight, counts, goldBreakdown, error = false, breakdownError = false }: Props) {
   const goldValue = Number(cost.gold ?? 0)
   const silverValue = Number(cost.silver ?? 0)
   const total = goldValue + silverValue
@@ -25,14 +27,20 @@ export function StockChart({ cost, weight, counts, goldBreakdown }: Props) {
   const silverShare = total > 0 ? (silverValue / total) * 100 : 0
 
   return (
-    <div className="card space-y-4">
+    <section className="card min-h-[310px] space-y-4" aria-labelledby="safe-title">
       <div className="flex items-baseline justify-between">
-        <h2 className="text-sm font-semibold text-slate-900">In the safe</h2>
-        <span className="text-sm font-semibold tabular-nums">{formatCurrency(total)}</span>
+        <h2 id="safe-title" className="text-sm font-bold text-slate-900">In the safe</h2>
+        {!error && <span className="text-sm font-semibold tabular-nums">{formatCurrency(total)}</span>}
       </div>
 
       {/* Value split */}
-      <div>
+      {error ? (
+        <div className="flex min-h-52 flex-col items-center justify-center text-center">
+          <p className="text-sm font-semibold text-slate-800">Safe inventory could not be loaded</p>
+          <p className="mt-1 text-xs text-slate-500">Loan and cash figures remain available. No record was changed.</p>
+          <a href="/dashboard" className="mt-3 text-xs font-semibold text-primary-700 hover:underline">Retry inventory</a>
+        </div>
+      ) : <div>
         <div className="flex h-2.5 rounded-full overflow-hidden bg-surface-muted">
           {goldShare > 0 && (
             <div className="bg-gold-500 h-full" style={{ width: `${goldShare}%` }} />
@@ -42,7 +50,7 @@ export function StockChart({ cost, weight, counts, goldBreakdown }: Props) {
           )}
         </div>
 
-        <div className="grid grid-cols-2 gap-4 mt-3">
+        <div className="mt-3 grid grid-cols-2 gap-3">
           <MetalStat
             name="Gold"
             dot="bg-gold-500"
@@ -65,10 +73,10 @@ export function StockChart({ cost, weight, counts, goldBreakdown }: Props) {
             No gold or silver is currently pledged against an active loan.
           </p>
         )}
-      </div>
+      </div>}
 
       {/* Gold item types */}
-      {goldBreakdown.length > 0 && (
+      {!error && goldBreakdown.length > 0 && (
         <div className="pt-3 border-t border-surface-border">
           <p className="text-xs text-slate-500 mb-2">Gold by item type</p>
           <ul className="space-y-1.5">
@@ -89,7 +97,12 @@ export function StockChart({ cost, weight, counts, goldBreakdown }: Props) {
           </ul>
         </div>
       )}
-    </div>
+      {!error && breakdownError && (
+        <p className="border-t border-surface-border pt-3 text-xs text-red-700">
+          Gold item breakdown could not be loaded; total Gold and Silver figures remain available.
+        </p>
+      )}
+    </section>
   )
 }
 

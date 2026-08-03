@@ -23,7 +23,7 @@ export interface LocationRow {
   active_amount: number
 }
 
-export function TopLocations({ rows }: { rows: LocationRow[] }) {
+export function TopLocations({ rows, error = false }: { rows: LocationRow[]; error?: boolean }) {
   // The biggest exposure first; that is the number a shop acts on.
   const top = [...rows]
     .filter(r => r.active_amount > 0)
@@ -35,7 +35,7 @@ export function TopLocations({ rows }: { rows: LocationRow[] }) {
   return (
     <div className="card">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-sm font-semibold text-slate-900">Top Locations</h2>
+        <h2 className="text-sm font-bold text-slate-900">Top locations</h2>
         <Link
           href="/reports?key=location"
           className="text-xs text-primary-700 hover:underline inline-flex items-center gap-1"
@@ -44,7 +44,12 @@ export function TopLocations({ rows }: { rows: LocationRow[] }) {
         </Link>
       </div>
 
-      {top.length === 0 ? (
+      {error ? (
+        <div>
+          <p className="text-sm font-medium text-red-700">Location exposure could not be loaded</p>
+          <p className="mt-1 text-xs text-slate-500">Other portfolio figures remain available.</p>
+        </div>
+      ) : top.length === 0 ? (
         <p className="text-sm text-slate-400">
           Nothing lent out yet — locations appear once you have active loans.
         </p>

@@ -60,7 +60,7 @@ const config: Config = {
         },
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        sans: ['IBM Plex Sans', 'Inter', 'system-ui', 'sans-serif'],
       },
       fontSize: {
         'xs':   ['0.75rem', { lineHeight: '1rem' }],

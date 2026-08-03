@@ -1,8 +1,7 @@
 /**
  * Remove Record — /remove-record
  *
- * Matches the desktop's Removerecord screen: filter down to a record, then
- * settle it with everything about it visible on the same page.
+ * Deliberate entry point: search active loans, then open the complete record.
  */
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
@@ -15,19 +14,16 @@ export default async function RemoveRecordPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: appUser } = await supabase
-    .from('users').select('role').eq('auth_id', user.id).single()
-
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <div className="page-header">
         <div>
           <h1 className="page-title">Remove Record</h1>
-          <p className="page-subtitle">Find a loan and settle it</p>
+          <p className="page-subtitle">Find an active loan to add a deposit or settle it.</p>
         </div>
       </div>
 
-      <RemoveRecordWorkspace canDelete={appUser?.role === 'owner'} />
+      <RemoveRecordWorkspace />
     </div>
   )
 }

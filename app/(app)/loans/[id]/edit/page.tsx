@@ -19,12 +19,14 @@ export default async function EditLoanPage({
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: loan } = await supabase
+  const { data: loan, error } = await supabase
     .from('loans')
     .select('*')
     .eq('id', loanId)
     .single()
 
+  if (error?.code === 'PGRST116') notFound()
+  if (error) throw new Error(`Loan #${loanId} could not be loaded for editing: ${error.message}`)
   if (!loan) notFound()
 
   // Closed loans ARE editable — the desktop allows it (updateClosedRecord),
@@ -34,7 +36,7 @@ export default async function EditLoanPage({
   const isClosed = loan.status === 'closed'
 
   return (
-    <div className="space-y-5 max-w-2xl">
+    <div className="max-w-2xl space-y-4">
       <div className="flex items-start gap-3">
         <Link href={`/loans/${loanId}`} className="btn-icon mt-1" aria-label="Back to loan">
           <ArrowLeft className="h-4 w-4" />

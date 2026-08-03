@@ -1,432 +1,364 @@
 'use client'
-/**
- * Remove Record — the settle-a-loan workspace.
- *
- * Ported from electron_app/renderer/src/pages/Removerecord.tsx. The desktop
- * does this on one screen: filter down to the record, then everything about it
- * — deposits, remarks, the identity photo, the interest due — in a panel
- * beside the results, with the settle action at the bottom. Keeping that shape
- * matters more than it might look: settling a loan is the moment money changes
- * hands across the counter, and making the shopkeeper navigate away to check a
- * deposit or a photo is how mistakes happen.
- *
- * Two deliberate differences from the desktop:
- *
- *   1. Interest comes from the server (loan_detail.suggested_interest, which
- *      calls calculate_interest). The desktop recomputes it in the browser from
- *      the settings. Same formula, but doing it once server-side means the
- *      figure shown here and the figure close_loan writes cannot disagree.
- *
- *   2. The closure date is its own field. On the desktop the search-by-date
- *      box doubles as the closing date, so filtering to an old date and then
- *      settling backdates the closure to it. That may be intentional; it reads
- *      like an accident. Here it defaults to today and is set explicitly.
- */
-import { useCallback, useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+
+import { useState } from 'react'
 import Link from 'next/link'
-import toast from 'react-hot-toast'
-import { Search, FileText, AlertTriangle } from 'lucide-react'
+import {
+  ChevronLeft, ChevronRight, CloudOff, FileSearch, Filter, RefreshCw, Search,
+} from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { searchCachedLoans } from '@/lib/offline/db'
+import { useOffline } from '@/components/offline/OfflineProvider'
+import { AutoSuggest } from '@/components/ui/AutoSuggest'
+import { Badge } from '@/components/ui/Badge'
+import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
-import { Button } from '@/components/ui/Button'
-import { Badge } from '@/components/ui/Badge'
-import { EmptyState } from '@/components/ui/EmptyState'
-import { AutoSuggest } from '@/components/ui/AutoSuggest'
-import { DepositHistory } from '@/components/loans/DepositHistory'
-import { RemarksLog } from '@/components/loans/RemarksLog'
-import { LoanPhoto } from '@/components/loans/LoanPhoto'
-import { closeLoan } from '@/app/(app)/loans/actions'
-import { formatCurrency, formatDate, getLoanAge, todayIST } from '@/lib/utils'
-import type { LoanDetailPayload } from '@/types/rpc'
-import type { Tables } from '@/types/supabase'
+import { formatCurrency, formatDate, getLoanAge } from '@/lib/utils'
 
-/** The desktop's four brackets, kept verbatim. */
-const AMOUNT_RANGES = [
-  { value: '',             label: 'All' },
-  { value: '0-5000',       label: '0 – 5,000' },
-  { value: '5000-10000',   label: '5,000 – 10,000' },
-  { value: '10000-15000',  label: '10,000 – 15,000' },
-  { value: 'above-15000',  label: 'Above 15,000' },
-] as const
+const PAGE_SIZE = 25
 
-const BOUNDS: Record<string, [number, number | null]> = {
-  '0-5000':      [0, 5000],
-  '5000-10000':  [5000, 10000],
-  '10000-15000': [10000, 15000],
-  'above-15000': [15000, null],
+type SearchField = 'all' | 'loan' | 'name' | 'father' | 'location'
+type Sort = 'newest' | 'oldest' | 'amount-high' | 'amount-low'
+type Metal = '' | 'Gold' | 'Silver'
+
+interface LoanRow {
+  id: number
+  name: string
+  father_name: string | null
+  location: string | null
+  amount: number
+  category_type: string
+  detailed_type: string | null
+  weight: number | null
+  issue_date: string
+  totalDeposits: number | null
 }
 
-type SearchBy = 'Name' | 'Location' | 'Date'
-type LoanRow = Pick<
-  Tables<'loans'>,
-  'id' | 'name' | 'father_name' | 'location' | 'amount'
-  | 'category_type' | 'detailed_type' | 'weight' | 'issue_date'
->
-
-export function RemoveRecordWorkspace({ canDelete }: { canDelete: boolean }) {
-  const router = useRouter()
-
-  // ── Filters ───────────────────────────────────────────────────────────────
-  const [searchBy, setSearchBy]       = useState<SearchBy>('Name')
-  const [term, setTerm]               = useState('')
-  const [searchDate, setSearchDate]   = useState(todayIST())
-  const [amountRange, setAmountRange] = useState('')
-  const [newestFirst, setNewestFirst] = useState(true)
-
-  const [rows, setRows]       = useState<LoanRow[]>([])
+export function RemoveRecordWorkspace() {
+  const { online } = useOffline()
+  const [field, setField] = useState<SearchField>('all')
+  const [term, setTerm] = useState('')
+  const [issueDate, setIssueDate] = useState('')
+  const [metal, setMetal] = useState<Metal>('')
+  const [minAmount, setMinAmount] = useState('')
+  const [maxAmount, setMaxAmount] = useState('')
+  const [sort, setSort] = useState<Sort>('newest')
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const [rows, setRows] = useState<LoanRow[]>([])
+  const [total, setTotal] = useState(0)
+  const [page, setPage] = useState(0)
   const [loading, setLoading] = useState(false)
+  const [hasSearched, setHasSearched] = useState(false)
+  const [fromCache, setFromCache] = useState(false)
+  const [queryError, setQueryError] = useState('')
 
-  // ── Selection ─────────────────────────────────────────────────────────────
-  const [selectedId, setSelectedId] = useState<number | null>(null)
-  const [detail, setDetail]         = useState<LoanDetailPayload | null>(null)
-  const [closureDate, setClosureDate] = useState(todayIST())
-  const [interest, setInterest]     = useState('')
-  const [settling, setSettling]     = useState(false)
+  const trimmed = term.trim()
+  const meaningful = trimmed.length >= 2 || (field === 'loan' && /^\d+$/.test(trimmed))
 
-  const search = useCallback(async () => {
+  const clear = () => {
+    setTerm('')
+    setIssueDate('')
+    setMetal('')
+    setMinAmount('')
+    setMaxAmount('')
+    setSort('newest')
+    setRows([])
+    setTotal(0)
+    setPage(0)
+    setHasSearched(false)
+    setFromCache(false)
+    setQueryError('')
+  }
+
+  const runSearch = async (nextPage = 0) => {
+    if (!meaningful) return
     setLoading(true)
+    setQueryError('')
+    setHasSearched(true)
+
     try {
-      const supabase = createClient()
-      let q = supabase
-        .from('loans')
-        .select('id, name, father_name, location, amount, category_type, detailed_type, weight, issue_date')
-        .eq('status', 'active')
+      if (!online) {
+        const cached = await searchCachedLoans(trimmed, 250)
+        const filtered = cached
+          .filter(loan => loan.status === 'active')
+          .filter(loan => {
+            const query = trimmed.toLocaleLowerCase('en-IN')
+            if (field === 'loan') return loan.id === Number(trimmed)
+            if (field === 'name') return loan.name?.toLocaleLowerCase('en-IN').includes(query)
+            if (field === 'father') return loan.father_name?.toLocaleLowerCase('en-IN').includes(query)
+            if (field === 'location') return loan.location?.toLocaleLowerCase('en-IN').includes(query)
+            return true
+          })
+          .filter(loan => !metal || loan.category_type === metal)
+          .filter(loan => !issueDate || loan.issue_date === issueDate)
+          .filter(loan => !minAmount || Number(loan.amount) >= Number(minAmount))
+          .filter(loan => !maxAmount || Number(loan.amount) <= Number(maxAmount))
 
-      if (searchBy === 'Name'     && term.trim()) q = q.ilike('name', `%${term.trim()}%`)
-      if (searchBy === 'Location' && term.trim()) q = q.ilike('location', `%${term.trim()}%`)
-      if (searchBy === 'Date')                    q = q.eq('issue_date', searchDate)
-
-      const bounds = BOUNDS[amountRange]
-      if (bounds) {
-        q = q.gte('amount', bounds[0])
-        if (bounds[1] !== null) q = q.lt('amount', bounds[1])
+        setRows(filtered.slice(nextPage * PAGE_SIZE, (nextPage + 1) * PAGE_SIZE).map(loan => ({
+          ...loan,
+          totalDeposits: null,
+        })) as LoanRow[])
+        setTotal(filtered.length)
+        setPage(nextPage)
+        setFromCache(true)
+        return
       }
 
-      // Filtering and sorting run in Postgres, not here. The desktop sorts an
-      // already-loaded array because its whole table is local; a shop with
-      // thousands of loans would otherwise be shipping all of them to the
-      // browser to show twenty.
-      q = q.order('issue_date', { ascending: !newestFirst })
-           .order('id',         { ascending: !newestFirst })
-           .limit(100)
+      const safe = trimmed.replace(/[,%()]/g, ' ').replace(/\s+/g, ' ').trim()
+      const supabase = createClient()
+      let query = supabase
+        .from('loans')
+        .select('id, name, father_name, location, amount, category_type, detailed_type, weight, issue_date, deposits(amount)', { count: 'exact' })
+        .eq('status', 'active')
 
-      const { data, error } = await q
+      if (field === 'loan') {
+        if (!/^\d+$/.test(safe)) {
+          setRows([]); setTotal(0); setPage(0); setFromCache(false); return
+        }
+        query = query.eq('id', Number(safe))
+      } else if (field === 'name') query = query.ilike('name', `%${safe}%`)
+      else if (field === 'father') query = query.ilike('father_name', `%${safe}%`)
+      else if (field === 'location') query = query.ilike('location', `%${safe}%`)
+      else if (/^\d+$/.test(safe)) {
+        query = query.or(`id.eq.${Number(safe)},name.ilike.%${safe}%,father_name.ilike.%${safe}%,location.ilike.%${safe}%`)
+      } else {
+        query = query.or(`name.ilike.%${safe}%,father_name.ilike.%${safe}%,location.ilike.%${safe}%`)
+      }
+
+      if (issueDate) query = query.eq('issue_date', issueDate)
+      if (metal) query = query.eq('category_type', metal)
+      if (minAmount) query = query.gte('amount', Number(minAmount))
+      if (maxAmount) query = query.lte('amount', Number(maxAmount))
+
+      if (sort === 'newest') query = query.order('issue_date', { ascending: false }).order('id', { ascending: false })
+      if (sort === 'oldest') query = query.order('issue_date', { ascending: true }).order('id', { ascending: true })
+      if (sort === 'amount-high') query = query.order('amount', { ascending: false }).order('id', { ascending: false })
+      if (sort === 'amount-low') query = query.order('amount', { ascending: true }).order('id', { ascending: true })
+
+      const { data, count, error } = await query.range(nextPage * PAGE_SIZE, (nextPage + 1) * PAGE_SIZE - 1)
       if (error) throw new Error(error.message)
-      setRows(data ?? [])
-    } catch (err: unknown) {
-      toast.error(`Active-loan search could not be completed. ${err instanceof Error ? err.message : 'The current filters are unchanged; please retry.'}`)
+
+      setRows((data ?? []).map(item => ({
+        id: item.id,
+        name: item.name,
+        father_name: item.father_name,
+        location: item.location,
+        amount: Number(item.amount),
+        category_type: item.category_type,
+        detailed_type: item.detailed_type,
+        weight: item.weight == null ? null : Number(item.weight),
+        issue_date: item.issue_date,
+        totalDeposits: item.deposits.reduce((sum, deposit) => sum + Number(deposit.amount ?? 0), 0),
+      })))
+      setTotal(count ?? 0)
+      setPage(nextPage)
+      setFromCache(false)
+    } catch (error) {
       setRows([])
+      setTotal(0)
+      setQueryError(error instanceof Error ? error.message : 'The active-loan query could not be completed.')
     } finally {
       setLoading(false)
     }
-  }, [searchBy, term, searchDate, amountRange, newestFirst])
-
-  useEffect(() => { void search() }, [search])
-
-  // Load everything about the chosen record in one round trip.
-  useEffect(() => {
-    if (selectedId === null) { setDetail(null); return }
-    let cancelled = false
-    ;(async () => {
-      const supabase = createClient()
-      const { data, error } = await supabase.rpc('loan_detail', { p_loan_id: selectedId })
-      if (cancelled) return
-      if (error) { toast.error(`Loan #${selectedId} details could not be loaded. ${error.message}`); setDetail(null); return }
-
-      const d = (data ?? null) as LoanDetailPayload | null
-      setDetail(d)
-      setClosureDate(todayIST())
-      // Prefill with what the server says is due. The shopkeeper can override —
-      // rounding a settlement down is a normal courtesy — but the default must
-      // be the computed figure, not blank.
-      setInterest(String(Math.round(d?.suggested_interest ?? 0)))
-    })()
-    return () => { cancelled = true }
-  }, [selectedId])
-
-  const loan = detail?.loan ?? null
-  const totalDeposits = detail?.total_deposits ?? 0
-  const outstanding = (loan?.amount ?? 0) - totalDeposits
-  const dueNow = outstanding + (Number(interest) || 0)
-
-  const settle = async () => {
-    if (!loan) return
-    const value = Number(interest)
-    if (!Number.isFinite(value) || value < 0) {
-      toast.error(`Enter settlement interest of zero or more for loan #${loan.id}.`)
-      return
-    }
-    setSettling(true)
-    try {
-      const res = await closeLoan(loan.id, value, closureDate)
-      if (!res.ok) throw new Error(res.error ?? 'Could not settle this loan')
-      toast.success(`Loan #${loan.id} for ${loan.name} was settled; the cash book and deposit archive were updated.`)
-      setRows(r => r.filter(x => x.id !== loan.id))
-      setSelectedId(null)
-      router.refresh()
-    } catch (err: unknown) {
-      toast.error(`Loan #${loan.id} was not settled. ${err instanceof Error ? err.message : 'Its active record and cash history are unchanged.'}`)
-    } finally {
-      setSettling(false)
-    }
   }
 
-  return (
-    <div className="grid gap-3 lg:h-[calc(100dvh-9.75rem)] lg:min-h-[500px] lg:grid-cols-5">
-      {/* ── Search ────────────────────────────────────────────────────────── */}
-      <div className="flex min-h-0 flex-col gap-3 lg:col-span-2">
-        <div className="card grid gap-3 sm:grid-cols-2">
-          <Select
-            label="Search By"
-            value={searchBy}
-            onChange={e => { setSearchBy(e.target.value as SearchBy); setTerm('') }}
-            options={[
-              { value: 'Name',     label: 'Name' },
-              { value: 'Location', label: 'Location' },
-              { value: 'Date',     label: 'Date' },
-            ]}
-          />
+  const filterFields = (mobile = false) => (
+    <div className={`${mobile ? 'grid lg:hidden' : 'hidden lg:grid'} gap-3 sm:grid-cols-2 lg:grid-cols-5`}>
+      <Input label="Issue date" type="date" value={issueDate} onChange={event => setIssueDate(event.target.value)} />
+      <Select label="Metal" value={metal} onChange={event => setMetal(event.target.value as Metal)} options={[
+        { value: '', label: 'Any metal' }, { value: 'Gold', label: 'Gold' }, { value: 'Silver', label: 'Silver' },
+      ]} />
+      <Input label="Minimum amount" type="number" min={0} inputMode="numeric" value={minAmount} onChange={event => setMinAmount(event.target.value)} placeholder="Any" />
+      <Input label="Maximum amount" type="number" min={0} inputMode="numeric" value={maxAmount} onChange={event => setMaxAmount(event.target.value)} placeholder="Any" />
+      <Select label="Sort" value={sort} onChange={event => setSort(event.target.value as Sort)} options={[
+        { value: 'newest', label: 'Newest first' },
+        { value: 'oldest', label: 'Oldest first' },
+        { value: 'amount-high', label: 'Highest amount' },
+        { value: 'amount-low', label: 'Lowest amount' },
+      ]} />
+    </div>
+  )
 
-          {searchBy === 'Date' ? (
-            <Input
-              label="Issue date"
-              type="date"
-              value={searchDate}
-              onChange={e => setSearchDate(e.target.value)}
-            />
-          ) : (
+  const fieldForSuggest = field === 'name' ? 'name' : field === 'father' ? 'father_name' : 'location'
+  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE))
+
+  return (
+    <div className="space-y-3.5" style={{ fontFamily: "'IBM Plex Sans', Inter, system-ui, sans-serif" }}>
+      <form
+        className="card space-y-3"
+        onSubmit={event => { event.preventDefault(); void runSearch(0) }}
+      >
+        <div className="grid gap-3 lg:grid-cols-[180px_minmax(0,1fr)_auto_auto] lg:items-end">
+          <Select label="Search by" value={field} onChange={event => { setField(event.target.value as SearchField); setTerm('') }} options={[
+            { value: 'all', label: 'All fields' },
+            { value: 'loan', label: 'Loan number' },
+            { value: 'name', label: 'Customer name' },
+            { value: 'father', label: "Father's name" },
+            { value: 'location', label: 'Location' },
+          ]} />
+
+          {field === 'name' || field === 'father' || field === 'location' ? (
             <AutoSuggest
-              field={searchBy === 'Name' ? 'name' : 'location'}
-              label={searchBy}
-              placeholder={`Start typing ${searchBy.toLowerCase()}`}
+              field={fieldForSuggest}
+              label="Search"
               value={term}
               onChange={setTerm}
-              showCompletionHint={false}
+              placeholder={`Enter ${field === 'father' ? "father's name" : field}`}
+              ariaLabel="Search active loans"
             />
-          )}
-
-          <Select
-            label="Amount range"
-            value={amountRange}
-            onChange={e => setAmountRange(e.target.value)}
-            options={AMOUNT_RANGES.map(r => ({ value: r.value, label: r.label }))}
-          />
-
-          <Select
-            label="Date order"
-            value={newestFirst ? 'newest' : 'oldest'}
-            onChange={e => setNewestFirst(e.target.value === 'newest')}
-            options={[
-              { value: 'newest', label: 'Newest first' },
-              { value: 'oldest', label: 'Oldest first' },
-            ]}
-          />
-        </div>
-
-        <div className="card flex min-h-0 flex-1 flex-col overflow-hidden p-0">
-          <p className="px-4 py-2.5 text-xs font-medium text-slate-500 border-b border-surface-border">
-            {loading ? 'Searching…' : `${rows.length} active record${rows.length === 1 ? '' : 's'}`}
-          </p>
-
-          {loading ? (
-            <div className="space-y-1 p-2" role="status" aria-label="Searching active records">
-              {Array.from({ length: 7 }, (_, index) => (
-                <div key={index} className="flex items-center gap-3 rounded-lg px-2 py-2.5">
-                  <div className="skeleton h-3 w-9" />
-                  <div className="min-w-0 flex-1 space-y-2"><div className="skeleton h-3.5 w-2/3" /><div className="skeleton h-3 w-1/2" /></div>
-                  <div className="skeleton h-4 w-20" />
-                </div>
-              ))}
-            </div>
-          ) : rows.length === 0 ? (
-            <div className="p-4">
-              <EmptyState
-                icon={Search}
-                title="No records found"
-                description="Use the filters above to find a record."
-              />
-            </div>
           ) : (
-            <ul className="min-h-0 flex-1 divide-y divide-surface-border overflow-y-auto">
-              {rows.map(r => (
-                <li key={r.id}>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedId(r.id)}
-                    className={`w-full text-left px-4 py-2.5 transition-colors ${
-                      selectedId === r.id ? 'bg-primary-50' : 'hover:bg-slate-50'
-                    }`}
-                    aria-current={selectedId === r.id ? 'true' : undefined}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-slate-400 tabular-nums w-10 shrink-0">#{r.id}</span>
-                      <span className="flex-1 min-w-0">
-                        <span className="block text-sm font-medium truncate">{r.name}</span>
-                        <span className="block text-xs text-slate-400 truncate">
-                          {formatDate(r.issue_date)} · {getLoanAge(r.issue_date)}
-                          {r.location ? ` · ${r.location}` : ''}
-                        </span>
-                      </span>
-                      <span className="text-sm font-semibold tabular-nums shrink-0">
-                        {formatCurrency(r.amount)}
-                      </span>
-                    </div>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </div>
-
-      {/* ── The chosen record ─────────────────────────────────────────────── */}
-      <div className="min-h-0 space-y-3 lg:col-span-3 lg:overflow-y-auto lg:pr-1">
-        {!loan ? (
-          <div className="card">
-            <EmptyState
-              icon={FileText}
-              title="No record selected"
-              description="Pick a record on the left to see its deposits, remarks and photo, and to settle it."
+            <Input
+              label="Search"
+              value={term}
+              onChange={event => setTerm(event.target.value)}
+              placeholder={field === 'loan' ? 'Enter loan number' : "Loan no., customer, father's name or location"}
+              autoFocus
             />
+          )}
+
+          <Button type="submit" disabled={!meaningful} loading={loading} className="min-h-10">
+            <Search className="h-4 w-4" /> Search
+          </Button>
+          <Button type="button" variant="secondary" onClick={clear} className="min-h-10">Clear</Button>
+        </div>
+
+        <button type="button" onClick={() => setFiltersOpen(open => !open)} className="inline-flex min-h-10 items-center gap-2 text-xs font-semibold text-slate-600 lg:hidden">
+          <Filter className="h-4 w-4" /> {filtersOpen ? 'Hide filters' : 'Advanced filters'}
+        </button>
+        {filtersOpen && filterFields(true)}
+        {filterFields(false)}
+      </form>
+
+      {fromCache && (
+        <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900">
+          <CloudOff className="mt-0.5 h-4 w-4 shrink-0" />
+          Saved active-loan results from this device are shown. Deposit totals may be unavailable until the connection returns.
+        </div>
+      )}
+
+      <section className="card min-h-[360px] overflow-hidden p-0" aria-live="polite">
+        {!hasSearched ? (
+          <PurposefulEmpty />
+        ) : loading ? (
+          <div className="space-y-1 p-3" role="status" aria-label="Searching active loans">
+            {Array.from({ length: 7 }, (_, index) => (
+              <div key={index} className="grid grid-cols-[4rem_1fr_7rem] gap-3 border-b border-surface-border px-2 py-3">
+                <div className="skeleton h-4" /><div className="skeleton h-4" /><div className="skeleton h-4" />
+              </div>
+            ))}
+          </div>
+        ) : queryError ? (
+          <div className="flex min-h-[360px] flex-col items-center justify-center px-5 text-center">
+            <FileSearch className="h-8 w-8 text-red-300" />
+            <h2 className="mt-3 text-sm font-bold text-slate-900">Active-loan search could not be completed</h2>
+            <p className="mt-1 max-w-lg text-xs text-slate-500">{queryError} Your filters are preserved and no loan was changed.</p>
+            <Button type="button" variant="secondary" onClick={() => void runSearch(page)} className="mt-4">
+              <RefreshCw className="h-4 w-4" /> Retry search
+            </Button>
+          </div>
+        ) : rows.length === 0 ? (
+          <div className="flex min-h-[360px] flex-col items-center justify-center px-5 text-center">
+            <FileSearch className="h-8 w-8 text-slate-300" />
+            <h2 className="mt-3 text-sm font-bold text-slate-900">No active records match</h2>
+            <p className="mt-1 max-w-lg text-xs text-slate-500">Keep the current filters and try another search term, or clear the filters to broaden the query.</p>
           </div>
         ) : (
           <>
-            <div className="card space-y-3">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <h2 className="text-base font-semibold text-slate-900 truncate">
-                    #{loan.id} · {loan.name}
-                  </h2>
-                  <p className="text-xs text-slate-500">
-                    {loan.father_name ? `S/o ${loan.father_name} · ` : ''}
-                    {formatDate(loan.issue_date)} · held {getLoanAge(loan.issue_date)}
-                  </p>
-                </div>
-                <Badge variant={loan.category_type === 'Gold' ? 'gold' : 'silver'}>
-                  {loan.detailed_type || loan.category_type}
-                </Badge>
-              </div>
-
-              <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm sm:grid-cols-4">
-                <div>
-                  <dt className="text-xs text-slate-500">Principal</dt>
-                  <dd className="font-semibold tabular-nums">{formatCurrency(loan.amount)}</dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-slate-500">Deposits</dt>
-                  <dd className="font-semibold tabular-nums">{formatCurrency(totalDeposits)}</dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-slate-500">Outstanding</dt>
-                  <dd className="font-semibold tabular-nums">{formatCurrency(outstanding)}</dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-slate-500">Weight</dt>
-                  <dd className="font-semibold tabular-nums">
-                    {loan.weight ? `${loan.weight}g` : '—'}
-                  </dd>
-                </div>
-              </dl>
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-surface-border px-4 py-3">
+              <p className="text-xs font-medium text-slate-600">{total} active result{total === 1 ? '' : 's'}</p>
+              <p className="text-[11px] text-slate-400">Select a result to open its full record and settlement workspace</p>
             </div>
 
-            {/* Settle */}
-            <div className="card space-y-3">
-              <h3 className="text-sm font-semibold text-slate-900">Settle this loan</h3>
-
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Input
-                  label="Interest charged"
-                  type="number"
-                  inputMode="numeric"
-                  min={0}
-                  value={interest}
-                  onChange={e => setInterest(e.target.value)}
-                  helper="Rupees, not a rate. Prefilled from the shop's interest setting."
-                />
-                <Input
-                  label="Closure date"
-                  type="date"
-                  value={closureDate}
-                  onChange={e => setClosureDate(e.target.value)}
-                  helper="Defaults to today."
-                />
-              </div>
-
-              <div className="rounded-lg bg-slate-50 px-3 py-2.5 text-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-600">Customer pays now</span>
-                  <span className="font-semibold tabular-nums text-base">
-                    {formatCurrency(dueNow)}
-                  </span>
-                </div>
-                <p className="mt-0.5 text-xs text-slate-500">
-                  {formatCurrency(outstanding)} outstanding + {formatCurrency(Number(interest) || 0)} interest
-                </p>
-              </div>
-
-              {detail?.photos?.collection == null && (
-                <p className="flex items-start gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">
-                  <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" aria-hidden />
-                  <span>
-                    No collection photo yet. If your shop requires one at closing,
-                    capture it below before settling — the server will refuse otherwise.
-                  </span>
-                </p>
-              )}
-
-              <Button onClick={settle} loading={settling} className="w-full">
-                Settle and close
-              </Button>
+            <div className="hidden overflow-x-auto lg:block">
+              <table className="w-full text-left text-xs">
+                <thead className="sticky top-0 bg-surface-muted text-[10px] uppercase tracking-wide text-slate-500">
+                  <tr>
+                    <th className="px-4 py-2.5">Loan</th><th className="px-4 py-2.5">Customer</th><th className="px-4 py-2.5">Location</th>
+                    <th className="px-4 py-2.5">Issued</th><th className="px-4 py-2.5">Collateral</th><th className="px-4 py-2.5 text-right">Principal</th>
+                    <th className="px-4 py-2.5 text-right">Deposits</th><th className="px-4 py-2.5 text-right">Outstanding</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-surface-border">
+                  {rows.map(row => <ResultRow key={row.id} row={row} />)}
+                </tbody>
+              </table>
             </div>
 
-            {/* Deposits */}
-            <DepositHistory
-              loanId={loan.id}
-              deposits={detail?.deposits ?? []}
-              readOnly={false}
-              principal={loan.amount}
-            />
+            <ul className="divide-y divide-surface-border lg:hidden">
+              {rows.map(row => <MobileResult key={row.id} row={row} />)}
+            </ul>
 
-            {/* Photos: who pledged, who is collecting */}
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <p className="text-xs font-medium text-slate-500">At pledge</p>
-                <LoanPhoto
-                  loanId={loan.id}
-                  hasPhoto={!!detail?.photos?.pledge}
-                  verifiedBy={loan.face_verified_by}
-                  readOnly
-                  stage="pledge"
-                />
+            {pageCount > 1 && (
+              <div className="flex items-center justify-between border-t border-surface-border px-4 py-3">
+                <Button type="button" variant="secondary" size="sm" disabled={page === 0 || loading} onClick={() => void runSearch(page - 1)}>
+                  <ChevronLeft className="h-4 w-4" /> Previous
+                </Button>
+                <span className="text-xs text-slate-500">Page {page + 1} of {pageCount}</span>
+                <Button type="button" variant="secondary" size="sm" disabled={page + 1 >= pageCount || loading} onClick={() => void runSearch(page + 1)}>
+                  Next <ChevronRight className="h-4 w-4" />
+                </Button>
               </div>
-              <div className="space-y-1.5">
-                <p className="text-xs font-medium text-slate-500">At collection</p>
-                <LoanPhoto
-                  loanId={loan.id}
-                  hasPhoto={!!detail?.photos?.collection}
-                  verifiedBy={null}
-                  readOnly={false}
-                  stage="collection"
-                />
-              </div>
-            </div>
-
-            <RemarksLog loanId={loan.id} remarks={loan.remarks} />
-
-            {canDelete && (
-              <p className="text-xs text-slate-500">
-                Entered by mistake?{' '}
-                <Link href={`/loans/${loan.id}`} className="text-primary-700 underline underline-offset-2">
-                  Open the full record
-                </Link>{' '}
-                to delete it. Settling keeps the history; deleting does not.
-              </p>
             )}
           </>
         )}
-      </div>
+      </section>
     </div>
   )
+}
+
+function PurposefulEmpty() {
+  return (
+    <div className="flex min-h-[360px] flex-col items-center justify-center px-5 text-center">
+      <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary-50 text-primary-700"><Search className="h-5 w-5" /></div>
+      <h2 className="mt-3 text-sm font-bold text-slate-900">Search for an active record</h2>
+      <p className="mt-1 max-w-lg text-xs text-slate-500">Search by loan number, customer, father&rsquo;s name or location. Results stay empty until you deliberately search.</p>
+    </div>
+  )
+}
+
+function ResultRow({ row }: { row: LoanRow }) {
+  const deposits = row.totalDeposits
+  const outstanding = deposits == null ? null : Math.max(0, row.amount - deposits)
+  return (
+    <tr className="transition-colors hover:bg-slate-50">
+      <td colSpan={8} className="p-0">
+        <Link href={`/loans/${row.id}?from=remove-record`} className="grid grid-cols-[5rem_minmax(11rem,1.3fr)_minmax(8rem,1fr)_8rem_9rem_8rem_8rem_8rem] items-center">
+          <span className="px-4 py-3 font-semibold tabular-nums">#{row.id}</span>
+          <span className="min-w-0 px-4 py-3"><span className="block truncate font-semibold text-slate-900">{row.name}</span><span className="block truncate text-[11px] text-slate-400">{row.father_name ? `S/o ${row.father_name}` : 'Father’s name not recorded'}</span></span>
+          <span className="truncate px-4 py-3 text-slate-600">{row.location || '—'}</span>
+          <span className="px-4 py-3 text-slate-600">{formatDate(row.issue_date)}<span className="block text-[10px] text-slate-400">{getLoanAge(row.issue_date)}</span></span>
+          <span className="px-4 py-3"><Badge variant={row.category_type === 'Gold' ? 'gold' : 'silver'}>{row.category_type}</Badge><span className="ml-1 text-[11px] text-slate-500">{weightLabel(row)}</span></span>
+          <span className="px-4 py-3 text-right font-semibold tabular-nums">{formatCurrency(row.amount)}</span>
+          <span className="px-4 py-3 text-right tabular-nums">{deposits == null ? 'Offline' : formatCurrency(deposits)}</span>
+          <span className="px-4 py-3 text-right font-semibold tabular-nums">{outstanding == null ? '—' : formatCurrency(outstanding)}</span>
+        </Link>
+      </td>
+    </tr>
+  )
+}
+
+function MobileResult({ row }: { row: LoanRow }) {
+  const outstanding = row.totalDeposits == null ? null : Math.max(0, row.amount - row.totalDeposits)
+  return (
+    <li>
+      <Link href={`/loans/${row.id}?from=remove-record`} className="block min-h-24 px-4 py-3 transition-colors hover:bg-slate-50">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0"><p className="text-xs font-semibold text-primary-700">#{row.id}</p><p className="truncate text-sm font-bold text-slate-900">{row.name}</p><p className="truncate text-xs text-slate-500">{row.father_name ? `S/o ${row.father_name}` : row.location || 'Location not recorded'}</p></div>
+          <p className="text-sm font-bold tabular-nums text-slate-900">{formatCurrency(row.amount)}</p>
+        </div>
+        <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
+          <Badge variant={row.category_type === 'Gold' ? 'gold' : 'silver'}>{row.category_type}</Badge>
+          <span>{weightLabel(row)}</span><span>{formatDate(row.issue_date)}</span>
+          <span className="ml-auto font-semibold text-slate-700">Outstanding {outstanding == null ? 'unavailable offline' : formatCurrency(outstanding)}</span>
+        </div>
+      </Link>
+    </li>
+  )
+}
+
+function weightLabel(row: LoanRow): string {
+  if (row.weight == null) return row.detailed_type || '—'
+  const value = row.category_type === 'Silver' ? row.weight / 1000 : row.weight
+  const unit = row.category_type === 'Silver' ? 'kg' : 'g'
+  return `${value.toLocaleString('en-IN', { maximumFractionDigits: 3 })} ${unit}`
 }

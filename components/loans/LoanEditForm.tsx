@@ -15,7 +15,7 @@ import { Select } from '@/components/ui/Select'
 import { Button } from '@/components/ui/Button'
 import { AutoSuggest } from '@/components/ui/AutoSuggest'
 import { updateLoan, updateClosedRecord } from '@/app/(app)/loans/actions'
-import { formatCurrency, todayIST } from '@/lib/utils'
+import { todayIST } from '@/lib/utils'
 
 interface Loan {
   id: number
@@ -92,9 +92,9 @@ export function LoanEditForm({ loan, isClosed = false }: { loan: Loan; isClosed?
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-5">
+    <form onSubmit={onSubmit} className="space-y-4">
       {isClosed && (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
           <p className="text-sm font-medium text-amber-900">
             This loan is already settled
           </p>

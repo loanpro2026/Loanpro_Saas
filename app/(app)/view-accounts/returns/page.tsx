@@ -27,7 +27,7 @@ export default async function ReturnsAccountPage() {
       <div className="page-header">
         <div>
           <h1 className="page-title">Returns</h1>
-          <p className="page-subtitle">Account view</p>
+          <p className="page-subtitle">Principal returned from loans settled in the selected period</p>
         </div>
       </div>
 

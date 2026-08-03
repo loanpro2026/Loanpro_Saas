@@ -116,11 +116,11 @@ export default async function ActiveRecordsPage({ searchParams }: Props) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" style={{ fontFamily: "'IBM Plex Sans', Inter, system-ui, sans-serif" }}>
       <div className="page-header">
         <div>
           <h1 className="page-title">Active Records</h1>
-          <p className="page-subtitle">
+          <p className="page-subtitle">Loans currently held against pledged jewellery ·{' '}
             {total === 0 ? 'No records'
               : total <= PAGE_SIZE ? `${total} record${total === 1 ? '' : 's'}`
               : `${from + 1}–${Math.min(from + PAGE_SIZE, total)} of ${total}`}
@@ -175,7 +175,11 @@ export default async function ActiveRecordsPage({ searchParams }: Props) {
                     </Badge>
                   </td>
                   <td className="hidden sm:table-cell text-slate-600 text-sm tabular-nums">
-                    {loan.weight ? `${loan.weight}g` : '—'}
+                    {loan.weight
+                      ? loan.category_type === 'Silver'
+                        ? `${(loan.weight / 1000).toLocaleString('en-IN', { maximumFractionDigits: 3 })} kg`
+                        : `${loan.weight.toLocaleString('en-IN')} g`
+                      : '—'}
                   </td>
                   <td className="font-semibold tabular-nums text-sm">
                     {formatCurrency(loan.amount)}

@@ -122,12 +122,12 @@ export default function NewLoanPage() {
         </Link>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <h1 className="page-title">Add record</h1>
+            <h1 className="page-title">Add New Record</h1>
             <span className="rounded-full border border-surface-border bg-white px-2 py-0.5 text-[10px] font-semibold text-slate-500">
               New loan
             </span>
           </div>
-          <p className="page-subtitle">Customer, item and amount in one counter-ready workspace</p>
+          <p className="page-subtitle">Issue a new loan against pledged gold or silver. Fields marked * are required.</p>
         </div>
         <div className="hidden items-center gap-2 text-xs text-slate-500 sm:flex">
           {online ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <WifiOff className="h-4 w-4 text-amber-500" />}
@@ -143,7 +143,7 @@ export default function NewLoanPage() {
           <section>
             <div className="mb-3 flex items-center gap-2">
               <UserRound className="h-4 w-4 text-primary-600" />
-              <h2 className="section-kicker">Customer identity</h2>
+              <h2 className="section-kicker">Personal information</h2>
               <span className="ml-auto hidden text-[10px] text-slate-400 md:block">Suggestions come from this shop&rsquo;s records</span>
             </div>
             <div className="grid gap-3 md:grid-cols-3">
@@ -254,7 +254,7 @@ export default function NewLoanPage() {
           <div className="ml-auto flex w-full gap-2 sm:w-auto">
             <Link href="/view-records/active" className="flex-1 sm:flex-none"><Button variant="secondary" className="w-full">Cancel</Button></Link>
             <Button type="submit" loading={loading} className="flex-1 sm:min-w-44">
-              {!loading && <Save className="h-4 w-4" />} {loading ? 'Creating record' : 'Create record'}
+              {!loading && <Save className="h-4 w-4" />} {loading ? 'Creating loan record' : 'Create loan record'}
             </Button>
           </div>
         </div>

@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { CheckCircle2, FlaskConical, Star } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, FlaskConical, Star } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { PLANS } from '@/lib/razorpay'
 import toast from 'react-hot-toast'
@@ -14,14 +14,20 @@ const PLAN_FEATURES: Record<string, string[]> = {
 
 export default function BillingPage() {
   const [loading, setLoading] = useState<string | null>(null)
-  const [billingMode, setBillingMode] = useState<'loading' | 'disabled' | 'test' | 'live'>('loading')
+  const [billingMode, setBillingMode] = useState<'loading' | 'disabled' | 'test' | 'live' | 'error'>('loading')
+  const [billingError, setBillingError] = useState<string | null>(null)
+  const [retryKey, setRetryKey] = useState(0)
 
   useEffect(() => {
     let script: HTMLScriptElement | null = null
     let cancelled = false
 
+    setBillingError(null)
     fetch('/api/billing')
-      .then(r => r.json())
+      .then(async r => {
+        if (!r.ok) throw new Error(`Configuration request failed (${r.status})`)
+        return r.json()
+      })
       .then(({ mode, enabled }) => {
         if (cancelled) return
         const safeMode = mode === 'test' || mode === 'live' ? mode : 'disabled'
@@ -33,16 +39,20 @@ export default function BillingPage() {
         script.async = true
         document.head.appendChild(script)
       })
-      .catch(() => !cancelled && setBillingMode('disabled'))
+      .catch(error => {
+        if (cancelled) return
+        setBillingError(error instanceof Error ? error.message : 'Please try again.')
+        setBillingMode('error')
+      })
 
     return () => {
       cancelled = true
       script?.remove()
     }
-  }, [])
+  }, [retryKey])
 
   const handleSubscribe = async (planId: string) => {
-    if (billingMode === 'disabled' || billingMode === 'loading') {
+    if (billingMode === 'disabled' || billingMode === 'loading' || billingMode === 'error') {
       toast('Payments are disabled during testing. Your free trial remains active.')
       return
     }
@@ -97,11 +107,28 @@ export default function BillingPage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
+    <div className="mx-auto max-w-3xl space-y-5">
       <div>
-        <h1 className="page-title">Choose a Plan</h1>
+        <h1 className="page-title">Plan &amp; billing</h1>
         <p className="page-subtitle mt-1">Upgrade to continue using LoanPro after your trial ends.</p>
       </div>
+
+      {billingMode === 'error' && (
+        <div className="card flex flex-col gap-3 border-red-200 bg-red-50 p-4 text-sm text-red-700 sm:flex-row sm:items-center" role="alert">
+          <AlertTriangle className="h-5 w-5 shrink-0" />
+          <div className="min-w-0 flex-1">
+            <p className="font-semibold">Billing options could not be loaded</p>
+            <p className="mt-0.5 text-xs">{billingError}</p>
+          </div>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => { setBillingMode('loading'); setRetryKey(key => key + 1) }}
+          >
+            Try again
+          </Button>
+        </div>
+      )}
 
       {billingMode === 'disabled' && (
         <div className="card flex items-start gap-3 border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
@@ -125,7 +152,7 @@ export default function BillingPage() {
         {(Object.entries(PLANS) as [string, typeof PLANS[keyof typeof PLANS]][]).map(([planId, plan]) => {
           const isPro = planId === 'pro'
           return (
-            <div key={planId} className={`card p-7 relative ${isPro ? 'border-2 border-primary-600 shadow-lg' : ''}`}>
+            <div key={planId} className={`card relative flex flex-col p-5 ${isPro ? 'border-2 border-primary-600 shadow-lg' : ''}`}>
               {isPro && (
                 <div className="absolute -top-3.5 left-1/2 -translate-x-1/2">
                   <span className="inline-flex items-center gap-1 bg-primary-700 text-white text-xs font-semibold px-3 py-1 rounded-full">
@@ -143,7 +170,7 @@ export default function BillingPage() {
                   <span className="text-slate-500">/month</span>
                 </div>
               </div>
-              <ul className="space-y-2.5 mb-7">
+              <ul className="mb-6 flex-1 space-y-2.5">
                 {PLAN_FEATURES[planId]?.map(f => (
                   <li key={f} className="flex items-start gap-2 text-sm text-slate-700">
                     <CheckCircle2 className="h-4 w-4 text-emerald-500 mt-0.5 flex-shrink-0" />
@@ -155,7 +182,7 @@ export default function BillingPage() {
                 className="w-full"
                 variant={isPro ? 'primary' : 'secondary'}
                 loading={loading === planId}
-                disabled={billingMode === 'disabled' || billingMode === 'loading'}
+                disabled={billingMode === 'disabled' || billingMode === 'loading' || billingMode === 'error'}
                 onClick={() => handleSubscribe(planId)}
               >
                 {loading === planId
@@ -164,7 +191,9 @@ export default function BillingPage() {
                     ? 'Checkout disabled during testing'
                     : billingMode === 'loading'
                       ? 'Checking availability…'
-                      : `Subscribe to ${plan.name}`}
+                      : billingMode === 'error'
+                        ? 'Billing unavailable'
+                        : `Subscribe to ${plan.name}`}
               </Button>
             </div>
           )

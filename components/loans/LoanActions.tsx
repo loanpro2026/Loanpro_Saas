@@ -10,7 +10,7 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
-import { MoreVertical, Archive, RotateCcw, Trash2, Pencil } from 'lucide-react'
+import { MoreVertical, Archive, RotateCcw, Trash2, Pencil, AlertTriangle } from 'lucide-react'
 import Link from 'next/link'
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
@@ -33,9 +33,14 @@ interface Props {
    *  over the days held. Not a per-loan property. */
   suggestedInterest: number
   canManage: boolean
+  photoRequiredAtClosure?: boolean
+  hasCollectionPhoto?: boolean
 }
 
-export function LoanActions({ loan, totalDeposits, daysHeld, suggestedInterest, canManage }: Props) {
+export function LoanActions({
+  loan, totalDeposits, daysHeld, suggestedInterest, canManage,
+  photoRequiredAtClosure = false, hasCollectionPhoto = false,
+}: Props) {
   const router = useRouter()
   const [menuOpen, setMenuOpen] = useState(false)
   const [closing, setClosing] = useState(false)
@@ -53,14 +58,16 @@ export function LoanActions({ loan, totalDeposits, daysHeld, suggestedInterest, 
 
   const interestNum = Number(interest) || 0
   const customerPays = loan.amount + interestNum - totalDeposits
+  const photoBlocked = !isClosed && photoRequiredAtClosure && !hasCollectionPhoto
 
   const onClose = () => startTransition(async () => {
+    if (photoBlocked) return
     const res = await closeLoan(loan.id, interestNum, closedDate)
     if (res.ok) {
       toast.success(`Loan #${loan.id} for ${loan.name} was settled. Customer payment: ${formatCurrency(customerPays)}.`)
       setClosing(false)
       router.refresh()
-    } else toast.error(`Loan #${loan.id} was not settled. ${res.error ?? 'Please reload the record and try again.'}`)
+    } else toast.error(`Loan #${loan.id} remains active and its cash history is unchanged. ${res.error ?? 'Please reload the record and try again.'}`)
   })
 
   const onReopen = () => startTransition(async () => {
@@ -80,7 +87,13 @@ export function LoanActions({ loan, totalDeposits, daysHeld, suggestedInterest, 
 
   return (
     <>
-      <div className="relative shrink-0">
+      <div className="flex shrink-0 items-center gap-2">
+        {!isClosed && (
+          <Button size="sm" onClick={() => setClosing(true)}>
+            Settle loan
+          </Button>
+        )}
+        <div className="relative">
         <button
           onClick={() => setMenuOpen(v => !v)}
           className="btn-icon"
@@ -103,11 +116,8 @@ export function LoanActions({ loan, totalDeposits, daysHeld, suggestedInterest, 
                   >
                     <Pencil className="h-4 w-4" /> Edit details
                   </Link>
-                  <button
-                    className="menu-item"
-                    onClick={() => { setMenuOpen(false); setClosing(true) }}
-                  >
-                    <Archive className="h-4 w-4" /> Close loan
+                  <button className="menu-item" onClick={() => { setMenuOpen(false); setClosing(true) }}>
+                    <Archive className="h-4 w-4" /> Settle loan
                   </button>
                 </>
               )}
@@ -129,14 +139,22 @@ export function LoanActions({ loan, totalDeposits, daysHeld, suggestedInterest, 
             </div>
           </>
         )}
+        </div>
       </div>
 
       {/* ── Close ─────────────────────────────────────────────────────────── */}
-      <Modal open={closing} onClose={() => setClosing(false)} title={`Close loan #${loan.id}`}>
+      <Modal open={closing} onClose={() => setClosing(false)} title={`Settle loan #${loan.id}`}>
         <div className="space-y-4">
           <p className="text-sm text-slate-600">
             {loan.name} has held this loan for <strong>{formatDuration(daysHeld)}</strong>.
           </p>
+
+          {photoBlocked && (
+            <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+              <p>This shop requires a collection photo before settlement. Close this dialog, capture the collection photo, then settle loan #{loan.id}.</p>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <Input
@@ -164,7 +182,7 @@ export function LoanActions({ loan, totalDeposits, daysHeld, suggestedInterest, 
               <Row label="Deposits already paid" value={`− ${formatCurrency(totalDeposits)}`} />
             )}
             <div className="pt-2 mt-1 border-t border-surface-border flex justify-between font-semibold">
-              <span>Customer pays</span>
+              <span>Customer pays now</span>
               <span className="tabular-nums">{formatCurrency(customerPays)}</span>
             </div>
           </div>
@@ -176,9 +194,15 @@ export function LoanActions({ loan, totalDeposits, daysHeld, suggestedInterest, 
             </p>
           )}
 
+          <p className="text-xs text-slate-500">
+            Settling moves loan #{loan.id} to Closed Records and preserves its deposit and cash history.
+          </p>
+
           <div className="flex gap-2 justify-end pt-1">
             <Button variant="secondary" onClick={() => setClosing(false)}>Cancel</Button>
-            <Button onClick={onClose} loading={pending}>Close loan</Button>
+            <Button onClick={onClose} loading={pending} disabled={photoBlocked}>
+              {pending ? `Settling loan #${loan.id} and updating cash history…` : 'Settle and close loan'}
+            </Button>
           </div>
         </div>
       </Modal>

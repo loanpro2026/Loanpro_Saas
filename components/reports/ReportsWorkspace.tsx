@@ -168,7 +168,7 @@ export function ReportsWorkspace({
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       {/* Report picker. Hidden when the page is already one specific report —
           /view-accounts/investment showing a row of buttons to switch to the
           daily book would just be a second, competing navigation. */}
@@ -178,7 +178,7 @@ export function ReportsWorkspace({
             key={r.key}
             onClick={() => setKey(r.key)}
             className={cn(
-              'shrink-0 rounded-xl px-3.5 py-2 text-sm font-medium transition-colors border',
+              'shrink-0 rounded-lg px-3.5 py-2 text-sm font-medium transition-colors border',
               key === r.key
                 ? 'bg-primary-700 text-white border-primary-700'
                 : 'bg-white text-slate-600 border-surface-border hover:border-slate-300'

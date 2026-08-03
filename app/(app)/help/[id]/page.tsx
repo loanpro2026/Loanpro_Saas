@@ -21,7 +21,9 @@ export default async function TicketPage({
   if (!user) redirect('/login')
 
   // RLS scopes this — another shop's ticket simply comes back empty.
-  const { data } = await supabase.rpc('ticket_detail', { p_ticket_id: id })
+  const { data, error } = await supabase.rpc('ticket_detail', { p_ticket_id: id })
+
+  if (error) throw new Error(`This support conversation could not be loaded: ${error.message}`)
 
   // `RETURNS jsonb` — shape declared in types/rpc.ts from migration 016.
   const detail = (data ?? null) as TicketDetailPayload | null
@@ -31,7 +33,7 @@ export default async function TicketPage({
   const closed = t.status === 'resolved' || t.status === 'closed'
 
   return (
-    <div className="space-y-5 max-w-3xl">
+    <div className="max-w-3xl space-y-4">
       <div className="flex items-start gap-3">
         <Link href="/help" className="btn-icon mt-1 shrink-0" aria-label="Back to help">
           <ArrowLeft className="h-4 w-4" />

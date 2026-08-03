@@ -11,7 +11,7 @@ import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
 import {
-  Loader2, Archive, ArrowDownCircle, CheckCheck, Printer, Wallet,
+  Loader2, Archive, ArrowDownCircle, CheckCheck, CircleAlert, Printer, Wallet,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/Button'
@@ -37,20 +37,20 @@ export function DayEndWorkspace({ shopName = 'LoanPro' }: { shopName?: string })
   const [removed, setRemoved] = useState<Removed[]>([])
   const [deposits, setDeposits] = useState<DailyDeposit[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [printing, setPrinting] = useState(false)
   const [clearing, setClearing] = useState<'removed' | 'deposits' | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
+    setError(null)
     const supabase = createClient()
     const [r, d] = await Promise.all([
       supabase.rpc('removed_records_report', { p_date: date }),
       supabase.rpc('daily_deposits_report', { p_date: date }),
     ])
     if (r.error || d.error) {
-      toast.error(
-        `The ${formatDate(date)} day-end lists could not be loaded. ${r.error?.message ?? d.error?.message ?? 'Please retry.'}`
-      )
+      setError(r.error?.message ?? d.error?.message ?? 'Please retry the same date.')
     }
     setRemoved(r.error ? [] : (r.data as Removed[]) ?? [])
     setDeposits(d.error ? [] : (d.data as DailyDeposit[]) ?? [])
@@ -128,7 +128,7 @@ export function DayEndWorkspace({ shopName = 'LoanPro' }: { shopName?: string })
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       {/* Controls */}
       <div className="card flex flex-wrap items-end gap-3">
         <div>
@@ -154,6 +154,13 @@ export function DayEndWorkspace({ shopName = 'LoanPro' }: { shopName?: string })
         <div className="card flex items-center justify-center py-16">
           <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
         </div>
+      ) : error ? (
+        <EmptyState
+          icon={CircleAlert}
+          title="Day-end lists could not be loaded"
+          description={`${formatDate(date)} could not be reviewed. ${error}`}
+          action={<Button size="sm" onClick={() => void load()}>Try again</Button>}
+        />
       ) : (
         <>
           {/* Money in */}

@@ -35,7 +35,7 @@ export default async function SettingsPage() {
       <div className="page-header">
         <div>
           <h1 className="page-title">Settings</h1>
-          <p className="page-subtitle">{tenant?.shop_name} · business preferences, identity, devices and data</p>
+          <p className="page-subtitle">{tenant?.shop_name} · preferences apply to this shop, with devices and data managed per workspace</p>
         </div>
       </div>
 

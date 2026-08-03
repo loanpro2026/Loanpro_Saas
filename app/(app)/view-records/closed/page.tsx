@@ -113,11 +113,11 @@ export default async function ClosedRecordsPage({ searchParams }: Props) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" style={{ fontFamily: "'IBM Plex Sans', Inter, system-ui, sans-serif" }}>
       <div className="page-header">
         <div>
           <h1 className="page-title">Closed Records</h1>
-          <p className="page-subtitle">
+          <p className="page-subtitle">Settled loans with preserved deposits and interest ·{' '}
             {total === 0 ? 'No settled loans'
               : total <= PAGE_SIZE ? `${total} settled loan${total === 1 ? '' : 's'}`
               : `${from + 1}–${Math.min(from + PAGE_SIZE, total)} of ${total}`}
@@ -183,7 +183,11 @@ export default async function ClosedRecordsPage({ searchParams }: Props) {
                       </Badge>
                     </td>
                     <td className="hidden sm:table-cell text-slate-600 text-sm tabular-nums">
-                      {loan.weight ? `${loan.weight}g` : '—'}
+                      {loan.weight
+                        ? loan.category_type === 'Silver'
+                          ? `${(loan.weight / 1000).toLocaleString('en-IN', { maximumFractionDigits: 3 })} kg`
+                          : `${loan.weight.toLocaleString('en-IN')} g`
+                        : '—'}
                     </td>
                     <td className="font-semibold tabular-nums text-sm">
                       {formatCurrency(loan.amount)}

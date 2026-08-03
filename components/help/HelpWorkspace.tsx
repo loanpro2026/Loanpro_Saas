@@ -82,7 +82,7 @@ export function HelpWorkspace({
   })
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       {/* Tabs */}
       <div className="flex gap-2">
         {([
@@ -93,7 +93,7 @@ export function HelpWorkspace({
             key={key}
             onClick={() => setTab(key)}
             className={cn(
-              'inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium transition-colors',
+              'inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition-colors',
               tab === key
                 ? 'bg-primary-700 text-white border-primary-700'
                 : 'bg-white text-slate-600 border-surface-border hover:border-slate-300'

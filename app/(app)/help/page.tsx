@@ -24,7 +24,7 @@ export default async function HelpPage() {
         <div>
           <h1 className="page-title">Help &amp; support</h1>
           <p className="page-subtitle">
-            How things work, and a direct line to us when they don&rsquo;t
+            Guides for daily work, plus direct support when you need it
           </p>
         </div>
       </div>

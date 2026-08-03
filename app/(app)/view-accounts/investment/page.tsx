@@ -27,7 +27,7 @@ export default async function InvestmentAccountPage() {
       <div className="page-header">
         <div>
           <h1 className="page-title">Investment</h1>
-          <p className="page-subtitle">Account view</p>
+          <p className="page-subtitle">Principal issued on new loans in the selected period</p>
         </div>
       </div>
 

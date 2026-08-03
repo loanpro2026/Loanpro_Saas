@@ -1,9 +1,11 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
 import { formatCurrency, formatDate, todayIST } from '@/lib/utils'
 import { EmptyState } from '@/components/ui/EmptyState'
-import { Wallet } from 'lucide-react'
+import { CheckCheck, CircleAlert, Wallet } from 'lucide-react'
 import { CashTxButton } from '@/components/cash/CashTxButton'
+import { Button } from '@/components/ui/Button'
 
 export const dynamic = 'force-dynamic'
 
@@ -18,9 +20,9 @@ export default async function CashPage() {
   // IST, not UTC — see todayIST() in lib/utils.
   const today = todayIST()
 
-  const [{ data: todaySummary }, { data: transactions }, { data: last7Days }] = await Promise.all([
+  const [todayResult, transactionsResult, historyResult] = await Promise.all([
     supabase.from('daily_cash_summary')
-      .select('*').eq('tenant_id', appUser.tenant_id).eq('date', today).single(),
+      .select('*').eq('tenant_id', appUser.tenant_id).eq('date', today).maybeSingle(),
     supabase.from('cash_transactions')
       .select('*').eq('tenant_id', appUser.tenant_id)
       .order('transaction_date', { ascending: false })
@@ -32,18 +34,33 @@ export default async function CashPage() {
       .order('date', { ascending: false }).limit(7),
   ])
 
+  const { data: todaySummary, error: todayError } = todayResult
+  const { data: transactions, error: transactionsError } = transactionsResult
+  const { data: last7Days, error: historyError } = historyResult
+
   return (
     <div className="space-y-5">
       <div className="page-header">
         <div>
-          <h1 className="page-title">Cash Management</h1>
-          <p className="page-subtitle">Track your daily cash flow</p>
+          <h1 className="page-title">Cash &amp; day-end</h1>
+          <p className="page-subtitle">Review the drawer balance and record non-loan cash movements</p>
         </div>
-        <CashTxButton />
+        <div className="flex flex-wrap gap-2">
+          <Link href="/day-end">
+            <Button variant="secondary" size="sm"><CheckCheck className="h-4 w-4" /> Review day</Button>
+          </Link>
+          <CashTxButton />
+        </div>
       </div>
 
       {/* Today's summary */}
-      {todaySummary ? (
+      {todayError ? (
+        <EmptyState
+          icon={CircleAlert}
+          title="Today’s cash summary could not be loaded"
+          description={todayError.message}
+        />
+      ) : todaySummary ? (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {[
             { label: 'Total Cash',    value: todaySummary.total_cash,   color: 'text-slate-900'   },
@@ -63,12 +80,16 @@ export default async function CashPage() {
       )}
 
       {/* Last 7 days */}
-      {last7Days && last7Days.length > 0 && (
+      {historyError ? (
+        <div className="card px-5 py-4 text-sm text-red-700" role="alert">
+          Cash history could not be loaded. {historyError.message}
+        </div>
+      ) : last7Days && last7Days.length > 0 && (
         <div className="card overflow-hidden">
           <div className="px-5 py-3.5 border-b border-surface-border">
             <h2 className="font-semibold text-slate-900">Last 7 Days</h2>
           </div>
-          <table className="table">
+          <div className="overflow-x-auto"><table className="table min-w-[640px]">
             <thead>
               <tr>
                 <th>Date</th>
@@ -87,7 +108,7 @@ export default async function CashPage() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         </div>
       )}
 
@@ -96,10 +117,16 @@ export default async function CashPage() {
         <div className="px-5 py-3.5 border-b border-surface-border">
           <h2 className="font-semibold text-slate-900">Transactions</h2>
         </div>
-        {!transactions?.length ? (
+        {transactionsError ? (
+          <EmptyState
+            icon={CircleAlert}
+            title="Transactions could not be loaded"
+            description={transactionsError.message}
+          />
+        ) : !transactions?.length ? (
           <EmptyState icon={Wallet} title="No transactions yet" description="Add cash or record removals to track your cash flow." />
         ) : (
-          <table className="table">
+          <div className="overflow-x-auto"><table className="table min-w-[520px]">
             <thead>
               <tr>
                 <th>Date</th>
@@ -118,7 +145,7 @@ export default async function CashPage() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         )}
       </div>
     </div>

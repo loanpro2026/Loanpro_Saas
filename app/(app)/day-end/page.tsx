@@ -1,6 +1,9 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
 import { DayEndWorkspace } from '@/components/dayend/DayEndWorkspace'
+import { Button } from '@/components/ui/Button'
+import { Wallet } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
 
@@ -32,6 +35,9 @@ export default async function DayEndPage() {
             Check today&rsquo;s settlements and part-payments against the drawer
           </p>
         </div>
+        <Link href="/cash">
+          <Button variant="secondary" size="sm"><Wallet className="h-4 w-4" /> Cash ledger</Button>
+        </Link>
       </div>
 
       <DayEndWorkspace shopName={tenant?.shop_name ?? 'LoanPro'} />

@@ -27,7 +27,7 @@ export default async function InterestAccountPage() {
       <div className="page-header">
         <div>
           <h1 className="page-title">Interest</h1>
-          <p className="page-subtitle">Account view</p>
+          <p className="page-subtitle">Interest collected on settlements, shown as rupee amounts</p>
         </div>
       </div>
 

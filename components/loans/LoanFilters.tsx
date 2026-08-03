@@ -78,14 +78,14 @@ export function LoanFilters({
   const hasAdvanced = field !== 'name' || !!from || !!to || !!minimum || !!maximum
 
   return (
-    <div className="space-y-3" aria-busy={isPending || undefined}>
+    <div className="card space-y-3" aria-busy={isPending || undefined}>
       <div className="flex flex-col gap-3 sm:flex-row">
-        <form onSubmit={apply} className="flex flex-1 gap-2">
+        <form onSubmit={apply} className="flex min-w-0 flex-1 gap-2">
           <select
             aria-label="Search field"
             value={field}
             onChange={e => setField(e.target.value)}
-            className="input h-9 w-32 px-3 text-sm"
+            className="input h-10 w-28 shrink-0 px-3 text-sm sm:w-36"
           >
             <option value="name">Name</option>
             <option value="id">Loan #</option>
@@ -100,7 +100,7 @@ export function LoanFilters({
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 placeholder="Exact loan number…"
-                className="input h-9 pl-9 pr-9 text-sm"
+                className="input h-10 pl-9 pr-9 text-sm"
                 inputMode="numeric"
                 aria-label="Search by exact loan number"
               />
@@ -111,14 +111,14 @@ export function LoanFilters({
                 onChange={setSearch}
                 ariaLabel={`Search by ${field === 'father_name' ? "father's name" : field}`}
                 placeholder={`Search by ${field === 'father_name' ? "father's name" : field}…`}
-                inputClassName="h-9 pl-9 pr-9 text-sm"
+                inputClassName="h-10 pl-9 pr-9 text-sm"
                 showCompletionHint={false}
               />
             )}
           </div>
         </form>
 
-        <div className="flex overflow-hidden rounded-xl border border-surface-border bg-white">
+        <div className="flex min-h-10 overflow-hidden rounded-lg border border-surface-border bg-white">
           {[
             { value: 'active', label: 'Active' },
             { value: 'closed', label: 'Closed' },
@@ -136,7 +136,7 @@ export function LoanFilters({
           ))}
         </div>
 
-        <div className="flex overflow-hidden rounded-xl border border-surface-border bg-white">
+        <div className="flex min-h-10 overflow-hidden rounded-lg border border-surface-border bg-white">
           {[
             { value: '', label: 'All' },
             { value: 'Gold', label: 'Gold' },
@@ -160,7 +160,7 @@ export function LoanFilters({
         <summary className="w-fit cursor-pointer text-xs font-medium text-primary-700">
           {hasAdvanced ? 'Advanced filters applied' : 'More filters'}
         </summary>
-        <form onSubmit={apply} className="mt-3 grid items-end gap-3 rounded-2xl border border-surface-border bg-white p-3 sm:grid-cols-2 lg:grid-cols-5">
+        <form onSubmit={apply} className="mt-3 grid items-end gap-3 border-t border-surface-border pt-3 sm:grid-cols-2 lg:grid-cols-5">
           <label className="text-xs text-slate-600">Issue date from
             <input type="date" className="input mt-1 h-9 px-3" value={from} max={to || undefined} onChange={e => setFrom(e.target.value)} />
           </label>

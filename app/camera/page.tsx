@@ -16,20 +16,26 @@ function CameraPageInner() {
   const [status,   setStatus]   = useState<'loading' | 'ready' | 'capturing' | 'uploading' | 'done' | 'error'>('loading')
   const [error,    setError]    = useState<string | null>(null)
   const [preview,  setPreview]  = useState<string | null>(null)
+  const [retryMode, setRetryMode] = useState<'validate' | 'camera' | null>(null)
   const videoRef   = useRef<HTMLVideoElement>(null)
   const streamRef  = useRef<MediaStream | null>(null)
 
   useEffect(() => {
-    if (!key) { setError('Invalid link. Scan the QR code again.'); setStatus('error'); return }
+    if (!key) { setError('Invalid link. Scan the QR code again.'); setRetryMode(null); setStatus('error'); return }
     // Validate session
     fetch(`/api/camera?key=${key}`)
-      .then(r => r.json())
+      .then(async r => {
+        if (!r.ok) throw new Error('The capture link could not be checked.')
+        return r.json()
+      })
       .then(d => {
-        if (d.status === 'expired') { setError('This QR code has expired. Please generate a new one.'); setStatus('error') }
+        if (d.status === 'expired') { setError('This QR code has expired. Please generate a new one.'); setRetryMode(null); setStatus('error') }
         else if (d.status === 'captured') { setStatus('done') }
         else startCamera()
       })
-      .catch(() => { setError('Could not connect. Check your internet connection.'); setStatus('error') })
+      .catch(() => { setError('Could not connect. Check your internet connection.'); setRetryMode('validate'); setStatus('error') })
+
+    return () => streamRef.current?.getTracks().forEach(track => track.stop())
   }, [key])
 
   const startCamera = async () => {
@@ -42,6 +48,7 @@ function CameraPageInner() {
       setStatus('ready')
     } catch {
       setError('Could not open camera. Please allow camera access and try again.')
+      setRetryMode('camera')
       setStatus('error')
     }
   }
@@ -59,7 +66,12 @@ function CameraPageInner() {
     streamRef.current?.getTracks().forEach(t => t.stop())
 
     canvas.toBlob(async (blob) => {
-      if (!blob) { setError('Failed to capture photo. Try again.'); setStatus('ready'); return }
+      if (!blob) {
+        setError('The photo could not be captured. Please open the camera and try again.')
+        setRetryMode('camera')
+        setStatus('error')
+        return
+      }
       setPreview(URL.createObjectURL(blob))
       setStatus('uploading')
 
@@ -75,6 +87,7 @@ function CameraPageInner() {
         setStatus('done')
       } catch (err: any) {
         setError(err.message || 'Upload failed. Please try again.')
+        setRetryMode('camera')
         setStatus('error')
       }
     }, 'image/jpeg', 0.85)
@@ -83,6 +96,10 @@ function CameraPageInner() {
   const retry = () => {
     setError(null)
     setPreview(null)
+    if (retryMode === 'validate') {
+      location.reload()
+      return
+    }
     startCamera()
   }
 
@@ -146,9 +163,9 @@ function CameraPageInner() {
           )}
           <div className="flex items-center justify-center gap-2 text-emerald-400">
             <CheckCircle2 className="h-6 w-6" />
-            <span className="font-semibold">Photo sent!</span>
+            <span className="font-semibold">Photo sent</span>
           </div>
-          <p className="text-slate-400 text-sm">You can close this page. The photo has been sent to the desktop.</p>
+          <p className="text-slate-400 text-sm">You can close this page. The photo has been sent to the LoanPro workspace.</p>
         </div>
       )}
 
@@ -156,7 +173,7 @@ function CameraPageInner() {
         <div className="text-center space-y-4 max-w-xs">
           <AlertCircle className="h-10 w-10 text-red-400 mx-auto" />
           <p className="text-slate-300 text-sm">{error}</p>
-          {error?.includes('expired') ? null : (
+          {retryMode && (
             <button
               onClick={retry}
               className="flex items-center gap-2 text-sm text-primary-400 hover:text-primary-300 mx-auto"

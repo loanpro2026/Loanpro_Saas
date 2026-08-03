@@ -16,8 +16,9 @@ export default async function DeviceAccessPage({
   const revoked = reason === 'revoked'
 
   return (
-    <main className="min-h-screen bg-surface-muted px-4 py-12">
-      <div className="mx-auto max-w-2xl rounded-2xl border border-surface-border bg-white p-6 shadow-sm">
+    <main className="min-h-dvh bg-surface px-4 py-8 sm:py-12">
+      <div className="mx-auto max-w-2xl rounded-xl border border-surface-border bg-white p-5 shadow-card sm:p-6">
+        <div className="mb-5 grid h-9 w-9 place-items-center rounded-lg bg-slate-900 text-sm font-bold text-white dark:bg-white dark:text-slate-950">LP</div>
         <h1 className="text-xl font-semibold text-slate-900">
           {revoked ? 'This device was signed out' : 'Choose a device to sign out'}
         </h1>

@@ -25,27 +25,31 @@ export default async function SetupPage() {
   if (!user) redirect('/login')
 
   // Already provisioned — nothing to do here.
-  const { data: existing } = await supabase
+  const { data: existing, error: lookupError } = await supabase
     .from('users').select('id').eq('auth_id', user.id).maybeSingle()
+  if (lookupError) throw new Error(`Workspace status could not be checked: ${lookupError.message}`)
   if (existing) redirect('/dashboard')
 
   const meta = user.user_metadata ?? {}
 
   return (
-    <div className="mx-auto max-w-md py-10">
-      <div className="mb-6">
-        <h1 className="text-xl font-bold text-slate-900">One more step</h1>
-        <p className="mt-1.5 text-sm text-slate-500">
-          Your account is confirmed. Tell us your shop name and we will finish
-          setting things up.
-        </p>
-      </div>
+    <div className="flex min-h-dvh items-center justify-center bg-surface p-4">
+      <div className="card w-full max-w-md space-y-5">
+        <div>
+          <div className="mb-4 grid h-9 w-9 place-items-center rounded-lg bg-slate-900 text-sm font-bold text-white dark:bg-white dark:text-slate-950">LP</div>
+          <h1 className="text-xl font-bold text-slate-900">One more step</h1>
+          <p className="mt-1.5 text-sm text-slate-500">
+            Your account is confirmed. Tell us your shop name and we will finish
+            setting things up.
+          </p>
+        </div>
 
-      <SetupForm
-        defaultShopName={String(meta.shop_name ?? '')}
-        defaultFullName={String(meta.full_name ?? '')}
-        email={user.email ?? ''}
-      />
+        <SetupForm
+          defaultShopName={String(meta.shop_name ?? '')}
+          defaultFullName={String(meta.full_name ?? '')}
+          email={user.email ?? ''}
+        />
+      </div>
     </div>
   )
 }

@@ -1,4 +1,5 @@
 import { JoinForm } from '@/components/settings/JoinForm'
+import Link from 'next/link'
 
 /**
  * Accepting a staff invitation.
@@ -17,8 +18,12 @@ export default async function JoinPage({
   const { token } = await searchParams
 
   return (
-    <div className="min-h-dvh flex items-center justify-center bg-surface p-4">
-      <div className="w-full max-w-md">
+    <div className="flex min-h-dvh items-center justify-center bg-surface p-4">
+      <div className="w-full max-w-md space-y-5">
+        <Link href="/" className="mx-auto flex w-fit items-center gap-2.5">
+          <span className="grid h-9 w-9 place-items-center rounded-lg bg-slate-900 text-sm font-bold text-white dark:bg-white dark:text-slate-950">LP</span>
+          <span className="text-lg font-bold text-slate-900">LoanPro</span>
+        </Link>
         <JoinForm token={token ?? ''} />
       </div>
     </div>

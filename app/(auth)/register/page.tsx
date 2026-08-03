@@ -19,6 +19,11 @@ const schema = z.object({
 })
 type FormData = z.infer<typeof schema>
 
+function destination() {
+  const requested = new URLSearchParams(window.location.search).get('next')
+  return requested?.startsWith('/') && !requested.startsWith('//') ? requested : '/dashboard'
+}
+
 export default function RegisterPage() {
   const router = useRouter()
   const [showPass, setShowPass] = useState(false)
@@ -39,7 +44,7 @@ export default function RegisterPage() {
         password: data.password,
         options: {
           data: { full_name: data.full_name, shop_name: data.shop_name },
-          emailRedirectTo: `${window.location.origin}/api/auth/callback?next=/dashboard`,
+          emailRedirectTo: `${window.location.origin}/api/auth/callback?next=${encodeURIComponent(destination())}`,
         },
       })
       if (authError) throw authError
@@ -69,7 +74,7 @@ export default function RegisterPage() {
       }
 
       toast.success('Account created! Welcome to LoanPro.')
-      router.push('/dashboard')
+      router.push(destination())
       router.refresh()
     } catch (err: any) {
       toast.error(err?.message || 'Registration failed. Please try again.')

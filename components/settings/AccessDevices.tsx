@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { Laptop, Pencil, RefreshCw, ShieldCheck, Smartphone, X } from 'lucide-react'
+import { AlertTriangle, Laptop, Pencil, RefreshCw, ShieldCheck, Smartphone, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/Button'
@@ -25,17 +25,27 @@ function seenAt(value: string) {
 export function AccessDevices({ recovery = false }: { recovery?: boolean }) {
   const [devices, setDevices] = useState<AccessDevice[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
   const [editing, setEditing] = useState<string | null>(null)
   const [name, setName] = useState('')
 
   const load = useCallback(async () => {
     setLoading(true)
-    const res = await fetch('/api/access-devices', { cache: 'no-store' })
-    const body = await res.json().catch(() => ({}))
-    if (!res.ok) toast.error(`Signed-in devices could not be loaded. ${body.error ?? 'Your current session remains active.'}`)
-    else setDevices(body.devices ?? [])
-    setLoading(false)
+    setError(null)
+    try {
+      const res = await fetch('/api/access-devices', { cache: 'no-store' })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setError(body.error ?? 'Your current session remains active.')
+        return
+      }
+      setDevices(body.devices ?? [])
+    } catch {
+      setError('Check the connection and try again. Your current session remains active.')
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
   useEffect(() => { void load() }, [load])
@@ -113,20 +123,38 @@ export function AccessDevices({ recovery = false }: { recovery?: boolean }) {
         </button>
       </div>
 
+      {error && (
+        <div className="flex flex-col gap-3 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700 sm:flex-row sm:items-center" role="alert">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          <p className="min-w-0 flex-1">Signed-in devices could not be loaded. {error}</p>
+          <Button variant="secondary" size="sm" onClick={() => void load()}>Try again</Button>
+        </div>
+      )}
+
       {loading && devices.length === 0 ? (
-        <p className="text-sm text-slate-500">Loading devices…</p>
-      ) : active.length === 0 ? (
+        <div className="space-y-3" role="status" aria-label="Loading signed-in devices">
+          {Array.from({ length: 3 }, (_, index) => (
+            <div key={index} className="flex items-center gap-3 py-2">
+              <div className="skeleton h-8 w-8 rounded-full" />
+              <div className="min-w-0 flex-1 space-y-2">
+                <div className="skeleton h-3.5 w-36" />
+                <div className="skeleton h-3 w-52 max-w-full" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : error && devices.length === 0 ? null : active.length === 0 ? (
         <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">No active device was found.</p>
       ) : (
         <ul className="divide-y divide-surface-border">
           {active.map(device => {
             const mobile = /Mobile|Android|iPhone|iPad/i.test(device.user_agent)
             return (
-              <li key={device.id} className="flex items-center gap-3 py-3">
+              <li key={device.id} className="flex flex-wrap items-center gap-3 py-3 sm:flex-nowrap">
                 {mobile ? <Smartphone className="h-5 w-5 text-slate-400" /> : <Laptop className="h-5 w-5 text-slate-400" />}
                 <div className="min-w-0 flex-1">
                   {editing === device.id ? (
-                    <div className="flex max-w-sm gap-2">
+                    <div className="flex max-w-sm flex-wrap gap-2 sm:flex-nowrap">
                       <input className="input py-1.5" value={name} onChange={event => setName(event.target.value)} maxLength={80} autoFocus />
                       <Button size="sm" loading={busy === device.id} onClick={() => void rename(device.id)}>Save</Button>
                       <Button size="icon" variant="ghost" onClick={() => setEditing(null)} aria-label="Cancel"><X className="h-4 w-4" /></Button>
@@ -140,10 +168,10 @@ export function AccessDevices({ recovery = false }: { recovery?: boolean }) {
                   <p className="mt-0.5 text-xs text-slate-500">Last used {seenAt(device.last_seen_at)}</p>
                 </div>
                 {editing !== device.id && (
-                  <>
+                  <div className="ml-8 flex items-center gap-1 sm:ml-0">
                     <button className="btn-icon" onClick={() => { setEditing(device.id); setName(device.display_name) }} aria-label={`Rename ${device.display_name}`}><Pencil className="h-4 w-4" /></button>
                     <Button size="sm" variant="ghost" loading={busy === device.id} onClick={() => void revoke(device)}>Sign out</Button>
-                  </>
+                  </div>
                 )}
               </li>
             )

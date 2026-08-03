@@ -17,6 +17,11 @@ const schema = z.object({
 })
 type FormData = z.infer<typeof schema>
 
+function destination() {
+  const requested = new URLSearchParams(window.location.search).get('next')
+  return requested?.startsWith('/') && !requested.startsWith('//') ? requested : '/dashboard'
+}
+
 export default function LoginPage() {
   const router = useRouter()
   const [showPass, setShowPass] = useState(false)
@@ -38,7 +43,7 @@ export default function LoginPage() {
         password: data.password,
       })
       if (error) throw error
-      router.push('/dashboard')
+      router.push(destination())
       router.refresh()
     } catch (err: any) {
       // Supabase answers both "wrong password" and "never confirmed your
@@ -68,7 +73,7 @@ export default function LoginPage() {
     const { error } = await supabase.auth.resend({
       type: 'signup',
       email: unconfirmed,
-      options: { emailRedirectTo: `${window.location.origin}/api/auth/callback?next=/dashboard` },
+      options: { emailRedirectTo: `${window.location.origin}/api/auth/callback?next=${encodeURIComponent(destination())}` },
     })
     toast[error ? 'error' : 'success'](
       error ? error.message : 'Sent. It can take a minute to arrive.'

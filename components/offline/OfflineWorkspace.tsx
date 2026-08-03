@@ -10,7 +10,7 @@
  * Everything here reads from IndexedDB. No network, no Supabase session.
  */
 import { useState, useEffect, useCallback } from 'react'
-import { CloudOff, Search, RefreshCw, Clock, Wallet } from 'lucide-react'
+import { AlertTriangle, CloudOff, Search, RefreshCw, Clock, Wallet } from 'lucide-react'
 import {
   searchCachedLoans, getCachedLoans, getQueue, getMeta,
   type CachedLoan, type QueuedWrite,
@@ -24,6 +24,8 @@ export function OfflineWorkspace() {
   const [snapshotAt, setSnapshotAt] = useState<number | null>(null)
   const [cashBalance, setCashBalance] = useState<number | null>(null)
   const [online, setOnline] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [cacheError, setCacheError] = useState<string | null>(null)
 
   useEffect(() => {
     setOnline(navigator.onLine)
@@ -33,10 +35,16 @@ export function OfflineWorkspace() {
     window.addEventListener('offline', off)
 
     void (async () => {
-      setTotal((await getCachedLoans()).length)
-      setQueued((await getQueue()).filter(w => !w.syncedAt))
-      setSnapshotAt(await getMeta<number>('snapshot_at'))
-      setCashBalance(await getMeta<number>('cash_balance'))
+      try {
+        setTotal((await getCachedLoans()).length)
+        setQueued((await getQueue()).filter(w => !w.syncedAt))
+        setSnapshotAt(await getMeta<number>('snapshot_at'))
+        setCashBalance(await getMeta<number>('cash_balance'))
+      } catch {
+        setCacheError('Saved records could not be opened on this device.')
+      } finally {
+        setLoading(false)
+      }
     })()
 
     return () => {
@@ -46,7 +54,12 @@ export function OfflineWorkspace() {
   }, [])
 
   const run = useCallback(async (q: string) => {
-    setHits(q.trim().length >= 1 ? await searchCachedLoans(q, 25) : [])
+    try {
+      setHits(q.trim().length >= 1 ? await searchCachedLoans(q, 25) : [])
+    } catch {
+      setCacheError('Saved records could not be searched on this device.')
+      setHits([])
+    }
   }, [])
 
   useEffect(() => {
@@ -87,9 +100,17 @@ export function OfflineWorkspace() {
           )}
         </header>
 
+        {cacheError && (
+          <div className="flex flex-col gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 sm:flex-row sm:items-center" role="alert">
+            <AlertTriangle className="h-4 w-4 shrink-0" />
+            <p className="min-w-0 flex-1">{cacheError}</p>
+            <button onClick={() => location.reload()} className="btn-secondary px-3 py-1.5 text-xs">Try again</button>
+          </div>
+        )}
+
         {/* Anything waiting to sync — reassurance that nothing was lost. */}
         {queued.length > 0 && (
-          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
             <div className="flex items-center gap-2 text-amber-900">
               <Clock className="h-4 w-4" />
               <p className="text-sm font-medium">
@@ -104,7 +125,7 @@ export function OfflineWorkspace() {
         )}
 
         {cashBalance !== null && (
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 flex items-center gap-3">
+          <div className="flex items-center gap-3 rounded-xl border border-surface-border bg-white p-4">
             <Wallet className="h-4 w-4 text-slate-400" />
             <div>
               <p className="text-xs text-slate-500">Cash in hand, when last synced</p>
@@ -114,7 +135,7 @@ export function OfflineWorkspace() {
         )}
 
         {/* Search */}
-        <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
+        <div className="overflow-hidden rounded-xl border border-surface-border bg-white">
           <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-100">
             <Search className="h-4 w-4 text-slate-400 shrink-0" />
             <input
@@ -122,11 +143,15 @@ export function OfflineWorkspace() {
               onChange={e => setQuery(e.target.value)}
               autoFocus
               placeholder="Loan number, name, father's name or place…"
-              className="flex-1 text-sm outline-none placeholder:text-slate-400"
+              className="min-w-0 flex-1 bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400"
             />
           </div>
 
-          {query.trim() === '' ? (
+          {loading ? (
+            <div className="space-y-3 px-4 py-5" role="status" aria-label="Loading saved records">
+              {Array.from({ length: 4 }, (_, index) => <div key={index} className="skeleton h-10" />)}
+            </div>
+          ) : cacheError && total === 0 ? null : query.trim() === '' ? (
             <p className="px-4 py-8 text-center text-sm text-slate-400">
               {total > 0
                 ? `${total} active loans saved on this device`
@@ -164,7 +189,11 @@ export function OfflineWorkspace() {
                     Issued {new Date(l.issue_date).toLocaleDateString('en-IN', {
                       day: '2-digit', month: 'short', year: 'numeric',
                     })}
-                    {l.weight ? ` · ${l.weight}g` : ''}
+                    {l.weight
+                      ? ` · ${l.category_type === 'Silver'
+                        ? `${(l.weight / 1000).toLocaleString('en-IN', { maximumFractionDigits: 3 })} kg`
+                        : `${l.weight.toLocaleString('en-IN')} g`}`
+                      : ''}
                   </p>
                 </li>
               ))}

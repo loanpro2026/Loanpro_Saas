@@ -8,6 +8,7 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
+import { userFacingError } from '@/lib/user-message'
 import { Send, LifeBuoy } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { replyToTicket } from '@/app/(app)/help/actions'
@@ -36,7 +37,10 @@ export function TicketThread({
     if (!body.trim()) return
     const res = await replyToTicket(ticketId, body)
     if (res.ok) { toast.success('Your reply was added to this support conversation.'); setBody(''); router.refresh() }
-    else toast.error(`Your support reply was not sent. ${res.error ?? 'The text remains available to retry.'}`)
+    else toast.error(userFacingError(
+      res.error,
+      'Your support reply was not sent. The text remains in the form so you can retry.',
+    ))
   })
 
   const when = (iso: string) =>

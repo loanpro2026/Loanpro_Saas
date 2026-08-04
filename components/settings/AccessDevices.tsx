@@ -5,6 +5,7 @@ import { AlertTriangle, Laptop, Pencil, RefreshCw, ShieldCheck, Smartphone, X } 
 import toast from 'react-hot-toast'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/Button'
+import { userFacingError } from '@/lib/user-message'
 
 interface AccessDevice {
   id: string
@@ -59,7 +60,13 @@ export function AccessDevices({ recovery = false }: { recovery?: boolean }) {
     })
     const result = await res.json().catch(() => ({}))
     setBusy(null)
-    if (!res.ok) { toast.error(`Device access was not changed. ${result.error ?? 'Existing sessions remain active.'}`); return null }
+    if (!res.ok) {
+      toast.error(userFacingError(
+        result.error,
+        'Device access could not be changed. Existing signed-in devices remain active.',
+      ))
+      return null
+    }
     return result
   }
 

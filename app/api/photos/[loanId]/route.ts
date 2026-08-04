@@ -10,6 +10,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getSessionContext } from '@/lib/tenant'
 import { presignDownload, deleteObject, keyBelongsToTenant, type PhotoStage } from '@/lib/r2'
+import { currentPhotoCaptureEnabled } from '@/lib/photo-policy'
 
 /**
  * Which photo the caller means.
@@ -32,6 +33,7 @@ export async function GET(
 ) {
   const ctx = await getSessionContext()
   if (!ctx) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!(await currentPhotoCaptureEnabled())) return NextResponse.json({ error: 'Photo capture is disabled in Settings' }, { status: 403 })
 
   const { loanId } = await params
   const id = Number(loanId)
@@ -76,6 +78,7 @@ export async function DELETE(
 ) {
   const ctx = await getSessionContext()
   if (!ctx) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!(await currentPhotoCaptureEnabled())) return NextResponse.json({ error: 'Photo capture is disabled in Settings' }, { status: 403 })
 
   const { loanId } = await params
   const id = Number(loanId)

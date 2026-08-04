@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { Eye, EyeOff } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { userFacingError } from '@/lib/user-message'
 
 const schema = z.object({
   full_name:  z.string().min(2, 'Enter your full name'),
@@ -77,7 +78,10 @@ export default function RegisterPage() {
       router.push(destination())
       router.refresh()
     } catch (err: any) {
-      toast.error(err?.message || 'Registration failed. Please try again.')
+      toast.error(userFacingError(
+        err,
+        'Your account could not be created. Check the form and try again; no account was added.',
+      ))
     } finally {
       setLoading(false)
     }

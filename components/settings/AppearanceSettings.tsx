@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react'
 import { Moon, Palette, Sun } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { userFacingError } from '@/lib/user-message'
 import { useRouter } from 'next/navigation'
 import { saveSetting } from '@/app/(app)/settings/actions'
 import { applyTheme } from '@/components/settings/ThemeBridge'
@@ -23,7 +24,10 @@ export function AppearanceSettings({ initialTheme }: { initialTheme: ShopSetting
       if (!result.ok) {
         setTheme(previous)
         applyTheme(previous)
-        toast.error(`${next === 'dark' ? 'Dark' : 'Light'} mode was not saved. ${result.error ?? 'The previous theme has been restored.'}`)
+        toast.error(userFacingError(
+          result.error,
+          `${next === 'dark' ? 'Dark' : 'Light'} mode could not be saved. The previous theme has been restored.`,
+        ))
         return
       }
       toast.success(`${next === 'dark' ? 'Dark' : 'Light'} mode is now active on this shop account.`)

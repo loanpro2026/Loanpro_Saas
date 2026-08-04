@@ -14,13 +14,13 @@ import type { Json } from '@/types/supabase'
 export interface ShopSettings {
   // Display
   theme: 'light' | 'dark'
-  date_display_format: 'dd/mm/yyyy' | 'mm/dd/yyyy' | 'yyyy-mm-dd'
+  date_display_format: 'dd/mm/yyyy' | 'mm/dd/yyyy' | 'yyyy/mm/dd' | 'yyyy-mm-dd'
   language: string
 
   /** Annual percentage, applied shop-wide. NOT stored per loan. */
   interest_percentage: number
   interest_calculation_type: 'simple' | 'compound'
-  interest_calculation_period: 'yearly' | 'half-yearly' | 'quarterly'
+  interest_calculation_period: 'monthly' | 'quarterly' | 'half-yearly' | 'yearly'
 
   // Identity verification
   identity_verification_enabled: boolean
@@ -38,7 +38,7 @@ export interface ShopSettings {
    * "verification on" plus "mobile capture off" described a shop that requires
    * a photo it has no way to take.
    */
-  photo_capture_mode: 'automatic' | 'off'
+  photo_capture_mode: 'local' | 'mobile'
 
   // Optional fields on the add-record form. Both OFF by default, as on the
   // desktop — most shops do not collect an address for a pawn loan.
@@ -48,6 +48,7 @@ export interface ShopSettings {
   // Misc
   dashboard_division_factor: number
   lock_after_minutes: number
+  lock_on_startup: boolean
   default_category: 'Gold' | 'Silver'
 }
 
@@ -66,13 +67,14 @@ export const DEFAULT_SETTINGS: ShopSettings = {
   identity_mandatory_at_closure: true,
   identity_allow_multiple_mobile_devices: false,
 
-  photo_capture_mode: 'automatic',
+  photo_capture_mode: 'local',
 
   add_record_address_field_enabled: false,
   add_record_additional_information_field_enabled: false,
 
   dashboard_division_factor: 1,
   lock_after_minutes: 0,
+  lock_on_startup: false,
   // Silver, matching the desktop's hardcoded form default. See migration 021.
   default_category: 'Silver',
 }
@@ -98,8 +100,13 @@ export function withDefaults(
   const merged = { ...DEFAULT_SETTINGS, ...asObject(raw as Json) } as Record<string, unknown>
   // Smooth rolling deployment: application code may reach a project just
   // before migration 025 converts the legacy values.
-  if (merged.photo_capture_mode === 'webcam' || merged.photo_capture_mode === 'phone') {
-    merged.photo_capture_mode = 'automatic'
+  if (merged.photo_capture_mode === 'webcam') merged.photo_capture_mode = 'local'
+  if (merged.photo_capture_mode === 'phone' || merged.photo_capture_mode === 'automatic') {
+    merged.photo_capture_mode = 'mobile'
+  }
+  if (merged.photo_capture_mode === 'off') {
+    merged.identity_verification_enabled = false
+    merged.photo_capture_mode = 'local'
   }
   return merged as unknown as ShopSettings
 }
@@ -120,7 +127,7 @@ export function photoRequiredAtClosure(s: ShopSettings): boolean {
 }
 
 export function photoCaptureEnabled(s: ShopSettings): boolean {
-  return s.identity_verification_enabled && s.photo_capture_mode !== 'off'
+  return s.identity_verification_enabled
 }
 
 /**
@@ -142,6 +149,7 @@ export function formatDateSetting(
 
   switch (format) {
     case 'mm/dd/yyyy': return `${mm}/${dd}/${yyyy}`
+    case 'yyyy/mm/dd': return `${yyyy}/${mm}/${dd}`
     case 'yyyy-mm-dd': return `${yyyy}-${mm}-${dd}`
     default:           return `${dd}/${mm}/${yyyy}`
   }

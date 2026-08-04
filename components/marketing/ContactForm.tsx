@@ -9,6 +9,7 @@
  */
 import { useState, useTransition } from 'react'
 import toast from 'react-hot-toast'
+import { userFacingError } from '@/lib/user-message'
 import { Send, CheckCircle2 } from 'lucide-react'
 import { submitEnquiry } from '@/app/(marketing)/support/actions'
 import type { Tables } from '@/types/supabase'
@@ -54,7 +55,10 @@ export function ContactForm() {
       if (res.ok) {
         toast.success(`Your ${form.reason} enquiry was received. We will reply using the contact detail you provided.`)
         setSent(true)
-      } else toast.error(`Your enquiry was not sent. ${res.error ?? 'The form remains available to retry.'}`)
+      } else toast.error(userFacingError(
+        res.error,
+        'Your enquiry was not sent. Your message remains in the form so you can retry.',
+      ))
     })
   }
 

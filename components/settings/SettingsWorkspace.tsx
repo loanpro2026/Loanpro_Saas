@@ -29,6 +29,7 @@ import { Badge } from '@/components/ui/Badge'
 import {
   updateShopName, updateMyName, inviteStaff, revokeStaff, saveSetting,
 } from '@/app/(app)/settings/actions'
+import { userFacingError } from '@/lib/user-message'
 
 interface Member {
   id: string
@@ -68,16 +69,26 @@ export function SettingsWorkspace({ me, shopName, plan, members, settings, staff
   const trialDays = plan.trial_days_left as number | null
   const staffLimit = Number(plan.staff_limit ?? 2)
 
-  const save = (fn: () => Promise<{ ok: boolean; error?: string }>, msg: string) =>
+  const save = (
+    fn: () => Promise<{ ok: boolean; error?: string }>,
+    successMessage: string,
+    failureMessage = 'The change could not be saved. The previous setting is still active.',
+  ) =>
     startTransition(async () => {
       const res = await fn()
-      if (res.ok) { toast.success(msg); router.refresh() }
-      else toast.error(`${msg} failed. ${res.error ?? 'The previous setting is still active.'}`)
+      if (res.ok) { toast.success(successMessage); router.refresh() }
+      else toast.error(userFacingError(res.error, failureMessage))
     })
 
   const onInvite = () => startTransition(async () => {
     const res = await inviteStaff(inviteEmail, inviteRole)
-    if (!res.ok) { toast.error(`Invitation for ${inviteEmail} was not created. ${res.error ?? 'No access was granted.'}`); return }
+    if (!res.ok) {
+      toast.error(userFacingError(
+        res.error,
+        `The invitation for ${inviteEmail} could not be created. No access was granted.`,
+      ))
+      return
+    }
 
     const url = `${window.location.origin}/join?token=${res.data!.token}`
     setInviteLink(url)
@@ -177,7 +188,11 @@ export function SettingsWorkspace({ me, shopName, plan, members, settings, staff
           {isOwner && (
             <Button
               size="sm" loading={pending} disabled={shop.trim() === shopName}
-              onClick={() => save(() => updateShopName(shop), 'Shop name updated')}
+              onClick={() => save(
+                () => updateShopName(shop),
+                `Shop name changed to “${shop.trim()}”.`,
+                'The shop name could not be changed. The previous name is still shown.',
+              )}
             >
               Save
             </Button>
@@ -193,7 +208,11 @@ export function SettingsWorkspace({ me, shopName, plan, members, settings, staff
           />
           <Button
             size="sm" loading={pending} disabled={myName.trim() === me.full_name}
-            onClick={() => save(() => updateMyName(myName), 'Name updated')}
+            onClick={() => save(
+              () => updateMyName(myName),
+              `Your name changed to “${myName.trim()}”.`,
+              'Your name could not be changed. The previous name is still shown.',
+            )}
           >
             Save
           </Button>
@@ -230,7 +249,11 @@ export function SettingsWorkspace({ me, shopName, plan, members, settings, staff
               <Badge variant={m.role === 'owner' ? 'info' : 'silver'}>{m.role}</Badge>
               {isOwner && !m.is_me && (
                 <button
-                  onClick={() => save(() => revokeStaff(m.id), `${m.full_name} removed`)}
+                  onClick={() => save(
+                    () => revokeStaff(m.id),
+                    `${m.full_name} can no longer access this shop.`,
+                    `${m.full_name} could not be removed and still has access.`,
+                  )}
                   disabled={pending}
                   className="btn-icon text-slate-400 hover:text-red-600"
                   aria-label={`Remove ${m.full_name}`}
@@ -256,7 +279,9 @@ export function SettingsWorkspace({ me, shopName, plan, members, settings, staff
           General Settings screen (migration 012). */}
       {tab === 'preferences' && <div className="grid gap-4 xl:grid-cols-2">
         <IdentitySettings settings={settings} />
-        <MobileCaptureSettings isOwner={isOwner} />
+        {settings.identity_verification_enabled && settings.photo_capture_mode === 'mobile' && (
+          <MobileCaptureSettings isOwner={isOwner} />
+        )}
         <AppearanceSettings initialTheme={settings.theme} />
       </div>}
 
@@ -275,7 +300,10 @@ export function SettingsWorkspace({ me, shopName, plan, members, settings, staff
           defaultValue={String(settings.lock_after_minutes ?? '0')}
           onChange={e => save(
             () => saveSetting('lock_after_minutes', Number(e.target.value)),
-            'Saved'
+            Number(e.target.value) > 0
+              ? `The screen will lock after ${e.target.value} minutes of inactivity.`
+              : 'Automatic screen locking is now off.',
+            'The automatic lock time could not be changed.',
           )}
           options={[
             { value: '0',  label: 'Never' },
@@ -284,6 +312,33 @@ export function SettingsWorkspace({ me, shopName, plan, members, settings, staff
             { value: '30', label: '30 minutes of inactivity' },
           ]}
         />
+
+        <label className="flex items-start gap-3 cursor-pointer">
+          <button
+            type="button"
+            role="switch"
+            aria-checked={settings.lock_on_startup}
+            onClick={() => save(
+              () => saveSetting('lock_on_startup', !settings.lock_on_startup),
+              settings.lock_on_startup
+                ? 'The app will no longer lock when a new session starts.'
+                : 'The app will lock when a new session starts on devices with a PIN.',
+              'The startup lock setting could not be changed.',
+            )}
+            className={`relative mt-0.5 h-5 w-9 shrink-0 rounded-full transition-colors ${
+              settings.lock_on_startup ? 'bg-primary-600' : 'bg-slate-300'
+            }`}
+          >
+            <span
+              className="absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform"
+              style={{ transform: `translateX(${settings.lock_on_startup ? 18 : 2}px)` }}
+            />
+          </button>
+          <span>
+            <span className="block text-sm text-slate-900">Lock when the app starts</span>
+            <span className="block text-xs text-slate-500 mt-0.5">Requires a PIN on this device. The lock appears when a new app session opens.</span>
+          </span>
+        </label>
 
         <div className="pt-3 border-t border-surface-border space-y-3">
           <PinSettings timeoutMinutes={Number(settings.lock_after_minutes ?? 0)} />

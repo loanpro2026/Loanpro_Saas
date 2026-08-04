@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 import { TicketThread } from '@/components/help/TicketThread'
 import { Badge } from '@/components/ui/Badge'
-import { formatDate } from '@/lib/utils'
+import { formatDateSetting, withDefaults } from '@/lib/settings'
 
 export const dynamic = 'force-dynamic'
 
@@ -21,7 +21,10 @@ export default async function TicketPage({
   if (!user) redirect('/login')
 
   // RLS scopes this — another shop's ticket simply comes back empty.
-  const { data, error } = await supabase.rpc('ticket_detail', { p_ticket_id: id })
+  const [{ data, error }, settingsResult] = await Promise.all([
+    supabase.rpc('ticket_detail', { p_ticket_id: id }),
+    supabase.rpc('my_settings'),
+  ])
 
   if (error) throw new Error(`This support conversation could not be loaded: ${error.message}`)
 
@@ -31,6 +34,8 @@ export default async function TicketPage({
 
   const t = detail.ticket
   const closed = t.status === 'resolved' || t.status === 'closed'
+  const settings = withDefaults(settingsResult.data)
+  const formatDate = (date: string | Date) => formatDateSetting(date, settings.date_display_format)
 
   return (
     <div className="max-w-3xl space-y-4">

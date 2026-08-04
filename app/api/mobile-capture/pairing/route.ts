@@ -8,6 +8,7 @@ import {
   listCloudCaptureDevices,
   MobileCaptureError,
 } from '@/lib/mobile-capture'
+import { currentPhotoSettings } from '@/lib/photo-policy'
 
 function failure(error: unknown) {
   const status = error instanceof MobileCaptureError ? error.status : 500
@@ -19,6 +20,10 @@ export async function POST(req: Request) {
   const ctx = await getSessionContext()
   if (!ctx) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   if (ctx.role !== 'owner') return NextResponse.json({ error: 'Owner access required' }, { status: 403 })
+  const settings = await currentPhotoSettings()
+  if (!settings.identity_verification_enabled || settings.photo_capture_mode !== 'mobile') {
+    return NextResponse.json({ error: 'Mobile photo capture is not enabled in Settings' }, { status: 403 })
+  }
 
   const limited = await rateLimit(req, {
     scope: 'mobile-capture.pair', limit: 10, windowSeconds: 600,

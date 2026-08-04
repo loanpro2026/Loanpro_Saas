@@ -9,6 +9,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Loader2, Download, FileText, Printer } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { userFacingError } from '@/lib/user-message'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/Button'
 import { Select } from '@/components/ui/Select'
@@ -17,7 +18,8 @@ import {
   REPORTS, REPORT_COLUMNS, LANDSCAPE_REPORTS, toCsv, downloadCsv, type ReportKey,
 } from '@/lib/reports'
 import { generateReportPdf, printPdf } from '@/lib/pdf'
-import { cn, todayIST, daysAgoIST, formatCurrency, formatDate } from '@/lib/utils'
+import { cn, todayIST, daysAgoIST, formatCurrency } from '@/lib/utils'
+import { useAppDate } from '@/components/settings/SettingsProvider'
 
 import { DailyReport } from './DailyReport'
 import { LoanTableReport } from './LoanTableReport'
@@ -44,6 +46,7 @@ export function ReportsWorkspace({
   initialAccountType?: AccountType
   lockToInitial?: boolean
 }) {
+  const formatDate = useAppDate()
   const [key, setKey] = useState<ReportKey>(initialKey)
   const [printing, setPrinting] = useState(false)
   const [date, setDate] = useState(todayIST())
@@ -157,11 +160,11 @@ export function ReportsWorkspace({
       })
       printPdf(blob)
       toast.success(`${meta.title} PDF is ready in the print window.`, { id: notice })
-    } catch (e: any) {
-      toast.error(
-        `The ${meta.title} PDF could not be generated. ${e?.message ?? 'Please retry the same period.'}`,
-        { id: notice }
-      )
+    } catch (e: unknown) {
+      toast.error(userFacingError(
+        e,
+        `The ${meta.title} PDF could not be prepared. Keep the same period selected and try again.`,
+      ), { id: notice })
     } finally {
       setPrinting(false)
     }

@@ -10,6 +10,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
+import { userFacingError } from '@/lib/user-message'
 import {
   Loader2, Archive, ArrowDownCircle, CheckCheck, CircleAlert, Printer, Wallet,
 } from 'lucide-react'
@@ -17,7 +18,8 @@ import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Modal } from '@/components/ui/Modal'
-import { formatCurrency, formatDate, todayIST } from '@/lib/utils'
+import { formatCurrency, todayIST } from '@/lib/utils'
+import { useAppDate } from '@/components/settings/SettingsProvider'
 import { generateReportPdf, printPdf } from '@/lib/pdf'
 
 interface Removed {
@@ -33,6 +35,7 @@ interface DailyDeposit {
 }
 
 export function DayEndWorkspace({ shopName = 'LoanPro' }: { shopName?: string }) {
+  const formatDate = useAppDate()
   const [date, setDate] = useState(todayIST())
   const [removed, setRemoved] = useState<Removed[]>([])
   const [deposits, setDeposits] = useState<DailyDeposit[]>([])
@@ -69,7 +72,10 @@ export function DayEndWorkspace({ shopName = 'LoanPro' }: { shopName?: string })
     const { data, error } = await supabase.rpc(fn, { p_date: date })
 
     if (error) {
-      toast.error(`The ${which === 'removed' ? 'settlement' : 'part-payment'} checklist was not cleared. ${error.message}`)
+      toast.error(userFacingError(
+        error,
+        `The ${which === 'removed' ? 'settlement' : 'part-payment'} checklist could not be cleared. Its entries are still available.`,
+      ))
       return
     }
     toast.success(`${data ?? 0} ${which === 'removed' ? 'settlement' : 'part-payment'} entr${data === 1 ? 'y' : 'ies'} marked as checked.`)
@@ -118,10 +124,10 @@ export function DayEndWorkspace({ shopName = 'LoanPro' }: { shopName?: string })
       printPdf(blob)
       toast.success(`End-of-day PDF for ${formatDate(date)} is ready in the print window.`, { id: notice })
     } catch (error) {
-      toast.error(
-        `The end-of-day PDF could not be generated. ${error instanceof Error ? error.message : 'Please try again.'}`,
-        { id: notice }
-      )
+      toast.error(userFacingError(
+        error,
+        'The end-of-day PDF could not be prepared. Your records are unchanged; try again.',
+      ), { id: notice })
     } finally {
       setPrinting(false)
     }
@@ -184,6 +190,7 @@ export function DayEndWorkspace({ shopName = 'LoanPro' }: { shopName?: string })
           </div>
 
           {/* Settlements with deposits */}
+          <div id="deposits-adjusted" className="scroll-mt-4">
           <Section
             title="Settled today, with part-payments"
             hint="Loans closed today that had money already paid in. Check the deposit was offset correctly."
@@ -235,11 +242,13 @@ export function DayEndWorkspace({ shopName = 'LoanPro' }: { shopName?: string })
               </div>
             )}
           </Section>
+          </div>
 
           {/* Part-payments */}
+          <div id="deposits-received" className="scroll-mt-4">
           <Section
             title="Part-payments taken today"
-            hint="Every deposit recorded on this date, across all open loans."
+            hint="Every deposit recorded on this date, including loans also settled that day."
             count={deposits.length}
             onClear={deposits.length ? () => setClearing('deposits') : undefined}
           >
@@ -295,6 +304,7 @@ export function DayEndWorkspace({ shopName = 'LoanPro' }: { shopName?: string })
               </div>
             )}
           </Section>
+          </div>
         </>
       )}
 

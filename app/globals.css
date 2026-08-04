@@ -385,8 +385,8 @@
   .completion-input { background: transparent !important; }
 
   .lp-toast {
-    @apply flex w-[min(390px,calc(100vw-24px))] items-start gap-3 overflow-hidden rounded-2xl
-           border border-surface-border bg-surface-card p-3.5 text-ink shadow-modal;
+      @apply flex max-h-[min(50dvh,320px)] w-[min(390px,calc(100vw-24px))] items-start gap-3 overflow-x-hidden overflow-y-auto rounded-2xl
+             border border-surface-border bg-surface-card p-3.5 text-ink shadow-modal;
   }
   .lp-toast-success { @apply border-l-4 border-l-green; }
   .lp-toast-error   { @apply border-l-4 border-l-red; }

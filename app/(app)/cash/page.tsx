@@ -19,7 +19,8 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { CircleAlert, Wallet } from 'lucide-react'
-import { formatCurrency, formatDate, todayIST } from '@/lib/utils'
+import { formatCurrency, todayIST } from '@/lib/utils'
+import { formatDateSetting, withDefaults } from '@/lib/settings'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { PageHeader, StatCard } from '@/components/ui/Page'
 import { CashTxButton } from '@/components/cash/CashTxButton'
@@ -52,7 +53,7 @@ export default async function CashPage() {
   // IST, not UTC — see todayIST() in lib/utils.
   const today = todayIST()
 
-  const [todayResult, transactionsResult, historyResult] = await Promise.all([
+  const [todayResult, transactionsResult, historyResult, settingsResult] = await Promise.all([
     supabase.from('daily_cash_summary')
       .select('*').eq('tenant_id', appUser.tenant_id).eq('date', today).maybeSingle(),
     supabase.from('cash_transactions')
@@ -64,11 +65,14 @@ export default async function CashPage() {
       .eq('tenant_id', appUser.tenant_id)
       .lt('date', today)
       .order('date', { ascending: false }).limit(7),
+    supabase.rpc('my_settings'),
   ])
 
   const { data: todaySummary, error: todayError } = todayResult
   const { data: transactions, error: transactionsError } = transactionsResult
   const { data: previousDays, error: historyError } = historyResult
+  const settings = withDefaults(settingsResult.data)
+  const formatDate = (date: string | Date) => formatDateSetting(date, settings.date_display_format)
 
   const opening = Number(todaySummary?.total_cash ?? 0)
   const cashInHand = Number(todaySummary?.left_cash ?? opening)

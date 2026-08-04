@@ -9,6 +9,7 @@
  */
 import { useState, useEffect } from 'react'
 import toast from 'react-hot-toast'
+import { userFacingError } from '@/lib/user-message'
 import { Lock, LockOpen, ShieldCheck } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -45,7 +46,10 @@ export function PinSettings({ timeoutMinutes }: { timeoutMinutes: number }) {
       reset()
       toast.success('Screen-lock PIN saved on this device only.')
     } catch (e: any) {
-      toast.error(`The screen-lock PIN was not saved. ${e?.message ?? 'The previous device PIN remains active.'}`)
+      toast.error(userFacingError(
+        e,
+        'The screen-lock PIN could not be saved. The previous PIN remains active on this device.',
+      ))
     } finally {
       setBusy(false)
     }

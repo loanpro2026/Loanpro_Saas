@@ -10,12 +10,14 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
+import { userFacingError } from '@/lib/user-message'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Button } from '@/components/ui/Button'
 import { AutoSuggest } from '@/components/ui/AutoSuggest'
 import { updateLoan, updateClosedRecord } from '@/app/(app)/loans/actions'
 import { todayIST } from '@/lib/utils'
+import { useSettings } from '@/components/settings/SettingsProvider'
 
 interface Loan {
   id: number
@@ -36,6 +38,7 @@ interface Loan {
 
 export function LoanEditForm({ loan, isClosed = false }: { loan: Loan; isClosed?: boolean }) {
   const router = useRouter()
+  const settings = useSettings()
   const [pending, startTransition] = useTransition()
 
   const [form, setForm] = useState({
@@ -60,8 +63,8 @@ export function LoanEditForm({ loan, isClosed = false }: { loan: Loan; isClosed?
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!form.name.trim()) { toast.error('Customer name is required'); return }
-    if (!Number(form.amount)) { toast.error('Amount is required'); return }
+    if (!form.name.trim()) { toast.error('Enter the customer’s name before saving this loan.'); return }
+    if (!Number(form.amount)) { toast.error('Enter a loan amount greater than zero before saving.'); return }
 
     startTransition(async () => {
       // Two different paths. Correcting a closed record can change the
@@ -86,7 +89,10 @@ export function LoanEditForm({ loan, isClosed = false }: { loan: Loan; isClosed?
         router.push(`/loans/${loan.id}`)
         router.refresh()
       } else {
-        toast.error(`Loan #${loan.id} was not updated. ${res.error ?? 'The existing record is unchanged.'}`)
+        toast.error(userFacingError(
+          res.error,
+          `Loan #${loan.id} could not be updated. The existing record is unchanged.`,
+        ))
       }
     })
   }
@@ -121,11 +127,13 @@ export function LoanEditForm({ loan, isClosed = false }: { loan: Loan; isClosed?
             field="location" label="Place"
             value={form.location} onChange={set('location')}
           />
-          <Input
-            label="Address"
-            value={form.address}
-            onChange={e => set('address')(e.target.value)}
-          />
+          {settings.add_record_address_field_enabled && (
+            <Input
+              label="Address"
+              value={form.address}
+              onChange={e => set('address')(e.target.value)}
+            />
+          )}
         </div>
       </div>
 
@@ -182,7 +190,7 @@ export function LoanEditForm({ loan, isClosed = false }: { loan: Loan; isClosed?
           )}
         </div>
 
-        <div>
+        {settings.add_record_additional_information_field_enabled && <div>
           <label htmlFor="notes" className="label">Notes</label>
           <textarea
             id="notes"
@@ -190,7 +198,7 @@ export function LoanEditForm({ loan, isClosed = false }: { loan: Loan; isClosed?
             value={form.additional_information}
             onChange={e => set('additional_information')(e.target.value)}
           />
-        </div>
+        </div>}
       </div>
 
       <div className="flex gap-2 justify-end">

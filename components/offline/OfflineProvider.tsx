@@ -10,6 +10,7 @@ import {
   createContext, useContext, useEffect, useState, useCallback, type ReactNode,
 } from 'react'
 import toast from 'react-hot-toast'
+import { userFacingError } from '@/lib/user-message'
 import { enqueue, pendingCount, getQueue, type QueuedKind } from '@/lib/offline/db'
 import { startAutoSync, syncQueue, refreshSnapshot, newKey } from '@/lib/offline/sync'
 
@@ -86,14 +87,21 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
       if (result.synced > 0) {
         toast.success(
           result.synced === 1
-            ? 'Queued entry saved'
-            : `${result.synced} queued entries saved`
+            ? '1 offline change is now safely synced.'
+            : `${result.synced} offline changes are now safely synced.`
         )
       }
       for (const e of result.errors) {
         // Surfaced deliberately: a payment the customer actually handed over
         // must not vanish quietly because the sync failed.
-        toast.error(`Could not save a queued ${e.kind}: ${e.message}`, { duration: 8000 })
+        const kind = e.kind === 'deposit' ? 'deposit'
+          : e.kind === 'photo' ? 'customer photo'
+          : e.kind === 'loan' ? 'new loan'
+          : 'offline change'
+        toast.error(userFacingError(
+          e.message,
+          `The queued ${kind} could not be synced. It remains on this device so you can retry.`,
+        ), { duration: 8000 })
       }
     })
 

@@ -16,6 +16,7 @@ import { createClient as createServerClient, createServiceClient } from '@/lib/s
 import { NextResponse } from 'next/server'
 import type { PushSubscription } from 'web-push'
 import { logServerError, rateLimit, requestId } from '@/lib/api-security'
+import { currentPhotoCaptureEnabled } from '@/lib/photo-policy'
 
 /**
  * A row from `paired_devices`, narrowed to the two columns this route selects.
@@ -64,6 +65,7 @@ export async function POST(req: Request) {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!(await currentPhotoCaptureEnabled())) return NextResponse.json({ error: 'Photo capture is disabled in Settings' }, { status: 403 })
 
   const limited = await rateLimit(req, {
     scope: 'camera.push', limit: 20, windowSeconds: 60, identity: `user:${user.id}`,

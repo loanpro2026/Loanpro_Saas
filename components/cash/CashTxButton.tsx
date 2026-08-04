@@ -16,6 +16,7 @@ import { useState, useTransition } from 'react'
 import { CloudOff } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
+import { userFacingError } from '@/lib/user-message'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { formatCurrency, todayIST } from '@/lib/utils'
@@ -73,10 +74,10 @@ export function CashTxButton() {
         router.refresh()
         return
       }
-      toast.error(
-        `The ${formatCurrency(value)} cash ${type === 'add' ? 'addition' : 'removal'} was not recorded. ` +
-        `${result.error ?? 'The cash book is unchanged.'}`
-      )
+      toast.error(userFacingError(
+        result.error,
+        `The ${formatCurrency(value)} cash ${type === 'add' ? 'addition' : 'removal'} was not recorded. The cash book is unchanged.`,
+      ))
     })
   }
 

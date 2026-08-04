@@ -13,10 +13,14 @@ import { createClient } from '@/lib/supabase/server'
 import { getSessionContext } from '@/lib/tenant'
 import { keyBelongsToTenant, objectExists, deleteObject, MAX_PHOTO_BYTES, type PhotoStage } from '@/lib/r2'
 import { logServerError, rateLimit, requestId } from '@/lib/api-security'
+import { currentPhotoCaptureEnabled } from '@/lib/photo-policy'
 
 export async function POST(req: Request) {
   const ctx = await getSessionContext()
   if (!ctx) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!(await currentPhotoCaptureEnabled())) {
+    return NextResponse.json({ error: 'Photo capture is disabled in Settings' }, { status: 403 })
+  }
 
   const limited = await rateLimit(req, {
     scope: 'photos.confirm', limit: 30, windowSeconds: 60, identity: `user:${ctx.authId}`,

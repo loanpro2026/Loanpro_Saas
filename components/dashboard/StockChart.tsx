@@ -10,17 +10,25 @@
  * gold and tens of kilos of silver; a shared unit prints one of them as an
  * unreadable number. This is what the desktop app has always shown.
  */
-import Link from 'next/link'
+import { useState } from 'react'
 import { formatCurrency } from '@/lib/utils'
+
+interface SafeGroup {
+  type: string
+  amount: number
+  count: number
+}
 
 interface Props {
   cost: { gold: number; silver: number }
   weight: { gold: number; silver: number; gold_unit?: string; silver_unit?: string }
   counts: { gold: number; silver: number }
+  groups: { gold: SafeGroup[]; silver: SafeGroup[] }
   error?: boolean
 }
 
-export function StockChart({ cost, weight, counts, error = false }: Props) {
+export function StockChart({ cost, weight, counts, groups, error = false }: Props) {
+  const [openMetal, setOpenMetal] = useState<'gold' | 'silver' | null>(null)
   const goldValue = Number(cost.gold ?? 0)
   const silverValue = Number(cost.silver ?? 0)
   const total = goldValue + silverValue
@@ -64,6 +72,8 @@ export function StockChart({ cost, weight, counts, error = false }: Props) {
             weight={fmtWeight(weight.gold, weight.gold_unit ?? 'g')}
             className="border-surface-border bg-gold-bg hover:border-gold"
             nameClass="text-gold"
+            expanded={openMetal === 'gold'}
+            onClick={() => setOpenMetal(value => value === 'gold' ? null : 'gold')}
           />
           <MetalTile
             name="Silver"
@@ -73,7 +83,35 @@ export function StockChart({ cost, weight, counts, error = false }: Props) {
             weight={fmtWeight(weight.silver, weight.silver_unit ?? 'kg')}
             className="border-surface-border bg-silver-bg hover:border-silver"
             nameClass="text-silver"
+            expanded={openMetal === 'silver'}
+            onClick={() => setOpenMetal(value => value === 'silver' ? null : 'silver')}
           />
+
+          {openMetal && (
+            <div className="overflow-hidden rounded-xl border border-surface-border" aria-live="polite">
+              <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-3 bg-surface-muted px-3 py-2
+                              text-10.5 font-bold uppercase tracking-wide text-ink-faint">
+                <span>Jewellery type</span><span>Items</span><span>Amount</span>
+              </div>
+              {groups[openMetal].length ? groups[openMetal].map(group => (
+                <div
+                  key={group.type}
+                  className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-3 border-t border-surface-border
+                             px-3 py-2 text-12"
+                >
+                  <span className="truncate font-medium text-ink" title={group.type}>{group.type}</span>
+                  <span className="tabular-nums text-ink-muted">{group.count}</span>
+                  <span className="min-w-[78px] text-right font-semibold tabular-nums text-ink">
+                    {formatCurrency(group.amount)}
+                  </span>
+                </div>
+              )) : (
+                <p className="border-t border-surface-border px-3 py-3 text-12 text-ink-faint">
+                  No {openMetal} items are currently in the safe.
+                </p>
+              )}
+            </div>
+          )}
 
           {total === 0 && (
             <p className="text-12 text-ink-faint">
@@ -88,6 +126,7 @@ export function StockChart({ cost, weight, counts, error = false }: Props) {
 
 function MetalTile({
   name, value, share, count, weight, className, nameClass,
+  expanded, onClick,
 }: {
   name: string
   value: number
@@ -96,15 +135,19 @@ function MetalTile({
   weight: string
   className: string
   nameClass: string
+  expanded: boolean
+  onClick: () => void
 }) {
   return (
-    <Link
-      href={`/view-accounts/investment?metal=${name.toLowerCase()}`}
-      className={`block rounded-xl border p-3 transition-colors ${className}`}
+    <button
+      type="button"
+      aria-expanded={expanded}
+      onClick={onClick}
+      className={`block w-full rounded-xl border p-3 text-left transition-colors ${className}`}
     >
       <div className="flex items-center justify-between gap-2">
         <span className={`flex items-center gap-1.5 text-12.5 font-bold ${nameClass}`}>
-          {name} <span className="text-11">→</span>
+          {name} <span className="text-11">{expanded ? '↑' : '↓'}</span>
         </span>
         <span className="text-12 text-ink-muted">
           {count} item{count === 1 ? '' : 's'} · {share.toFixed(0)}%
@@ -114,6 +157,6 @@ function MetalTile({
         <span className="text-lg font-bold tabular-nums text-ink">{formatCurrency(value)}</span>
         <span className="text-13 font-semibold tabular-nums text-ink-muted">{weight}</span>
       </div>
-    </Link>
+    </button>
   )
 }

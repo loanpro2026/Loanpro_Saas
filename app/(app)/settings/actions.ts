@@ -136,8 +136,26 @@ export async function saveSetting(key: string, value: unknown): Promise<ActionRe
   if (key === 'theme' && value !== 'light' && value !== 'dark') {
     return fail('Theme must be light or dark')
   }
-  if (key === 'photo_capture_mode' && value !== 'automatic' && value !== 'off') {
-    return fail('Photo capture mode must be automatic or off')
+  if (key === 'photo_capture_mode' && value !== 'local' && value !== 'mobile') {
+    return fail('Photo capture source must be local or mobile')
+  }
+  if (key === 'date_display_format' && !['dd/mm/yyyy', 'mm/dd/yyyy', 'yyyy/mm/dd', 'yyyy-mm-dd'].includes(String(value))) {
+    return fail('Unsupported date format')
+  }
+  if (key === 'interest_calculation_type' && value !== 'simple' && value !== 'compound') {
+    return fail('Interest calculation must be simple or compound')
+  }
+  if (key === 'interest_calculation_period' && !['monthly', 'quarterly', 'half-yearly', 'yearly'].includes(String(value))) {
+    return fail('Unsupported compounding period')
+  }
+  if (key === 'lock_after_minutes') {
+    const n = Number(value)
+    if (!Number.isInteger(n) || n < 0 || n > 1440) return fail('Lock timeout must be between 0 and 1440 minutes')
+  }
+  if (['identity_verification_enabled', 'identity_mandatory_at_creation', 'identity_mandatory_at_closure',
+    'add_record_address_field_enabled', 'add_record_additional_information_field_enabled', 'lock_on_startup'].includes(key)
+    && typeof value !== 'boolean') {
+    return fail('This setting must be on or off')
   }
 
   // The interest rate drives every settlement in the shop, so a fat-fingered

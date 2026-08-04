@@ -15,7 +15,8 @@ import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import type { LoanDetailPayload } from '@/types/rpc'
-import { formatCurrency, formatDate, formatDuration } from '@/lib/utils'
+import { formatCurrency, formatDuration } from '@/lib/utils'
+import { formatDateSetting, photoCaptureEnabled, withDefaults } from '@/lib/settings'
 import { Badge, MetalBadge } from '@/components/ui/Badge'
 import { Card, StatStrip, StatStripCell } from '@/components/ui/Page'
 import { Icon } from '@/components/ui/Icon'
@@ -29,11 +30,10 @@ export const dynamic = 'force-dynamic'
 
 interface Props {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ from?: string }>
 }
 
-export default async function LoanDetailPage({ params, searchParams }: Props) {
-  const [{ id }, query] = await Promise.all([params, searchParams])
+export default async function LoanDetailPage({ params }: Props) {
+  const { id } = await params
   const loanId = Number(id)
   if (!Number.isInteger(loanId) || loanId <= 0) notFound()
 
@@ -41,16 +41,21 @@ export default async function LoanDetailPage({ params, searchParams }: Props) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const [userResult, detailResult, photoPolicyResult] = await Promise.all([
+  const [userResult, detailResult, settingsResult] = await Promise.all([
     supabase.from('users').select('role').eq('auth_id', user.id).single(),
     supabase.rpc('loan_detail', { p_loan_id: loanId }),
-    supabase.rpc('photo_required', { p_stage: 'closure' }),
+    supabase.rpc('my_settings'),
   ])
 
   const detail = (detailResult.data ?? null) as LoanDetailPayload | null
   if (!detail?.loan) notFound()
 
   const loan = detail.loan
+  const settings = withDefaults(settingsResult.data)
+  const showAddress = settings.add_record_address_field_enabled
+  const showAdditionalInformation = settings.add_record_additional_information_field_enabled
+  const photosEnabled = photoCaptureEnabled(settings)
+  const formatDate = (date: string | Date) => formatDateSetting(date, settings.date_display_format)
   const isClosed = loan.status === 'closed'
   const deposits = isClosed ? detail.archived_deposits ?? [] : detail.deposits ?? []
   const totalDeposits = Number(detail.total_deposits ?? 0)
@@ -63,12 +68,17 @@ export default async function LoanDetailPage({ params, searchParams }: Props) {
 
   // Settlement mode. Only ever reached from Remove Record, and never for a loan
   // that is already closed.
-  const settleMode = query.from === 'remove-record' && !isClosed
-  const backHref = settleMode ? '/remove-record' : isClosed ? '/view-records/closed' : '/view-records/active'
-  const backLabel = settleMode ? 'Back to search results' : isClosed ? 'Back to closed records' : 'Back to active records'
-  const context = settleMode ? 'Settlement workspace' : isClosed ? 'Archived record' : 'Read-only record'
+  const backHref = isClosed ? '/view-records/closed' : '/view-records/active'
+  const backLabel = isClosed ? 'Back to closed records' : 'Back to active records'
+  const context = isClosed ? 'Archived record' : 'Read-only record'
 
   const collectionPhoto = detail.photos?.collection ?? null
+  const displayedPhotoStage = isClosed && collectionPhoto
+      ? 'collection'
+      : 'pledge'
+  const displayedPhoto = displayedPhotoStage === 'collection'
+    ? collectionPhoto
+    : detail.photos?.pledge ?? null
   const depositShare = Number(loan.amount) > 0 ? (totalDeposits / Number(loan.amount)) * 100 : 0
 
   return (
@@ -100,7 +110,7 @@ export default async function LoanDetailPage({ params, searchParams }: Props) {
               {[
                 loan.father_name ? `S/o ${loan.father_name}` : null,
                 loan.location,
-                loan.address,
+                showAddress ? loan.address : null,
               ].filter(Boolean).join(' · ') || 'No address on file'}
             </p>
           </div>
@@ -112,9 +122,7 @@ export default async function LoanDetailPage({ params, searchParams }: Props) {
           daysHeld={daysHeld}
           suggestedInterest={suggestedInterest}
           canManage={userResult.data?.role === 'owner'}
-          photoRequiredAtClosure={photoPolicyResult.data === true}
           hasCollectionPhoto={!!collectionPhoto}
-          settleMode={settleMode}
         />
       </header>
 
@@ -150,9 +158,9 @@ export default async function LoanDetailPage({ params, searchParams }: Props) {
               <Field label="Issue date">{formatDate(loan.issue_date)}</Field>
             </dl>
 
-            {(loan.additional_information || loan.closed_date) && (
+            {((showAdditionalInformation && loan.additional_information) || loan.closed_date) && (
               <div className="mt-3.5 grid gap-3 border-t border-surface-border pt-3 sm:grid-cols-2">
-                {loan.additional_information && (
+                {showAdditionalInformation && loan.additional_information && (
                   <div>
                     <p className="text-11.5 text-ink-faint">Additional information</p>
                     <p className="mt-0.5 text-13 leading-relaxed text-ink-muted">{loan.additional_information}</p>
@@ -173,7 +181,7 @@ export default async function LoanDetailPage({ params, searchParams }: Props) {
             deposits={deposits}
             readOnly={isClosed}
             principal={loan.amount}
-            canAdd={settleMode}
+            canAdd={false}
             summary={
               deposits.length === 0
                 ? 'No part-payments received yet'
@@ -186,48 +194,22 @@ export default async function LoanDetailPage({ params, searchParams }: Props) {
         </div>
 
         <aside className="flex flex-col gap-3.5">
-          <Card className="p-4">
+          {photosEnabled && <Card className="p-4">
             <h2 className="card-title mb-3">Identity on file</h2>
             <LoanPhoto
               loanId={loan.id}
-              hasPhoto={!!detail.photos?.pledge}
+              hasPhoto={!!displayedPhoto}
               verifiedBy={loan.face_verified_by}
               readOnly={isClosed}
-              stage="pledge"
+              stage={displayedPhotoStage}
               bare
             />
-            <div className="mt-3 flex items-center gap-2.5 border-t border-surface-border pt-3">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border
-                              border-surface-border bg-surface-muted text-ink-faint">
-                <Icon d={ICON.camera} size={18} strokeWidth={1.6} />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-12.5 font-semibold text-ink">Collection photo</p>
-                <p className={`text-11.5 ${collectionPhoto ? 'text-green' : 'text-ink-faint'}`}>
-                  {collectionPhoto
-                    ? `Captured ${loan.closed_date ? formatDate(loan.closed_date) : ''} at settlement`.trim()
-                    : 'Captured at settlement'}
-                </p>
-              </div>
-            </div>
-            {(collectionPhoto || settleMode) && (
-              <div className="mt-3">
-                <LoanPhoto
-                  loanId={loan.id}
-                  hasPhoto={!!collectionPhoto}
-                  verifiedBy={null}
-                  readOnly={isClosed}
-                  stage="collection"
-                  bare
-                />
-              </div>
-            )}
-          </Card>
+          </Card>}
 
           {/* The settlement figure only appears where settling is possible. On a
               read-only record it would invite an action this screen cannot take. */}
-          {(settleMode || isClosed) && (
-            <Card accent={settleMode} className="p-4">
+          {isClosed && (
+            <Card className="p-4">
               <p className="text-12 text-ink-muted">
                 {isClosed ? 'Paid at settlement' : 'Customer pays if settled today'}
               </p>

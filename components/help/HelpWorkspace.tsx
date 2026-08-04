@@ -17,9 +17,11 @@ import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Modal } from '@/components/ui/Modal'
 import { Badge } from '@/components/ui/Badge'
-import { formatDate, cn } from '@/lib/utils'
+import { cn } from '@/lib/utils'
+import { useAppDate } from '@/components/settings/SettingsProvider'
 import { createTicket } from '@/app/(app)/help/actions'
 import { HELP_ARTICLES } from '@/lib/help'
+import { userFacingError } from '@/lib/user-message'
 
 interface Ticket {
   id: string
@@ -44,6 +46,7 @@ export function HelpWorkspace({
   tickets: Ticket[]
   initialTab?: 'guide' | 'tickets'
 }) {
+  const formatDate = useAppDate()
   const router = useRouter()
   const [tab, setTab] = useState<'guide' | 'tickets'>(initialTab)
   const [openArticle, setOpenArticle] = useState<string | null>(null)
@@ -77,7 +80,10 @@ export function HelpWorkspace({
       setTab('tickets')
       router.refresh()
     } else {
-      toast.error(`Support request “${subject.trim()}” was not sent. ${res.error ?? 'Your message remains in the form.'}`)
+      toast.error(userFacingError(
+        res.error,
+        `Support request “${subject.trim()}” was not sent. Your message remains in the form so you can retry.`,
+      ))
     }
   })
 

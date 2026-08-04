@@ -1,16 +1,36 @@
 'use client'
 
+import { useEffect } from 'react'
 import { Loader2, X } from 'lucide-react'
-import toast, { resolveValue, Toaster, ToastIcon } from 'react-hot-toast'
+import toast, { resolveValue, Toaster, ToastIcon, useToasterStore } from 'react-hot-toast'
 import { cn } from '@/lib/utils'
+
+const MAX_VISIBLE_TOASTS = 3
 
 /** One notification surface for marketing, authentication and the app. */
 export function AppToaster() {
+  const { toasts } = useToasterStore()
+
+  // A burst of background-sync or validation messages must never build a
+  // column taller than the viewport. Keep the newest three and dismiss older
+  // visible notices; their exit animation still makes the transition clear.
+  useEffect(() => {
+    toasts
+      .filter(item => item.visible)
+      .slice(MAX_VISIBLE_TOASTS)
+      .forEach(item => toast.dismiss(item.id))
+  }, [toasts])
+
   return (
     <Toaster
       position="bottom-right"
       gutter={8}
-      containerStyle={{ inset: 'auto 12px 12px auto' }}
+      containerStyle={{
+        top: 'max(12px, env(safe-area-inset-top))',
+        right: '12px',
+        bottom: 'max(12px, env(safe-area-inset-bottom))',
+        left: '12px',
+      }}
       toastOptions={{
         duration: 4200,
         style: { background: 'transparent', boxShadow: 'none', padding: 0, maxWidth: 'none' },
@@ -29,14 +49,6 @@ export function AppToaster() {
       }}
     >
       {item => {
-        const title = item.type === 'success'
-          ? 'Completed'
-          : item.type === 'error'
-            ? 'Action needed'
-            : item.type === 'loading'
-              ? 'Working'
-              : 'LoanPro'
-
         return (
           <div
             className={cn('lp-toast', `lp-toast-${item.type}`)}
@@ -52,8 +64,9 @@ export function AppToaster() {
                 : <ToastIcon toast={item} />}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-bold uppercase tracking-wide text-slate-500">{title}</p>
-              <p className="mt-0.5 text-sm leading-5 text-slate-800">{resolveValue(item.message, item)}</p>
+              <p className="whitespace-pre-line break-words text-sm leading-5 text-slate-800 [overflow-wrap:anywhere]">
+                {resolveValue(item.message, item)}
+              </p>
             </div>
             {item.type !== 'loading' && (
               <button

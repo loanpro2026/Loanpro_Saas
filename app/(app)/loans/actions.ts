@@ -16,6 +16,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { getSessionContext } from '@/lib/tenant'
 import type { JsonObject } from '@/lib/json'
+import { withDefaults } from '@/lib/settings'
 
 export interface ActionResult<T = unknown> {
   ok: boolean
@@ -66,10 +67,15 @@ export async function createLoan(
   if (!ctx) return fail('Not signed in') as ActionResult<number>
 
   const supabase = await createClient()
+  const { data: rawSettings } = await supabase.rpc('my_settings')
+  const settings = withDefaults(rawSettings)
+  const governedLoan: JsonObject = { ...loan }
+  if (!settings.add_record_address_field_enabled) governedLoan.address = null
+  if (!settings.add_record_additional_information_field_enabled) governedLoan.additional_information = null
   // create_loan stamps tenant_id from the session, logs the activity and
   // recalculates the cash summary in one transaction — a plain client-side
   // insert would leave that day's `investments` stale.
-  const { data, error } = await supabase.rpc('create_loan', { p_loan: loan })
+  const { data, error } = await supabase.rpc('create_loan', { p_loan: governedLoan })
 
   if (error) return fail(friendlyError(error)) as ActionResult<number>
   revalidateLoan()
@@ -92,13 +98,25 @@ export async function closeLoan(
   }
 
   const supabase = await createClient()
-  const { data, error } = await supabase.rpc('close_loan', {
+  const { data, error } = await supabase.rpc('close_loan_with_photo_policy', {
     p_loan_id: loanId,
     p_interest: Math.round(interest),
     p_closed_date: closedDate ?? null,
   })
 
   if (error) return fail(friendlyError(error))
+
+  const closeResult = data && typeof data === 'object' && !Array.isArray(data)
+    ? data as Record<string, unknown>
+    : {}
+  const retiredPhotoKey = typeof closeResult.retired_photo_key === 'string'
+    ? closeResult.retired_photo_key
+    : null
+  if (retiredPhotoKey) {
+    const { deleteObject } = await import('@/lib/r2')
+    await deleteObject(retiredPhotoKey).catch(error =>
+      console.error('[closeLoan] orphaned retired R2 object', retiredPhotoKey, error))
+  }
   revalidateLoan(loanId)
   return { ok: true, data }
 }
@@ -111,7 +129,7 @@ export async function reopenLoan(loanId: number): Promise<ActionResult> {
   if (ctx.role !== 'owner') return fail('Only the shop owner can reopen a closed loan')
 
   const supabase = await createClient()
-  const { data, error } = await supabase.rpc('reopen_loan', { p_loan_id: loanId })
+  const { data, error } = await supabase.rpc('reopen_loan_with_photo_policy', { p_loan_id: loanId })
 
   if (error) return fail(friendlyError(error))
   revalidateLoan(loanId)
@@ -185,6 +203,10 @@ export async function updateLoan(
   }
 
   const supabase = await createClient()
+  const { data: rawSettings } = await supabase.rpc('my_settings')
+  const settings = withDefaults(rawSettings)
+  if (!settings.add_record_address_field_enabled) delete clean.address
+  if (!settings.add_record_additional_information_field_enabled) delete clean.additional_information
   const { error } = await supabase.rpc('update_active_loan', {
     p_loan_id: loanId,
     p_patch: clean as JsonObject,
@@ -219,9 +241,14 @@ export async function updateClosedRecord(
   }
 
   const supabase = await createClient()
+  const { data: rawSettings } = await supabase.rpc('my_settings')
+  const settings = withDefaults(rawSettings)
+  const governedPatch: JsonObject = { ...patch }
+  if (!settings.add_record_address_field_enabled) delete governedPatch.address
+  if (!settings.add_record_additional_information_field_enabled) delete governedPatch.additional_information
   const { data, error } = await supabase.rpc('update_closed_record', {
     p_loan_id: loanId,
-    p_patch: patch,
+    p_patch: governedPatch,
   })
 
   if (error) return fail(friendlyError(error))

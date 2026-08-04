@@ -6,6 +6,8 @@ import { createClient } from '@/lib/supabase/client'
 import { isLikelyMobileCaptureDevice } from '@/lib/capture-device'
 import Image from 'next/image'
 import toast from 'react-hot-toast'
+import { useSettings } from '@/components/settings/SettingsProvider'
+import { userFacingError } from '@/lib/user-message'
 
 interface Props {
   onPhoto:           (file: File | null) => void
@@ -18,6 +20,7 @@ type CaptureSource = 'cloud-companion' | 'browser-qr'
 
 // ── Supabase browser client (lightweight — only used for Realtime) ─────────
 export function PhotoCapture({ onPhoto, existingPhotoUrl, loanId }: Props) {
+  const settings = useSettings()
   const [mode,       setMode]      = useState<Mode>('idle')
   const [preview,    setPreview]   = useState<string | null>(existingPhotoUrl ?? null)
   const [isMobile,   setIsMobile]  = useState<boolean | null>(null)
@@ -48,14 +51,16 @@ export function PhotoCapture({ onPhoto, existingPhotoUrl, loanId }: Props) {
       coarsePointer: window.matchMedia?.('(pointer: coarse)').matches ?? false,
     })
     setIsMobile(mobile)
-    if (!mobile) {
+    if (!mobile && settings.photo_capture_mode === 'mobile') {
       // Check if user has a paired phone
       fetch('/api/mobile-capture/devices')
         .then(r => r.json())
         .then(d => setHasPaired(d.devices?.length > 0))
         .catch(() => setHasPaired(false))
+    } else if (!mobile) {
+      setHasPaired(false)
     }
-  }, [])
+  }, [settings.photo_capture_mode])
 
   // getUserMedia resolves before React has rendered the camera view. Attach
   // the stream after that video element exists, otherwise mobile shows a black
@@ -173,7 +178,10 @@ export function PhotoCapture({ onPhoto, existingPhotoUrl, loanId }: Props) {
         setMode('idle')
         setCaptureSource(null)
         setSessionId(null)
-        toast.error(error instanceof Error ? error.message : 'Phone capture failed')
+        toast.error(userFacingError(
+          error,
+          'The photo was not received from the phone. Ask the customer to keep the companion app open, then try again.',
+        ))
       } finally {
         polling = false
       }
@@ -263,7 +271,7 @@ export function PhotoCapture({ onPhoto, existingPhotoUrl, loanId }: Props) {
         setShowQr(true)
       }
     } catch {
-      toast.error('Failed to create a camera QR. Try again or choose a photo.')
+      toast.error('A camera QR code could not be created. Try again or choose a photo from this device.')
       setMode('idle')
       setCaptureSource(null)
     }
@@ -292,7 +300,10 @@ export function PhotoCapture({ onPhoto, existingPhotoUrl, loanId }: Props) {
       setSessionId(data.session_id)
       setSessionKey(null)
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to notify the paired phone')
+      toast.error(userFacingError(
+        error,
+        'The paired phone could not be reached. Check that it is online and the companion app is open.',
+      ))
       setMode('idle')
       setCaptureSource(null)
     }
@@ -438,8 +449,15 @@ export function PhotoCapture({ onPhoto, existingPhotoUrl, loanId }: Props) {
         </Button>
       )}
 
-      {/* Desktop: push to phone (primary if paired, else shows QR) */}
-      {isMobile === false && (
+      {/* Desktop local mode: use the attached webcam/browser camera. */}
+      {isMobile === false && settings.photo_capture_mode === 'local' && (
+        <Button onClick={startCamera}>
+          <Camera className="h-4 w-4" /> Use Local Camera
+        </Button>
+      )}
+
+      {/* Desktop mobile mode: use the paired Android companion. */}
+      {isMobile === false && settings.photo_capture_mode === 'mobile' && (
         <Button
           variant="secondary"
           onClick={startPushCapture}
@@ -470,7 +488,9 @@ export function PhotoCapture({ onPhoto, existingPhotoUrl, loanId }: Props) {
         {isMobile === true
           ? 'Uses this device’s camera directly. You do not need to pair it first.'
           : isMobile === false
-            ? 'Desktop capture continues through your paired phone. You can also choose an existing image.'
+            ? settings.photo_capture_mode === 'mobile'
+              ? 'Desktop capture continues through your paired phone. You can also choose an existing image.'
+              : 'Uses the camera attached to this computer. You can also choose an existing image.'
             : 'Choosing the best capture method for this device…'}
       </p>
     </div>

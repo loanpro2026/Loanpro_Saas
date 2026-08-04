@@ -14,6 +14,7 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
+import { userFacingError } from '@/lib/user-message'
 import Link from 'next/link'
 import { RotateCcw } from 'lucide-react'
 import { Modal } from '@/components/ui/Modal'
@@ -78,10 +79,10 @@ export function LoanActions({
       router.refresh()
       return
     }
-    toast.error(
-      `Loan #${loan.id} remains active and its cash history is unchanged. ` +
-      `${result.error ?? 'Please reload the record and try again.'}`
-    )
+    toast.error(userFacingError(
+      result.error,
+      `Loan #${loan.id} could not be settled. It remains active and its cash history is unchanged.`,
+    ))
   })
 
   const onReopen = () => startTransition(async () => {
@@ -91,9 +92,10 @@ export function LoanActions({
       router.refresh()
       return
     }
-    toast.error(
-      `Loan #${loan.id} was not reopened. ${result.error ?? 'Its historical cash entries were left unchanged.'}`
-    )
+    toast.error(userFacingError(
+      result.error,
+      `Loan #${loan.id} was not reopened. Its historical cash entries are unchanged.`,
+    ))
   })
 
   const onDelete = () => startTransition(async () => {
@@ -103,7 +105,10 @@ export function LoanActions({
       router.push(isClosed ? '/view-records/closed' : '/view-records/active')
       return
     }
-    toast.error(`Loan #${loan.id} was not deleted. ${result.error ?? 'No record or photo was removed.'}`)
+    toast.error(userFacingError(
+      result.error,
+      `Loan #${loan.id} was not deleted. No record or customer photo was removed.`,
+    ))
   })
 
   const item = [loan.category_type?.toLowerCase(), loan.detailed_type?.toLowerCase()]

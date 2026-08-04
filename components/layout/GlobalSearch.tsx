@@ -14,7 +14,8 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Search, Loader2, X, CloudOff } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { formatCurrency, formatDate, cn } from '@/lib/utils'
+import { formatCurrency, cn } from '@/lib/utils'
+import { useAppDate } from '@/components/settings/SettingsProvider'
 import { Badge } from '@/components/ui/Badge'
 import { useOffline } from '@/components/offline/OfflineProvider'
 import { searchCachedLoans } from '@/lib/offline/db'
@@ -33,6 +34,7 @@ interface Hit {
 }
 
 export function GlobalSearch() {
+  const formatDate = useAppDate()
   const router = useRouter()
   const { online } = useOffline()
   const [open, setOpen] = useState(false)

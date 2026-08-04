@@ -21,9 +21,11 @@ import toast from 'react-hot-toast'
 import { Pencil, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
-import { formatCurrency, formatDate, todayIST } from '@/lib/utils'
+import { formatCurrency, todayIST } from '@/lib/utils'
 import { addDeposit, deleteDeposit, updateDeposit } from '@/app/(app)/loans/actions'
 import { useOffline } from '@/components/offline/OfflineProvider'
+import { useAppDate } from '@/components/settings/SettingsProvider'
+import { userFacingError } from '@/lib/user-message'
 
 interface Deposit {
   id: number
@@ -45,6 +47,7 @@ interface Props {
 export function DepositHistory({
   loanId, deposits, readOnly, principal, canAdd = false, summary,
 }: Props) {
+  const formatDate = useAppDate()
   const router = useRouter()
   const { online, queueWrite } = useOffline()
   const [adding, setAdding] = useState(false)
@@ -83,9 +86,10 @@ export function DepositHistory({
       router.refresh()
       return
     }
-    toast.error(
-      `The ${formatCurrency(value)} deposit was not recorded on loan #${loanId}. ${result.error ?? 'Please retry.'}`
-    )
+    toast.error(userFacingError(
+      result.error,
+      `The ${formatCurrency(value)} deposit was not recorded on loan #${loanId}. The cash book is unchanged.`,
+    ))
   })
 
   const openEdit = (deposit: Deposit) => {
@@ -109,9 +113,10 @@ export function DepositHistory({
       router.refresh()
       return
     }
-    toast.error(
-      `The deposit on loan #${loanId} was not updated. ${result.error ?? 'The original entry is unchanged.'}`
-    )
+    toast.error(userFacingError(
+      result.error,
+      `The deposit on loan #${loanId} could not be updated. The original entry is unchanged.`,
+    ))
   })
 
   const onDelete = (id: number) => startTransition(async () => {
@@ -121,9 +126,10 @@ export function DepositHistory({
       router.refresh()
       return
     }
-    toast.error(
-      `The deposit was not removed from loan #${loanId}. ${result.error ?? 'The original entry is unchanged.'}`
-    )
+    toast.error(userFacingError(
+      result.error,
+      `The deposit was not removed from loan #${loanId}. The original entry is unchanged.`,
+    ))
   })
 
   return (

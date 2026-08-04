@@ -17,7 +17,8 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { MetalBadge } from '@/components/ui/Badge'
 import { RecordRowActions } from '@/components/loans/RecordRowActions'
-import { formatCurrency, formatDate } from '@/lib/utils'
+import { formatCurrency } from '@/lib/utils'
+import { useAppDate } from '@/components/settings/SettingsProvider'
 
 export interface RecordRow {
   id: number
@@ -53,6 +54,7 @@ export function RecordsTable({
   pagination?: React.ReactNode
 }) {
   const router = useRouter()
+  const formatDate = useAppDate()
   const dateColumn = variant === 'closed' ? 'Closed' : 'Issued'
 
   return (

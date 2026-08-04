@@ -8,6 +8,7 @@
  */
 import { useState } from 'react'
 import toast from 'react-hot-toast'
+import { userFacingError } from '@/lib/user-message'
 import { Download, HardDriveDownload } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 
@@ -43,11 +44,11 @@ export function DataExport() {
       setTimeout(() => URL.revokeObjectURL(url), 1000)
 
       toast.success(`Complete LoanPro backup downloaded as ${filename}.`, { id: t })
-    } catch (e: any) {
-      toast.error(
-        `Your backup could not be prepared. ${e?.message ?? 'No data was changed; please try again.'}`,
-        { id: t }
-      )
+    } catch (e: unknown) {
+      toast.error(userFacingError(
+        e,
+        'Your backup could not be prepared. No information was changed; check your connection and try again.',
+      ), { id: t })
     } finally {
       setBusy(false)
     }

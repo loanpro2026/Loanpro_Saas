@@ -13,10 +13,11 @@ import {
 
 interface Props {
   timeoutMinutes: number
+  lockOnStartup: boolean
   shopName: string
 }
 
-export function ScreenLock({ timeoutMinutes, shopName }: Props) {
+export function ScreenLock({ timeoutMinutes, lockOnStartup, shopName }: Props) {
   const [locked, setLocked] = useState(false)
   const [pin, setPin] = useState('')
   const [error, setError] = useState(false)
@@ -25,6 +26,10 @@ export function ScreenLock({ timeoutMinutes, shopName }: Props) {
 
   // Sync with other tabs and with lock()/unlock() called elsewhere.
   useEffect(() => {
+    if (lockOnStartup && hasPin() && !sessionStorage.getItem('loanpro.lock.started')) {
+      sessionStorage.setItem('loanpro.lock.started', '1')
+      lock()
+    }
     const sync = () => setLocked(isLocked())
     sync()
     window.addEventListener('loanpro:lock-changed', sync)
@@ -33,7 +38,7 @@ export function ScreenLock({ timeoutMinutes, shopName }: Props) {
       window.removeEventListener('loanpro:lock-changed', sync)
       window.removeEventListener('storage', sync)
     }
-  }, [])
+  }, [lockOnStartup])
 
   // Idle detection.
   useEffect(() => {

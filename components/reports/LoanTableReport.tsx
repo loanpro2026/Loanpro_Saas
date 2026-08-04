@@ -5,7 +5,8 @@
  */
 import Link from 'next/link'
 import { FileText } from 'lucide-react'
-import { formatCurrency, formatDate, formatWeight } from '@/lib/utils'
+import { formatCurrency, formatWeight } from '@/lib/utils'
+import { useAppDate } from '@/components/settings/SettingsProvider'
 import { Badge } from '@/components/ui/Badge'
 import { EmptyState } from '@/components/ui/EmptyState'
 
@@ -34,6 +35,7 @@ interface Props {
 }
 
 export function LoanTableReport({ rows, variant, date }: Props) {
+  const formatDate = useAppDate()
   if (!rows?.length) {
     return (
       <EmptyState

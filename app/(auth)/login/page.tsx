@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { Eye, EyeOff } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { userFacingError } from '@/lib/user-message'
 
 const schema = z.object({
   email:    z.string().email('Enter a valid email'),
@@ -60,7 +61,10 @@ export default function LoginPage() {
       } else if (code === 'invalid_credentials' || /invalid login/i.test(msg)) {
         toast.error('That email and password do not match.')
       } else {
-        toast.error(msg || 'Could not sign in')
+        toast.error(userFacingError(
+          msg,
+          'LoanPro could not sign you in. Check your connection and try again.',
+        ))
       }
     } finally {
       setLoading(false)

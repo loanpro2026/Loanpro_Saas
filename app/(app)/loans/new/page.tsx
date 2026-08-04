@@ -19,6 +19,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import toast from 'react-hot-toast'
+import { userFacingError } from '@/lib/user-message'
 import { CheckCircle2, WifiOff } from 'lucide-react'
 
 import { createLoan } from '@/app/(app)/loans/actions'
@@ -125,16 +126,20 @@ export default function NewLoanPage() {
         try {
           await uploadLoanPhoto(loanId, await compressImage(photoFile), 'pledge')
         } catch (photoError: unknown) {
-          const detail = photoError instanceof Error ? photoError.message : 'the storage service did not respond'
-          toast.error(`Loan #${loanId} was saved, but its customer photo was not attached: ${detail}`)
+          toast.error(userFacingError(
+            photoError,
+            `Loan #${loanId} was saved, but its customer photo was not attached. Open the loan and capture the photo again.`,
+          ))
         }
       }
 
       toast.success(`Loan #${loanId} was created for ${data.name}.`)
       router.push(`/loans/${loanId}`)
     } catch (error: unknown) {
-      const detail = error instanceof Error ? error.message : 'No record was saved; please retry.'
-      toast.error(`The loan for ${data.name} was not created. ${detail}`)
+      toast.error(userFacingError(
+        error,
+        `The loan for ${data.name} could not be created. No record was saved; check the form and try again.`,
+      ))
     } finally {
       setLoading(false)
     }

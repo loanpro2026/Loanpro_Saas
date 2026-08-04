@@ -59,7 +59,7 @@ export function daysBetween(a: string | Date, b: string | Date = new Date()): nu
 }
 
 export type InterestType = 'simple' | 'compound'
-export type InterestPeriod = 'yearly' | 'half-yearly' | 'quarterly'
+export type InterestPeriod = 'monthly' | 'quarterly' | 'half-yearly' | 'yearly'
 
 /**
  * Interest on a loan, matching the desktop app exactly.
@@ -90,7 +90,7 @@ export function calculateInterestAmount(
   const rate = annualRatePercent / 100
 
   if (type === 'compound') {
-    const n = period === 'quarterly' ? 4 : period === 'half-yearly' ? 2 : 1
+    const n = period === 'monthly' ? 12 : period === 'quarterly' ? 4 : period === 'half-yearly' ? 2 : 1
     return Math.round(principal * (Math.pow(1 + rate / n, n * years) - 1))
   }
 

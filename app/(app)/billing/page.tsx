@@ -4,6 +4,7 @@ import { AlertTriangle, CheckCircle2, FlaskConical, Star } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { PLANS } from '@/lib/razorpay'
 import toast from 'react-hot-toast'
+import { userFacingError } from '@/lib/user-message'
 
 declare global { interface Window { Razorpay: any } }
 
@@ -83,10 +84,10 @@ export default function BillingPage() {
             body:    JSON.stringify(response),
           })
           if (verifyRes.ok) {
-            toast.success('Subscription activated! Enjoy LoanPro.')
+            toast.success('Payment confirmed. Your LoanPro subscription is now active.')
             window.location.href = '/dashboard'
           } else {
-            toast.error('Payment received but verification failed. Contact support.')
+            toast.error('Your payment was received, but the subscription could not be confirmed. Do not pay again; contact support with your payment receipt.')
           }
         },
         prefill:  {},
@@ -96,12 +97,18 @@ export default function BillingPage() {
 
       const rzp = new window.Razorpay(options)
       rzp.on('payment.failed', (r: any) => {
-        toast.error(`Payment failed: ${r.error?.description}`)
+        toast.error(userFacingError(
+          r.error?.description,
+          'The payment was not completed. No subscription change was made; check the payment details and try again.',
+        ))
         setLoading(null)
       })
       rzp.open()
     } catch (err: any) {
-      toast.error(err.message || 'Failed to initiate payment')
+      toast.error(userFacingError(
+        err,
+        'Checkout could not be opened. No payment was taken; wait a moment and try again.',
+      ))
       setLoading(null)
     }
   }

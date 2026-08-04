@@ -1254,6 +1254,10 @@ export type Database = {
         Args: { p_loan_id?: number | null; p_interest?: number | null; p_closed_date?: string | null }
         Returns: Json
       }
+      close_loan_with_photo_policy: {
+        Args: { p_loan_id?: number | null; p_interest?: number | null; p_closed_date?: string | null }
+        Returns: Json
+      }
       consume_api_rate_limit: {
         Args: { p_scope?: string | null; p_identity_hash?: string | null; p_limit?: number | null; p_window_seconds?: number | null }
         Returns: { allowed: boolean | null; remaining: number | null; retry_after: number | null }[]
@@ -1443,6 +1447,10 @@ export type Database = {
         Returns: undefined
       }
       reopen_loan: {
+        Args: { p_loan_id?: number | null }
+        Returns: Json
+      }
+      reopen_loan_with_photo_policy: {
         Args: { p_loan_id?: number | null }
         Returns: Json
       }

@@ -9,6 +9,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/client'
 import toast from 'react-hot-toast'
+import { userFacingError } from '@/lib/user-message'
 import { useRouter } from 'next/navigation'
 import { addDeposit } from '@/app/(app)/loans/actions'
 import { useOffline } from '@/components/offline/OfflineProvider'
@@ -95,8 +96,11 @@ export function AddDepositButton({ tenantId }: Props) {
       setSelectedLoan(null)
       setOpen(false)
       router.refresh()
-    } catch (err: any) {
-      toast.error(`The deposit on loan #${data.loan_id} was not recorded. ${err.message || 'No cash entry was changed.'}`)
+    } catch (err: unknown) {
+      toast.error(userFacingError(
+        err,
+        `The deposit on loan #${data.loan_id} was not recorded. No cash entry was changed.`,
+      ))
     } finally {
       setLoading(false)
     }

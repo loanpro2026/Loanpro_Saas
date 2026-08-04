@@ -76,7 +76,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <BottomNav />
       {/* Renders over the app rather than redirecting, so a half-filled loan
           form survives being locked and unlocked. */}
-      <ScreenLock timeoutMinutes={lockAfter} shopName={tenant?.shop_name ?? 'LoanPro'} />
+      <ScreenLock
+        timeoutMinutes={lockAfter}
+        lockOnStartup={appSettings.lock_on_startup}
+        shopName={tenant?.shop_name ?? 'LoanPro'}
+      />
       {/* Silently registers Android FCM token / iOS push subscription when running inside native app */}
       <DeviceRegistrationBridge />
     </div>

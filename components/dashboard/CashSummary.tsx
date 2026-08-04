@@ -43,17 +43,17 @@ export function CashSummary({
   const items: FinancialItem[] = [
     {
       label: 'Total deposits held', value: data.totalDeposits, sign: '',
-      sub: 'Across active loan deposit history', tone: 'neutral', error: depositsError,
+      sub: 'Currently held against active loans', tone: 'neutral', error: depositsError,
     },
     {
       label: 'Deposits received', value: data.depositCredit, sign: '+ ',
       sub: 'Today · customer part-payments', tone: 'positive', error: cashError,
-      href: '/day-end',
+      href: '/day-end#deposits-received',
     },
     {
       label: 'Deposits adjusted', value: data.depositDebit, sign: '− ',
       sub: 'Today · offset at settlement', tone: 'negative', error: cashError,
-      href: '/day-end',
+      href: '/day-end#deposits-adjusted',
     },
   ]
 

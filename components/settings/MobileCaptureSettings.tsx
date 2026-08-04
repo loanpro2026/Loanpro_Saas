@@ -5,6 +5,7 @@ import { CheckCircle2, CircleOff, Pencil, QrCode, RefreshCw, Smartphone, Star, T
 import toast from 'react-hot-toast'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
+import { userFacingError } from '@/lib/user-message'
 
 interface Device {
   deviceId: string
@@ -68,7 +69,10 @@ export function MobileCaptureSettings({ isOwner }: { isOwner: boolean }) {
       }
     } catch (error) {
       setConfigured(true)
-      if (!quiet) toast.error(error instanceof Error ? error.message : 'Could not load paired phones')
+      if (!quiet) toast.error(userFacingError(
+        error,
+        'Paired phones could not be loaded. Refresh the page or try again shortly.',
+      ))
     } finally {
       if (!quiet) setLoading(false)
     }
@@ -103,7 +107,10 @@ export function MobileCaptureSettings({ isOwner }: { isOwner: boolean }) {
         existingDeviceActivity: data.existing_device_activity ?? {},
       })
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Could not create pairing QR')
+      toast.error(userFacingError(
+        error,
+        'A pairing code could not be created. Check the mobile capture setup and try again.',
+      ))
     } finally {
       setPairingBusy(false)
     }
@@ -118,9 +125,18 @@ export function MobileCaptureSettings({ isOwner }: { isOwner: boolean }) {
         body: JSON.stringify({ device_id: deviceId, ...patch }),
       }))
       await loadDevices(true)
-      toast.success('Phone settings updated.')
+      toast.success(
+        typeof patch.device_name === 'string'
+          ? `Phone renamed to “${patch.device_name}”.`
+          : patch.is_default === true
+            ? 'This phone will now receive photo requests by default.'
+            : 'The phone setting was saved.',
+      )
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Phone was not updated')
+      toast.error(userFacingError(
+        error,
+        'The phone setting could not be saved. Its previous setting is unchanged.',
+      ))
     } finally {
       setWorkingId(null)
     }
@@ -139,9 +155,12 @@ export function MobileCaptureSettings({ isOwner }: { isOwner: boolean }) {
         method: 'DELETE',
       }))
       await loadDevices(true)
-      toast.success(`${device.deviceName} removed.`)
+      toast.success(`${device.deviceName} was unpaired and will no longer receive photo requests.`)
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Phone was not removed')
+      toast.error(userFacingError(
+        error,
+        `${device.deviceName} could not be unpaired. It can still receive photo requests.`,
+      ))
     } finally {
       setWorkingId(null)
     }

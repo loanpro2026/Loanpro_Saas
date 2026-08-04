@@ -8,13 +8,18 @@
  * connection.
  */
 import { createContext, useContext, type ReactNode } from 'react'
-import { withDefaults, type ShopSettings } from '@/lib/settings'
+import { formatDateSetting, withDefaults, type ShopSettings } from '@/lib/settings'
 import type { Json } from '@/types/supabase'
 import { DEFAULT_SETTINGS } from '@/lib/settings'
 
 const Ctx = createContext<ShopSettings>(DEFAULT_SETTINGS)
 
 export const useSettings = () => useContext(Ctx)
+
+export const useAppDate = () => {
+  const settings = useSettings()
+  return (date: string | Date) => formatDateSetting(date, settings.date_display_format)
+}
 
 export function SettingsProvider({
   settings,

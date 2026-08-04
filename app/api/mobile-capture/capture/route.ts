@@ -8,6 +8,7 @@ import {
   getCloudCaptureStatus,
   MobileCaptureError,
 } from '@/lib/mobile-capture'
+import { currentPhotoCaptureEnabled } from '@/lib/photo-policy'
 
 function failure(error: unknown) {
   const status = error instanceof MobileCaptureError ? error.status : 500
@@ -18,6 +19,7 @@ function failure(error: unknown) {
 export async function POST(req: Request) {
   const ctx = await getSessionContext()
   if (!ctx) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!(await currentPhotoCaptureEnabled())) return NextResponse.json({ error: 'Photo capture is disabled in Settings' }, { status: 403 })
 
   const limited = await rateLimit(req, {
     scope: 'mobile-capture.capture', limit: 20, windowSeconds: 60,
@@ -43,6 +45,7 @@ export async function POST(req: Request) {
 export async function GET(req: Request) {
   const ctx = await getSessionContext()
   if (!ctx) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!(await currentPhotoCaptureEnabled())) return NextResponse.json({ error: 'Photo capture is disabled in Settings' }, { status: 403 })
 
   const sessionId = new URL(req.url).searchParams.get('session_id')?.trim()
   if (!sessionId) return NextResponse.json({ error: 'session_id is required' }, { status: 400 })

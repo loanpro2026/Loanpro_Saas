@@ -8,12 +8,14 @@ import { createClient as createServerClient, createServiceClient } from '@/lib/s
 import { putObject, presignDownload, cameraSessionKey, MAX_PHOTO_BYTES, ALLOWED_MIME, type AllowedMime } from '@/lib/r2'
 import { NextResponse } from 'next/server'
 import { logServerError, rateLimit, requestId } from '@/lib/api-security'
+import { currentPhotoCaptureEnabled, tenantPhotoCaptureEnabled } from '@/lib/photo-policy'
 
 // POST — create session
 export async function POST(req: Request) {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!(await currentPhotoCaptureEnabled())) return NextResponse.json({ error: 'Photo capture is disabled in Settings' }, { status: 403 })
 
   const limited = await rateLimit(req, {
     scope: 'camera.create', limit: 20, windowSeconds: 60, identity: `user:${user.id}`,
@@ -50,11 +52,14 @@ export async function GET(req: Request) {
   const service = createServiceClient()
   const { data, error } = await service
     .from('camera_sessions')
-    .select('status, r2_key, expires_at')
+    .select('status, r2_key, expires_at, tenant_id')
     .eq('session_key', key)
     .single()
 
   if (error || !data) return NextResponse.json({ error: 'Session not found' }, { status: 404 })
+  if (!(await tenantPhotoCaptureEnabled(data.tenant_id))) {
+    return NextResponse.json({ error: 'Photo capture is disabled in Settings' }, { status: 403 })
+  }
 
   if (new Date(data.expires_at) < new Date()) {
     await service.from('camera_sessions').update({ status: 'expired' }).eq('session_key', key)
@@ -89,6 +94,9 @@ export async function PUT(req: Request) {
     .single()
 
   if (sessionError || !session) return NextResponse.json({ error: 'Session not found' }, { status: 404 })
+  if (!(await tenantPhotoCaptureEnabled(session.tenant_id))) {
+    return NextResponse.json({ error: 'Photo capture is disabled in Settings' }, { status: 403 })
+  }
   if (session.status !== 'pending') return NextResponse.json({ error: 'Session already used or expired' }, { status: 409 })
   if (new Date(session.expires_at) < new Date()) {
     await service.from('camera_sessions').update({ status: 'expired' }).eq('session_key', key)

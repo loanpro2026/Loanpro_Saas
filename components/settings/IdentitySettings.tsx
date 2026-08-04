@@ -16,6 +16,36 @@ import { Select } from '@/components/ui/Select'
 import { Input } from '@/components/ui/Input'
 import { saveSetting } from '@/app/(app)/settings/actions'
 import type { ShopSettings } from '@/lib/settings'
+import { userFacingError } from '@/lib/user-message'
+
+function settingNotice(key: keyof ShopSettings, value: unknown): string {
+  switch (key) {
+    case 'identity_verification_enabled':
+      return value ? 'Customer photo capture is now available.' : 'Customer photo capture is now hidden and blocked.'
+    case 'identity_mandatory_at_creation':
+      return value ? 'New loans now require a customer photo.' : 'New loans can now be saved without a photo.'
+    case 'identity_mandatory_at_closure':
+      return value ? 'Settling a loan now requires a new collection photo.' : 'Settled loans will keep the original pledge photo.'
+    case 'photo_capture_mode':
+      return value === 'mobile' ? 'Photos will now be requested from the paired phone.' : 'Photos will now use this device’s camera.'
+    case 'interest_percentage':
+      return `The suggested annual interest rate is now ${value}%.`
+    case 'interest_calculation_type':
+      return `Interest will now be calculated using the ${value} method.`
+    case 'interest_calculation_period':
+      return `Compound interest will now be calculated ${value}.`
+    case 'add_record_address_field_enabled':
+      return value ? 'The address field is now shown on loan records.' : 'The address field is now hidden from loan records.'
+    case 'add_record_additional_information_field_enabled':
+      return value ? 'Additional information is now shown on loan records.' : 'Additional information is now hidden from loan records.'
+    case 'default_category':
+      return `${value} is now selected by default for new loans.`
+    case 'date_display_format':
+      return `Dates will now be displayed as ${value}.`
+    default:
+      return 'The setting was saved.'
+  }
+}
 
 export function IdentitySettings({ settings }: { settings: ShopSettings }) {
   const router = useRouter()
@@ -29,12 +59,15 @@ export function IdentitySettings({ settings }: { settings: ShopSettings }) {
     startTransition(async () => {
       const res = await saveSetting(key, value)
       if (res.ok) {
-        toast.success(`${key.replaceAll('_', ' ')} updated.`)
+        toast.success(settingNotice(key, value))
         router.refresh()
       }
       else {
         setLocal(s => ({ ...s, [key]: settings[key] }))
-        toast.error(`${key.replaceAll('_', ' ')} was not updated. ${res.error ?? 'The previous setting remains active.'}`)
+        toast.error(userFacingError(
+          res.error,
+          'This setting could not be saved. The previous choice is still active.',
+        ))
       }
     })
   }
@@ -51,14 +84,14 @@ export function IdentitySettings({ settings }: { settings: ShopSettings }) {
         </div>
 
         <Toggle
-          label="Capture customer photos"
-          description="Master switch. With this off, the photo section disappears from the loan screens entirely."
+          label="Enable customer photo capture"
+          description="Master switch. Turning this off hides photo controls and blocks photo APIs; existing stored photos are preserved but hidden."
           checked={idOn}
           disabled={pending}
           onChange={v => save('identity_verification_enabled', v)}
         />
 
-        <div className={idOn ? 'space-y-4 pl-1' : 'space-y-4 pl-1 opacity-40 pointer-events-none'}>
+        {idOn && <div className="space-y-4 pl-1">
           <Toggle
             label="Require a photo before a loan can be saved"
             description="The new loan form will not submit without one."
@@ -67,35 +100,35 @@ export function IdentitySettings({ settings }: { settings: ShopSettings }) {
             onChange={v => save('identity_mandatory_at_creation', v)}
           />
           <Toggle
-            label="Require a photo before a loan can be closed"
-            description="Blocks handing jewellery back to someone with no photo on file. Enforced on the server, so it cannot be worked around."
+            label="Take a new photo when closing a loan"
+            description="When on, settlement requires a new collection photo and retires the original pledge photo. When off, the original pledge photo remains the source of truth."
             checked={local.identity_mandatory_at_closure}
             disabled={pending || !idOn}
             onChange={v => save('identity_mandatory_at_closure', v)}
           />
-          {/* One three-way choice rather than two booleans. The old pair could
+          {/* One source choice rather than two booleans. The old pair could
               express "a photo is required" together with "there is no way to
               take one", which the settings screen happily allowed. */}
           <div className="space-y-1.5">
             <Select
-              label="Where photos are taken"
+              label="Camera source"
               value={local.photo_capture_mode}
               disabled={pending || !idOn}
               onChange={e =>
                 save('photo_capture_mode', e.target.value as ShopSettings['photo_capture_mode'])
               }
               options={[
-                { value: 'automatic', label: 'Automatic for this device' },
-                { value: 'off',    label: 'Do not capture photos' },
+                { value: 'local', label: 'Local camera on this device' },
+                { value: 'mobile', label: 'Paired Android phone' },
               ]}
             />
             <p className="text-xs text-slate-500">
-              {local.photo_capture_mode === 'automatic'
-                ? 'On a phone or tablet, capture directly with its camera. On desktop, use the existing paired-phone flow.'
-                : 'Loans are saved with their details only. The two requirements above are ignored while this is off.'}
+              {local.photo_capture_mode === 'local'
+                ? 'Uses the camera attached to the browser device. File upload remains available as a fallback.'
+                : 'On desktop, sends capture requests to the paired Android companion through Cloud Run. On a phone, its own camera is used directly.'}
             </p>
           </div>
-        </div>
+        </div>}
       </section>
 
       {/* ── Interest ────────────────────────────────────────────────────── */}
@@ -138,9 +171,10 @@ export function IdentitySettings({ settings }: { settings: ShopSettings }) {
             disabled={local.interest_calculation_type !== 'compound'}
             onChange={e => save('interest_calculation_period', e.target.value)}
             options={[
-              { value: 'yearly', label: 'Yearly' },
-              { value: 'half-yearly', label: 'Half-yearly' },
+              { value: 'monthly', label: 'Monthly' },
               { value: 'quarterly', label: 'Quarterly' },
+              { value: 'half-yearly', label: 'Half-yearly' },
+              { value: 'yearly', label: 'Yearly' },
             ]}
           />
         </div>
@@ -192,6 +226,7 @@ export function IdentitySettings({ settings }: { settings: ShopSettings }) {
             value={local.date_display_format}
             onChange={e => save('date_display_format', e.target.value)}
             options={[
+              { value: 'yyyy/mm/dd', label: 'yyyy/mm/dd - 2026/03/01' },
               { value: 'dd/mm/yyyy', label: 'dd/mm/yyyy — 01/03/2026' },
               { value: 'mm/dd/yyyy', label: 'mm/dd/yyyy — 03/01/2026' },
               { value: 'yyyy-mm-dd', label: 'yyyy-mm-dd — 2026-03-01' },

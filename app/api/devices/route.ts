@@ -7,12 +7,14 @@
 import { createClient as createServerClient, createServiceClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { rateLimit } from '@/lib/api-security'
+import { currentPhotoCaptureEnabled } from '@/lib/photo-policy'
 
 // ─── GET — list devices ────────────────────────────────────────────────────
 export async function GET() {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!(await currentPhotoCaptureEnabled())) return NextResponse.json({ devices: [], configured: false })
 
   const { data, error } = await supabase
     .from('paired_devices')
@@ -28,6 +30,7 @@ export async function POST(req: Request) {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!(await currentPhotoCaptureEnabled())) return NextResponse.json({ error: 'Photo capture is disabled in Settings' }, { status: 403 })
 
   const limited = await rateLimit(req, {
     scope: 'devices.register', limit: 20, windowSeconds: 600, identity: `user:${user.id}`,

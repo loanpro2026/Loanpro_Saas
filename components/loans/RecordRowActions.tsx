@@ -19,6 +19,7 @@ import { Icon } from '@/components/ui/Icon'
 import { ICON } from '@/lib/nav'
 import { formatCurrency } from '@/lib/utils'
 import { deleteLoan } from '@/app/(app)/loans/actions'
+import { userFacingError } from '@/lib/user-message'
 
 interface Props {
   loan: {
@@ -48,9 +49,10 @@ export function RecordRowActions({ loan, totalDeposits = 0 }: Props) {
       router.refresh()
       return
     }
-    toast.error(
-      `Record #${loan.id} was not deleted. ${result.error ?? 'No record, deposit or photo was removed.'}`
-    )
+    toast.error(userFacingError(
+      result.error,
+      `Record #${loan.id} was not deleted. No loan, deposit, cash entry, or customer photo was removed.`,
+    ))
   })
 
   const item = [loan.category_type?.toLowerCase(), loan.detailed_type?.toLowerCase()]

@@ -9,6 +9,7 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
+import { userFacingError } from '@/lib/user-message'
 import { UserCircle2, Trash2, Camera, ShieldCheck, Clock } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
@@ -76,7 +77,10 @@ export function LoanPhoto({
         setVersion(v => v + 1)
         router.refresh()
       } catch (err: any) {
-        toast.error(`${stageLabel} photo was not attached to loan #${loanId}. ${err?.message ?? 'Please capture it again.'}`)
+        toast.error(userFacingError(
+          err,
+          `${stageLabel} photo was not attached to loan #${loanId}. Capture or choose the photo again.`,
+        ))
       }
     })
   }

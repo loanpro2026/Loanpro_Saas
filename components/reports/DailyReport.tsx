@@ -6,7 +6,8 @@
  * this against the physical cash in the drawer at closing time. Every line has
  * an explicit sign so the arithmetic can be followed down the column.
  */
-import { formatCurrency, formatDate } from '@/lib/utils'
+import { formatCurrency } from '@/lib/utils'
+import { useAppDate } from '@/components/settings/SettingsProvider'
 import { Wallet, TrendingDown, TrendingUp } from 'lucide-react'
 
 interface Daily {
@@ -23,6 +24,7 @@ interface Daily {
 }
 
 export function DailyReport({ data }: { data: Daily | null }) {
+  const formatDate = useAppDate()
   if (!data) return null
 
   const n = (v: unknown) => Number(v ?? 0)

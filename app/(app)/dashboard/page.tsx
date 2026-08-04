@@ -2,9 +2,10 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { Landmark, Plus } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
-import { asObject, numberAt, objectAt, stringAt } from '@/lib/json'
+import { asArray, asObject, numberAt, objectAt, stringAt } from '@/lib/json'
 import type { Json, Tables } from '@/types/supabase'
-import { formatCurrency, formatDate } from '@/lib/utils'
+import { formatCurrency } from '@/lib/utils'
+import { formatDateSetting, withDefaults } from '@/lib/settings'
 import { MetalBadge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
@@ -12,7 +13,6 @@ import { CashSummary } from '@/components/dashboard/CashSummary'
 import { PeriodCards } from '@/components/dashboard/PeriodCards'
 import { QuickActions } from '@/components/dashboard/QuickActions'
 import { StockChart } from '@/components/dashboard/StockChart'
-import { TopLocations, type LocationRow } from '@/components/dashboard/TopLocations'
 import { TrendChart } from '@/components/dashboard/TrendChart'
 
 type RecentLoanRow = Pick<
@@ -20,12 +20,6 @@ type RecentLoanRow = Pick<
   'id' | 'name' | 'father_name' | 'amount' | 'category_type'
   | 'detailed_type' | 'issue_date' | 'status'
 >
-
-type LocationReportRow = {
-  location: string | null
-  active_count: number | null
-  active_amount: number | null
-}
 
 type TrendRow = {
   month: string | null
@@ -53,14 +47,11 @@ export default async function DashboardPage() {
       .select('id, name, father_name, amount, category_type, detailed_type, issue_date, status')
       .eq('status', 'active').order('issue_date', { ascending: false }).limit(5),
     supabase.rpc('chart_data', { p_months: 12 }),
-    supabase.rpc('location_report', { p_locations: null, p_start: null, p_end: null }),
-    // The compact financial row uses the live deposit balance already exposed
-    // by this existing tenant-scoped report function.
-    supabase.rpc('lending_metrics'),
+    supabase.rpc('my_settings'),
   ])
 
   const names = [
-    'dashboard_snapshot', 'recent_loans', 'chart_data', 'location_report', 'lending_metrics',
+    'dashboard_snapshot', 'recent_loans', 'chart_data', 'my_settings',
   ] as const
   const failures = new Set<number>()
 
@@ -83,13 +74,12 @@ export default async function DashboardPage() {
   const snapshot = unwrap<Json>(0)
   const recentLoans = unwrap<RecentLoanRow[]>(1)
   const trend = unwrap<TrendRow[]>(2)
-  const locations = unwrap<LocationReportRow[]>(3)
-  const lendingMetrics = unwrap<Json>(4)
+  const settings = withDefaults(unwrap<Json>(3))
+  const formatDate = (date: string | Date) => formatDateSetting(date, settings.date_display_format)
 
   const metrics = asObject(snapshot)
   const stock = objectAt(snapshot, 'stock')
   const cash = objectAt(snapshot, 'cash')
-  const depositMetrics = asObject(lendingMetrics)
   const cost = {
     gold: numberAt(objectAt(stock, 'cost'), 'gold'),
     silver: numberAt(objectAt(stock, 'cost'), 'silver'),
@@ -103,6 +93,25 @@ export default async function DashboardPage() {
   const counts = {
     gold: numberAt(objectAt(stock, 'count'), 'gold'),
     silver: numberAt(objectAt(stock, 'count'), 'silver'),
+  }
+  const groups = asObject(objectAt(stock, 'groups'))
+  const safeGroups = {
+    gold: asArray(groups.gold).map(value => {
+      const row = asObject(value)
+      return {
+        type: stringAt(row, 'type', 'Unknown'),
+        amount: numberAt(row, 'amount'),
+        count: numberAt(row, 'count'),
+      }
+    }),
+    silver: asArray(groups.silver).map(value => {
+      const row = asObject(value)
+      return {
+        type: stringAt(row, 'type', 'Unknown'),
+        amount: numberAt(row, 'amount'),
+        count: numberAt(row, 'count'),
+      }
+    }),
   }
   const firstName = (appUser.full_name ?? '').trim().split(/\s+/)[0] ?? ''
 
@@ -118,13 +127,13 @@ export default async function DashboardPage() {
       <CashSummary
         data={{
           cashInHand: numberAt(cash, 'cash_in_hand'),
-          totalDeposits: numberAt(depositMetrics, 'total_deposits'),
+          totalDeposits: numberAt(cash, 'total_deposits'),
           depositCredit: numberAt(cash, 'deposit_credit'),
           depositDebit: numberAt(cash, 'deposit_debit'),
           noActivity: cash.no_activity === true,
         }}
         cashError={failures.has(0)}
-        depositsError={failures.has(4)}
+        depositsError={failures.has(0)}
       />
 
       {/* Two thirds trend, one third safe — the design's ratio on both rows. */}
@@ -145,6 +154,7 @@ export default async function DashboardPage() {
           cost={cost}
           weight={weight}
           counts={counts}
+          groups={safeGroups}
         />
       </div>
 
@@ -203,22 +213,7 @@ export default async function DashboardPage() {
           )}
         </section>
 
-        <div className="flex flex-col gap-3">
-          <QuickActions />
-          <TopLocations
-            error={failures.has(3)}
-            rows={(locations ?? []).reduce<LocationRow[]>((all, row) => {
-              if (row.location) {
-                all.push({
-                  location: row.location,
-                  active_count: row.active_count ?? 0,
-                  active_amount: row.active_amount ?? 0,
-                })
-              }
-              return all
-            }, [])}
-          />
-        </div>
+        <QuickActions />
       </div>
     </div>
   )

@@ -8,6 +8,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
+import { userFacingError } from '@/lib/user-message'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 
@@ -45,7 +46,10 @@ export function SetupForm({
       router.push('/dashboard')
       router.refresh()
     } catch (err: unknown) {
-      toast.error(`The workspace for ${shopName.trim() || 'this shop'} was not created. ${err instanceof Error ? err.message : 'Please retry; no tenant was added.'}`)
+      toast.error(userFacingError(
+        err,
+        `The workspace for ${shopName.trim() || 'this shop'} could not be created. Nothing was added; please try again.`,
+      ))
     } finally {
       setLoading(false)
     }

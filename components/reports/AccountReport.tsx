@@ -8,8 +8,9 @@
  */
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import { TrendingUp } from 'lucide-react'
-import { formatCurrency, formatDate } from '@/lib/utils'
+import { formatCurrency } from '@/lib/utils'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { useAppDate } from '@/components/settings/SettingsProvider'
 
 interface Row {
   date: string
@@ -35,6 +36,7 @@ export function AccountReport({
   rows: Row[]
   type: keyof typeof LABELS
 }) {
+  const formatDate = useAppDate()
   if (!rows?.length) {
     return (
       <EmptyState

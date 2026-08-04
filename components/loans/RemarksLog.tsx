@@ -11,6 +11,7 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
+import { userFacingError } from '@/lib/user-message'
 import { MessageSquarePlus, X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { appendRemark, deleteRemark } from '@/app/(app)/loans/actions'
@@ -33,13 +34,19 @@ export function RemarksLog({ loanId, remarks }: Props) {
     if (res.ok) {
       toast.success(`A dated remark was added to loan #${loanId}.`)
       setText(''); setOpen(false); router.refresh()
-    } else toast.error(`The remark was not added to loan #${loanId}. ${res.error ?? 'Please retry.'}`)
+    } else toast.error(userFacingError(
+      res.error,
+      `The remark was not added to loan #${loanId}. Your loan record is unchanged.`,
+    ))
   })
 
   const onRemove = (index: number, expected: string) => startTransition(async () => {
     const res = await deleteRemark(loanId, index, expected)
     if (res.ok) { toast.success(`The selected remark was removed from loan #${loanId}.`); router.refresh() }
-    else toast.error(`The remark was not removed from loan #${loanId}. ${res.error ?? 'It may have changed on another device; reload and retry.'}`)
+    else toast.error(userFacingError(
+      res.error,
+      `The remark was not removed from loan #${loanId}. Reload the loan before trying again.`,
+    ))
   })
 
   return (

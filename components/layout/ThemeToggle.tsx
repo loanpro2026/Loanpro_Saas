@@ -10,6 +10,7 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
+import { userFacingError } from '@/lib/user-message'
 import { saveSetting } from '@/app/(app)/settings/actions'
 import { applyTheme } from '@/components/settings/ThemeBridge'
 import { ICON } from '@/lib/nav'
@@ -31,7 +32,10 @@ export function ThemeToggle({ initialTheme }: { initialTheme: ShopSettings['them
       if (!result.ok) {
         setTheme(previous)
         applyTheme(previous)
-        toast.error(result.error ?? 'The theme was not saved. The previous one has been restored.')
+        toast.error(userFacingError(
+          result.error,
+          'The display mode could not be saved. The previous theme has been restored.',
+        ))
         return
       }
       router.refresh()

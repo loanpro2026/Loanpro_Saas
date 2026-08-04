@@ -21,9 +21,8 @@ import { createClient } from '@/lib/supabase/client'
 import { searchCachedLoans } from '@/lib/offline/db'
 import { useOffline } from '@/components/offline/OfflineProvider'
 import { AutoSuggest } from '@/components/ui/AutoSuggest'
-import { MetalBadge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
-import { formatCurrency, formatDate, getLoanAge } from '@/lib/utils'
+import { formatCurrency } from '@/lib/utils'
 
 const PAGE_SIZE = 25
 
@@ -43,7 +42,6 @@ interface LoanRow {
   detailed_type: string | null
   weight: number | null
   issue_date: string
-  totalDeposits: number | null
 }
 
 const FIELD_LABEL: Record<SearchField, string> = {
@@ -60,12 +58,6 @@ const PLACEHOLDER: Record<SearchField, string> = {
   name: 'e.g. Ramesh Kumar',
   father: 'e.g. Suresh Kumar',
   location: 'e.g. Sarafa Bazaar',
-}
-
-/** Whole days between an ISO date and today. */
-function daysHeld(issue: string): number {
-  const ms = Date.now() - Date.parse(`${issue}T00:00:00Z`)
-  return Number.isFinite(ms) ? Math.max(0, Math.round(ms / 86_400_000)) : 0
 }
 
 export function RemoveRecordWorkspace() {
@@ -136,10 +128,7 @@ export function RemoveRecordWorkspace() {
           .filter(loan => maxAmount === null || Number(loan.amount) <= maxAmount)
           .filter(loan => !cutoff || loan.issue_date <= cutoff)
 
-        setRows(filtered.slice(nextPage * PAGE_SIZE, (nextPage + 1) * PAGE_SIZE).map(loan => ({
-          ...loan,
-          totalDeposits: null,
-        })) as LoanRow[])
+        setRows(filtered.slice(nextPage * PAGE_SIZE, (nextPage + 1) * PAGE_SIZE) as LoanRow[])
         setTotal(filtered.length)
         setPage(nextPage)
         setFromCache(true)
@@ -151,7 +140,7 @@ export function RemoveRecordWorkspace() {
       let query = supabase
         .from('loans')
         .select(
-          'id, name, father_name, location, amount, category_type, detailed_type, weight, issue_date, deposits(amount)',
+          'id, name, father_name, location, amount, category_type, detailed_type, weight, issue_date',
           { count: 'exact' }
         )
         .eq('status', 'active')
@@ -193,7 +182,6 @@ export function RemoveRecordWorkspace() {
         detailed_type: item.detailed_type,
         weight: item.weight == null ? null : Number(item.weight),
         issue_date: item.issue_date,
-        totalDeposits: item.deposits.reduce((sum, deposit) => sum + Number(deposit.amount ?? 0), 0),
       })))
       setTotal(count ?? 0)
       setPage(nextPage)
@@ -317,8 +305,8 @@ export function RemoveRecordWorkspace() {
       {fromCache && (
         <p className="note-amber flex items-start gap-2">
           <CloudOff className="mt-0.5 h-4 w-4 shrink-0" />
-          Saved active-loan results from this device are shown. Deposit totals are unavailable
-          until the connection returns.
+          Saved active-loan results from this device are shown. Settlement will reconnect when
+          the internet returns.
         </p>
       )}
 
@@ -371,71 +359,44 @@ export function RemoveRecordWorkspace() {
             </div>
 
             <div className="card-flush">
-              <div className="hidden grid-cols-[120px_1.4fr_1fr_110px_76px_1fr_130px_40px] gap-3 border-b
+              <div className="hidden grid-cols-[130px_1.4fr_1.3fr_1fr_40px] gap-3 border-b
                               border-surface-border bg-surface-muted px-4 py-2.5 text-11 font-bold uppercase
                               tracking-[0.04em] text-ink-faint lg:grid">
                 <span>Amount</span>
                 <span>Customer</span>
-                <span>Location</span>
-                <span>Issued</span>
-                <span>Metal</span>
-                <span>Type &amp; weight</span>
-                <span className="text-right">Days held</span>
+                <span>Father&rsquo;s name</span>
+                <span>Jewellery type</span>
                 <span />
               </div>
 
-              {rows.map(row => {
-                const outstanding = row.totalDeposits == null
-                  ? null
-                  : Math.max(0, row.amount - row.totalDeposits)
-
-                return (
+              {rows.map(row => (
                   <Link
                     key={row.id}
-                    href={`/loans/${row.id}?from=remove-record`}
+                    href={`/remove-record/${row.id}`}
                     className="grid grid-cols-1 items-center gap-3 border-b border-surface-border px-4 py-3
                                text-12.5 transition-colors last:border-0 hover:bg-surface-muted
-                               lg:grid-cols-[120px_1.4fr_1fr_110px_76px_1fr_130px_40px]"
+                               lg:grid-cols-[130px_1.4fr_1.3fr_1fr_40px]"
                   >
-                    <div>
-                      <span className="text-13.5 font-bold tabular-nums text-ink">{formatCurrency(row.amount)}</span>
-                      {/* What the customer still owes on the principal. Offline
-                          this is unknown, and saying so beats printing a zero. */}
-                      <span className="block text-11 text-ink-faint">
-                        {outstanding == null
-                          ? 'Outstanding offline'
-                          : `${formatCurrency(outstanding)} outstanding`}
-                      </span>
-                    </div>
+                    <span className="text-13.5 font-bold tabular-nums text-ink">{formatCurrency(row.amount)}</span>
 
                     <div className="min-w-0">
                       <span className="block truncate font-semibold text-ink">{row.name}</span>
-                      <span className="block truncate text-11.5 text-ink-faint">
+                      <span className="block truncate text-11.5 text-ink-faint lg:hidden">
                         {row.father_name ? `S/o ${row.father_name}` : 'Father’s name not recorded'}
                       </span>
                     </div>
 
-                    <span className="hidden truncate text-ink-muted lg:block">{row.location || '—'}</span>
-                    <span className="hidden text-ink-muted lg:block">{formatDate(row.issue_date)}</span>
-                    <MetalBadge metal={row.category_type} className="hidden justify-self-start lg:inline-flex" />
+                    <span className="hidden truncate text-ink-muted lg:block">{row.father_name || '—'}</span>
                     <span className="hidden truncate text-ink-muted lg:block">
-                      {[row.detailed_type, weightLabel(row)].filter(Boolean).join(' · ') || '—'}
-                    </span>
-                    <span className="hidden text-right font-semibold tabular-nums text-ink lg:block">
-                      {getLoanAge(row.issue_date)}
+                      {row.detailed_type || '—'}
                     </span>
                     <span className="hidden text-right text-15 text-ink-faint lg:block">→</span>
 
-                    {/* Phone: the columns above, folded onto one line. */}
-                    <span className="flex flex-wrap items-center gap-2 text-11.5 text-ink-faint lg:hidden">
-                      <MetalBadge metal={row.category_type} />
-                      {weightLabel(row)}
-                      <span>{formatDate(row.issue_date)}</span>
-                      <span className="ml-auto font-semibold text-ink">{daysHeld(row.issue_date)} days held</span>
+                    <span className="text-11.5 text-ink-faint lg:hidden">
+                      {row.detailed_type || 'Jewellery type not recorded'}
                     </span>
                   </Link>
-                )
-              })}
+              ))}
 
               {pageCount > 1 && (
                 <div className="grid-foot">
@@ -466,11 +427,4 @@ export function RemoveRecordWorkspace() {
       </section>
     </div>
   )
-}
-
-function weightLabel(row: LoanRow): string {
-  if (row.weight == null) return ''
-  const value = row.category_type === 'Silver' ? row.weight / 1000 : row.weight
-  const unit = row.category_type === 'Silver' ? 'kg' : 'g'
-  return `${value.toLocaleString('en-IN', { maximumFractionDigits: 3 })} ${unit}`
 }

@@ -12,7 +12,7 @@
  *   annualRate = interestRate / 100          // shop-wide setting, default 36
  *   simple     = principal * annualRate * yearsDiff
  *   compound   = principal * (1 + annualRate/n)^(n * yearsDiff) - principal
- *                n = 4 quarterly, 2 half-yearly, 1 yearly
+ *                n = 12 monthly, 4 quarterly, 2 half-yearly, 1 yearly
  */
 
 // ── The desktop implementation, transcribed ─────────────────────────────────
@@ -21,7 +21,8 @@ function desktopInterest(principal, daysDiff, interestRate, type, period) {
   const annualRate = interestRate / 100
 
   if (type === 'compound') {
-    const periodsPerYear = period === 'quarterly' ? 4
+    const periodsPerYear = period === 'monthly' ? 12
+      : period === 'quarterly' ? 4
       : period === 'half-yearly' ? 2
       : 1
     return (principal * Math.pow(1 + (annualRate / periodsPerYear), periodsPerYear * yearsDiff)) - principal
@@ -34,7 +35,9 @@ function calculateInterestAmount(principal, annualRatePercent, days, type = 'sim
   const years = Math.max(0, days) / 365
   const rate = annualRatePercent / 100
   if (type === 'compound') {
-    const n = period === 'quarterly' ? 4 : period === 'half-yearly' ? 2 : 1
+    const n = period === 'monthly' ? 12
+      : period === 'quarterly' ? 4
+      : period === 'half-yearly' ? 2 : 1
     return Math.round(principal * (Math.pow(1 + rate / n, n * years) - 1))
   }
   return Math.round(principal * rate * years)
@@ -66,7 +69,7 @@ const cases = [
 
 for (const [principal, days] of cases) {
   for (const type of ['simple', 'compound']) {
-    for (const period of ['yearly', 'half-yearly', 'quarterly']) {
+    for (const period of ['yearly', 'half-yearly', 'quarterly', 'monthly']) {
       if (type === 'simple' && period !== 'yearly') continue  // period is ignored
       const mine = calculateInterestAmount(principal, RATE, days, type, period)
       const theirs = Math.round(desktopInterest(principal, days, RATE, type, period))
@@ -100,6 +103,9 @@ eq('and the gap widens over three years', (c3 - s3) > (c1 - s1), true)
 eq('quarterly compounds more than half-yearly',
    calculateInterestAmount(45000, 36, 365, 'compound', 'quarterly') >
    calculateInterestAmount(45000, 36, 365, 'compound', 'half-yearly'), true)
+eq('monthly compounds more than quarterly',
+   calculateInterestAmount(45000, 36, 365, 'compound', 'monthly') >
+   calculateInterestAmount(45000, 36, 365, 'compound', 'quarterly'), true)
 eq('half-yearly compounds more than yearly',
    calculateInterestAmount(45000, 36, 365, 'compound', 'half-yearly') >
    calculateInterestAmount(45000, 36, 365, 'compound', 'yearly'), true)

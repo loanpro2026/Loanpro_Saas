@@ -1,71 +1,40 @@
 /**
- * Quick Actions — deposits and cash, reachable from the Dashboard.
+ * Quick actions — the four jumps the design puts beside the loan list.
  *
- * On the desktop these are modals opened from the Dashboard:
- * DepositCreditModal, DepositDebitModal and CashTransactionsModal. There is no
- * Deposits screen and no Cash screen in its navigation at all.
+ * On the desktop app these are modals opened from the Dashboard (deposit, cash
+ * transactions, day-end). The web has them as real pages, which is the right
+ * call in a browser, but they were only reachable from sidebar entries the
+ * desktop never had. This panel keeps the same starting point.
  *
- * The web has both as pages, which is the right call for a browser — but they
- * were only reachable from sidebar entries the desktop does not have. Those
- * entries are gone now, so without this panel the two screens would exist and
- * be unreachable. Same destination, same starting point as the desktop.
+ * A plain 2×2 of bordered buttons rather than icons and hints: they are jumps,
+ * not features, and the design gives them no more weight than that.
  */
 import Link from 'next/link'
-import { Wallet, ClipboardCheck, Search } from 'lucide-react'
 
 const ACTIONS = [
-  {
-    href: '/remove-record',
-    label: 'Find a record',
-    hint: 'Add deposit or settle loan',
-    icon: Search,
-    accent: 'text-emerald-600 bg-emerald-50',
-  },
-  {
-    href: '/cash',
-    label: 'Cash',
-    hint: 'Add or remove cash',
-    icon: Wallet,
-    accent: 'text-blue-600 bg-blue-50',
-  },
-  {
-    // The desktop reads the same two daily tables through DepositCreditModal
-    // (daily_deposit_records) and DepositDebitModal
-    // (removed_records_with_deposits), both opened from the Dashboard. One page
-    // rather than two modals, reached from the same place.
-    href: '/day-end',
-    label: 'End of Day',
-    hint: "Today's settlements and deposits",
-    icon: ClipboardCheck,
-    accent: 'text-violet-600 bg-violet-50',
-  },
+  { href: '/remove-record',              label: 'Settle a loan' },
+  { href: '/cash',                       label: 'Cash drawer' },
+  { href: '/day-end',                    label: 'End of day' },
+  { href: '/reports',                    label: 'Quick reports' },
 ]
 
 export function QuickActions() {
   return (
-    <div className="card">
-      <h2 className="mb-3 text-sm font-bold text-slate-900">Quick actions</h2>
-      <ul className="grid grid-cols-1 gap-2 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
-        {ACTIONS.map(a => {
-          const Icon = a.icon
-          return (
-            <li key={a.href}>
-              <Link
-                href={a.href}
-                className="flex min-h-14 items-center gap-2 rounded-lg border border-surface-border bg-surface-muted px-3 py-2 transition-colors hover:border-primary-300 hover:bg-primary-50"
-              >
-                <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${a.accent}`}>
-                  <Icon className="h-3.5 w-3.5" />
-                </span>
-                <span className="flex-1 min-w-0">
-                  <span className="block text-xs font-semibold text-slate-900">{a.label}</span>
-                  <span className="hidden text-[11px] text-slate-400 2xl:block">{a.hint}</span>
-                </span>
-              </Link>
-            </li>
-          )
-        })}
-      </ul>
+    <div className="card px-4 py-3.5">
+      <h2 className="card-title mb-2.5">Quick actions</h2>
+      <div className="grid grid-cols-2 gap-2">
+        {ACTIONS.map(action => (
+          <Link
+            key={action.href}
+            href={action.href}
+            className="flex h-[38px] items-center justify-center rounded-lg border border-surface-border
+                       bg-surface-muted px-2 text-center text-12.5 font-semibold text-ink transition-colors
+                       hover:border-primary hover:text-primary"
+          >
+            {action.label}
+          </Link>
+        ))}
+      </div>
     </div>
   )
 }

@@ -1,19 +1,28 @@
+/**
+ * View Records → Active — /view-records/active
+ *
+ * Every loan currently out, in the design's nine-column table. Settlement does
+ * not happen here: this screen is for looking things up, and the only way to
+ * take money is through Remove Record. That separation is deliberate and is why
+ * the subtitle says so out loud.
+ */
 import { createClient } from '@/lib/supabase/server'
 import type { Tables } from '@/types/supabase'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { formatCurrency, formatDate, getLoanAge } from '@/lib/utils'
-import { Badge } from '@/components/ui/Badge'
+import { FileText, Plus } from 'lucide-react'
 import { EmptyState } from '@/components/ui/EmptyState'
-import { Plus, FileText } from 'lucide-react'
-import { LoanFilters } from '@/components/loans/LoanFilters'
 import { Button } from '@/components/ui/Button'
+import { PageHeader } from '@/components/ui/Page'
+import { LoanFilters } from '@/components/loans/LoanFilters'
+import { RecordsTable, Pagination, type RecordRow } from '@/components/loans/RecordsTable'
+import { formatCurrency } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
 
 interface Props {
   searchParams: Promise<{
-    category?: string; q?: string; field?: string; page?: string
+    category?: string; q?: string; field?: string; page?: string; sort?: string
     from?: string; to?: string; min?: string; max?: string
   }>
 }
@@ -22,6 +31,12 @@ const SEARCH_FIELDS = ['name', 'father_name', 'location', 'id'] as const
 type SearchField = (typeof SEARCH_FIELDS)[number]
 const isSearchField = (value?: string): value is SearchField =>
   !!value && (SEARCH_FIELDS as readonly string[]).includes(value)
+
+const SORTS = ['newest', 'oldest', 'amount'] as const
+type Sort = (typeof SORTS)[number]
+const isSort = (value?: string): value is Sort =>
+  !!value && (SORTS as readonly string[]).includes(value)
+
 const validDate = (value?: string) => value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null
 const validAmount = (value?: string) => {
   const amount = Number(value)
@@ -37,15 +52,13 @@ const PAGE_SIZE = 50
  * Query-string values are whatever someone typed in the address bar, so they
  * have to be checked against the values the column actually permits.
  *
- * `satisfies` ties these lists to the CHECK constraints in the migrations: if
- * a status is ever added or renamed in SQL, the generated union changes and
+ * `satisfies` ties this list to the CHECK constraint in the migrations: if a
+ * category is ever added or renamed in SQL, the generated union changes and
  * this stops compiling, rather than quietly filtering on a value the database
  * will never contain.
  */
 type Category = Tables<'loans'>['category_type']
-
 const CATEGORIES = ['Gold', 'Silver'] as const satisfies readonly Category[]
-
 const isCategory = (v?: string): v is Category =>
   !!v && (CATEGORIES as readonly string[]).includes(v)
 
@@ -61,7 +74,8 @@ export default async function ActiveRecordsPage({ searchParams }: Props) {
   if (!appUser) redirect('/login')
 
   const page = Math.max(1, Number(params.page ?? 1) || 1)
-  const from = (page - 1) * PAGE_SIZE
+  const offset = (page - 1) * PAGE_SIZE
+  const sort: Sort = isSort(params.sort) ? params.sort : 'newest'
 
   let query = supabase
     .from('loans')
@@ -70,15 +84,14 @@ export default async function ActiveRecordsPage({ searchParams }: Props) {
       { count: 'exact' }
     )
     .eq('tenant_id', appUser.tenant_id)
-    .order('issue_date', { ascending: false })
-    .order('id', { ascending: false })   // stable tiebreak; many loans share a date
-    .range(from, from + PAGE_SIZE - 1)
+    .eq('status', 'active')
 
-  query = query.eq('status', 'active')
+  if (sort === 'amount') query = query.order('amount', { ascending: false })
+  else query = query.order('issue_date', { ascending: sort === 'oldest' })
+  // Stable tiebreak; many loans share a date.
+  query = query.order('id', { ascending: sort === 'oldest' }).range(offset, offset + PAGE_SIZE - 1)
 
-  if (isCategory(params.category)) {
-    query = query.eq('category_type', params.category)
-  }
+  if (isCategory(params.category)) query = query.eq('category_type', params.category)
 
   const search = params.q?.trim().slice(0, 100)
   const field: SearchField = isSearchField(params.field) ? params.field : 'name'
@@ -98,132 +111,63 @@ export default async function ActiveRecordsPage({ searchParams }: Props) {
 
   const { data: loans, count, error } = await query
   if (error) throw new Error(`Active records could not be loaded: ${error.message}`)
+
   const total = count ?? 0
   const lastPage = Math.max(1, Math.ceil(total / PAGE_SIZE))
+  const outstanding = (loans ?? []).reduce((sum, loan) => sum + Number(loan.amount ?? 0), 0)
 
   const pageHref = (n: number) => {
     const sp = new URLSearchParams()
-    if (params.category) sp.set('category', params.category)
-    if (params.q) sp.set('q', params.q)
-    if (params.field) sp.set('field', params.field)
-    if (params.from) sp.set('from', params.from)
-    if (params.to) sp.set('to', params.to)
-    if (params.min) sp.set('min', params.min)
-    if (params.max) sp.set('max', params.max)
+    for (const key of ['category', 'q', 'field', 'sort', 'from', 'to', 'min', 'max'] as const) {
+      const value = params[key]
+      if (value) sp.set(key, value)
+    }
     if (n > 1) sp.set('page', String(n))
     const qs = sp.toString()
     return qs ? `/view-records/active?${qs}` : '/view-records/active'
   }
 
   return (
-    <div className="space-y-4" style={{ fontFamily: "'IBM Plex Sans', Inter, system-ui, sans-serif" }}>
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">Active Records</h1>
-          <p className="page-subtitle">Loans currently held against pledged jewellery ·{' '}
-            {total === 0 ? 'No records'
-              : total <= PAGE_SIZE ? `${total} record${total === 1 ? '' : 's'}`
-              : `${from + 1}–${Math.min(from + PAGE_SIZE, total)} of ${total}`}
-          </p>
-        </div>
-        <Link href="/add-record">
-          <Button size="sm"><Plus className="h-4 w-4" /> Add New Record</Button>
-        </Link>
-      </div>
-
-      <LoanFilters
-        currentStatus="active" currentCategory={params.category} query={params.q}
-        searchField={params.field} issueFrom={params.from} issueTo={params.to}
-        minAmount={params.min} maxAmount={params.max}
+    <div className="space-y-3.5">
+      <PageHeader
+        title="Active Records"
+        subtitle={
+          total === 0
+            ? 'No active loans. Settlement happens on the Remove Record page.'
+            : `${total} active loan${total === 1 ? '' : 's'} · ${formatCurrency(outstanding)} on this page. ` +
+              'Settlement happens on the Remove Record page.'
+        }
+        actions={
+          <LoanFilters
+            currentStatus="active" currentCategory={params.category} query={params.q}
+            searchField={params.field} sort={sort} issueFrom={params.from} issueTo={params.to}
+            minAmount={params.min} maxAmount={params.max}
+          />
+        }
       />
 
       {!loans?.length ? (
         <EmptyState
           icon={FileText}
           title="No loans found"
-          description={params.q ? `No loans matching "${params.q}"` : "No loans in this category yet."}
-          action={<Link href="/add-record"><Button size="sm"><Plus className="h-4 w-4" /> Add Loan</Button></Link>}
+          description={params.q ? `Nothing matches “${params.q}”.` : 'No active loans in this category yet.'}
+          action={
+            <Link href="/add-record">
+              <Button size="sm"><Plus className="h-4 w-4" /> Add New Record</Button>
+            </Link>
+          }
         />
       ) : (
-        <div className="table-container lg:max-h-[calc(100dvh-17rem)] lg:overflow-auto">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>#ID</th>
-                <th>Name</th>
-                <th>Type</th>
-                <th className="hidden sm:table-cell">Weight</th>
-                <th>Amount</th>
-                <th className="hidden md:table-cell">Interest</th>
-                <th className="hidden md:table-cell">Date</th>
-                <th className="hidden lg:table-cell">Age</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loans.map(loan => (
-                <tr key={loan.id}>
-                  <td className="text-slate-400 text-xs tabular-nums">#{loan.id}</td>
-                  <td>
-                    <Link href={`/loans/${loan.id}`} className="hover:text-primary-700 transition-colors">
-                      <p className="font-medium text-sm">{loan.name}</p>
-                      {loan.father_name && <p className="text-xs text-slate-400">S/o {loan.father_name}</p>}
-                    </Link>
-                  </td>
-                  <td>
-                    <Badge variant={loan.category_type === 'Gold' ? 'gold' : 'silver'}>
-                      {loan.detailed_type || loan.category_type}
-                    </Badge>
-                  </td>
-                  <td className="hidden sm:table-cell text-slate-600 text-sm tabular-nums">
-                    {loan.weight
-                      ? loan.category_type === 'Silver'
-                        ? `${(loan.weight / 1000).toLocaleString('en-IN', { maximumFractionDigits: 3 })} kg`
-                        : `${loan.weight.toLocaleString('en-IN')} g`
-                      : '—'}
-                  </td>
-                  <td className="font-semibold tabular-nums text-sm">
-                    {formatCurrency(loan.amount)}
-                  </td>
-                  {/* Interest is the amount charged at closing, in rupees —
-                      NULL while a loan is active. */}
-                  <td className="hidden md:table-cell text-slate-500 text-sm tabular-nums">
-                    {loan.interest != null ? formatCurrency(loan.interest) : '—'}
-                  </td>
-                  <td className="hidden md:table-cell text-slate-500 text-sm">
-                    {formatDate(loan.issue_date)}
-                  </td>
-                  <td className="hidden lg:table-cell text-slate-500 text-sm">
-                    {getLoanAge(loan.issue_date)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {lastPage > 1 && (
-        <nav className="flex items-center justify-between gap-3" aria-label="Pagination">
-          <Link
-            href={pageHref(page - 1)}
-            aria-disabled={page <= 1}
-            className={page <= 1 ? 'pointer-events-none opacity-40' : ''}
-          >
-            <Button variant="secondary" size="sm" disabled={page <= 1}>Previous</Button>
-          </Link>
-
-          <span className="text-xs text-slate-500 tabular-nums">
-            Page {page} of {lastPage}
-          </span>
-
-          <Link
-            href={pageHref(page + 1)}
-            aria-disabled={page >= lastPage}
-            className={page >= lastPage ? 'pointer-events-none opacity-40' : ''}
-          >
-            <Button variant="secondary" size="sm" disabled={page >= lastPage}>Next</Button>
-          </Link>
-        </nav>
+        <RecordsTable
+          variant="active"
+          rows={loans as RecordRow[]}
+          countLabel={
+            total <= PAGE_SIZE
+              ? `Showing all ${total} active record${total === 1 ? '' : 's'}`
+              : `Showing ${offset + 1}–${Math.min(offset + PAGE_SIZE, total)} of ${total} active records`
+          }
+          pagination={<Pagination page={page} lastPage={lastPage} hrefFor={pageHref} />}
+        />
       )}
     </div>
   )

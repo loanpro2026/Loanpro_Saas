@@ -335,7 +335,7 @@ function Section({
     <div className="space-y-3">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 className="text-sm font-semibold text-slate-900">
+          <h2 className="card-title">
             {title} <span className="text-slate-400 font-normal">({count})</span>
           </h2>
           <p className="text-xs text-slate-500">{hint}</p>

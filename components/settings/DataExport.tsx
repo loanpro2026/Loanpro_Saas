@@ -57,7 +57,7 @@ export function DataExport() {
     <section className="card space-y-4">
       <div className="flex items-center gap-2">
         <HardDriveDownload className="h-4 w-4 text-slate-400" />
-        <h2 className="text-sm font-semibold text-slate-900">Your data</h2>
+        <h2 className="card-title">Your data</h2>
       </div>
 
       <div className="flex items-start justify-between gap-4">

@@ -8,6 +8,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { ReportsWorkspace } from '@/components/reports/ReportsWorkspace'
+import { PageHeader } from '@/components/ui/Page'
 
 export const dynamic = 'force-dynamic'
 
@@ -23,13 +24,11 @@ export default async function InterestAccountPage() {
     : { data: null }
 
   return (
-    <div className="space-y-5">
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">Interest</h1>
-          <p className="page-subtitle">Interest collected on settlements, shown as rupee amounts</p>
-        </div>
-      </div>
+    <div className="space-y-3.5">
+      <PageHeader
+        title="View Accounts · Interest"
+        subtitle="Rupee interest collected on settlements — an amount, never a rate"
+      />
 
       <ReportsWorkspace
         shopName={tenant?.shop_name ?? 'LoanPro'}

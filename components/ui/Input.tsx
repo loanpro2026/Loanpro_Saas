@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils'
-import { forwardRef, type InputHTMLAttributes, type TextareaHTMLAttributes, type SelectHTMLAttributes } from 'react'
+import { forwardRef, type InputHTMLAttributes, type TextareaHTMLAttributes } from 'react'
 
 /**
  * Form controls at the design's sizes.
@@ -85,35 +85,3 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
   }
 )
 Textarea.displayName = 'Textarea'
-
-interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
-  label?: string
-  error?: string
-  fieldSize?: 'mini' | 'md'
-}
-
-export const Select = forwardRef<HTMLSelectElement, SelectProps>(
-  ({ label, error, className, id, fieldSize = 'md', children, ...props }, ref) => {
-    const fieldId = id || label?.toLowerCase().replace(/\s+/g, '-')
-    return (
-      <div className="w-full">
-        {label && <label htmlFor={fieldId} className="label">{label}</label>}
-        <select
-          ref={ref}
-          id={fieldId}
-          className={cn(
-            fieldSize === 'mini' ? 'select-mini' : 'select',
-            'w-full',
-            error && 'input-error',
-            className
-          )}
-          {...props}
-        >
-          {children}
-        </select>
-        {error && <p className="error-msg">{error}</p>}
-      </div>
-    )
-  }
-)
-Select.displayName = 'Select'

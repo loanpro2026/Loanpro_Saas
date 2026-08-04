@@ -18,10 +18,15 @@ interface Row {
   avg_amount: number
 }
 
+/**
+ * Bars are drawn from the theme variables rather than fixed hex, so the chart
+ * follows the shop into dark mode instead of staying a light-mode artefact on
+ * a dark card. Money out is the design's amber, money back its green.
+ */
 const LABELS = {
-  Investment: { title: 'Money lent out',  colour: '#4338ca' },
-  Returns:    { title: 'Money returned',  colour: '#059669' },
-  Interest:   { title: 'Interest earned', colour: '#d97706' },
+  Investment: { title: 'Money lent out',  colour: 'rgb(var(--amber))' },
+  Returns:    { title: 'Money returned',  colour: 'rgb(var(--green))' },
+  Interest:   { title: 'Interest earned', colour: 'rgb(var(--primary))' },
 } as const
 
 export function AccountReport({
@@ -52,8 +57,8 @@ export function AccountReport({
   }))
 
   return (
-    <div className="space-y-4">
-      <div className="grid gap-4 sm:grid-cols-3">
+    <div className="space-y-3">
+      <div className="grid gap-3 sm:grid-cols-3">
         <Tile label={`Total ${meta.title.toLowerCase()}`} value={formatCurrency(total)} />
         <Tile label="Transactions" value={String(count)} />
         <Tile
@@ -63,27 +68,35 @@ export function AccountReport({
         />
       </div>
 
-      <div className="card">
-        <h2 className="text-sm font-semibold text-slate-900 mb-4">{meta.title} by day</h2>
+      <div className="card p-4">
+        <h2 className="card-title mb-3">{meta.title} by day</h2>
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chart} margin={{ top: 4, right: 4, bottom: 4, left: 4 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+              <CartesianGrid stroke="rgb(var(--border))" vertical={false} />
               <XAxis
-                dataKey="label" tick={{ fontSize: 11, fill: '#64748b' }}
+                dataKey="label" tick={{ fontSize: 10.5, fill: 'rgb(var(--text3))' }}
                 axisLine={false} tickLine={false} interval="preserveStartEnd"
               />
               <YAxis
-                tick={{ fontSize: 11, fill: '#64748b' }}
-                axisLine={false} tickLine={false}
+                tick={{ fontSize: 10.5, fill: 'rgb(var(--text3))' }}
+                axisLine={false} tickLine={false} width={42}
                 tickFormatter={v => v >= 100000 ? `${(v / 100000).toFixed(1)}L`
                                   : v >= 1000 ? `${(v / 1000).toFixed(0)}K` : String(v)}
               />
               <Tooltip
+                cursor={{ fill: 'var(--primary-tint)' }}
                 formatter={(v: number) => [formatCurrency(v), meta.title]}
                 labelFormatter={(l, p) => p?.[0]?.payload?.date
                   ? formatDate(p[0].payload.date) : String(l)}
-                contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 13 }}
+                contentStyle={{
+                  borderRadius: 10,
+                  border: '1px solid rgb(var(--border))',
+                  background: 'rgb(var(--surface))',
+                  color: 'rgb(var(--text))',
+                  fontSize: 12,
+                  boxShadow: 'var(--shadow-menu)',
+                }}
               />
               <Bar dataKey="amount" fill={meta.colour} radius={[4, 4, 0, 0]} />
             </BarChart>
@@ -131,10 +144,10 @@ export function AccountReport({
 
 function Tile({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div className="card">
-      <p className="text-xs text-slate-500">{label}</p>
-      <p className="text-xl font-semibold tabular-nums mt-1 text-slate-900">{value}</p>
-      {sub && <p className="text-xs text-slate-400 mt-0.5">{sub}</p>}
+    <div className="card px-4 py-3.5">
+      <p className="text-12 font-semibold text-ink-muted">{label}</p>
+      <p className="mt-1.5 text-xl font-bold tabular-nums text-ink">{value}</p>
+      {sub && <p className="mt-0.5 text-12 text-ink-faint">{sub}</p>}
     </div>
   )
 }

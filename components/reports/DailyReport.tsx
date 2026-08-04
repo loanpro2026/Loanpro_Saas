@@ -67,7 +67,7 @@ export function DailyReport({ data }: { data: Daily | null }) {
       </div>
 
       <div className="card">
-        <h2 className="text-sm font-semibold text-slate-900 mb-3">
+        <h2 className="card-title mb-3">
           Movement on {formatDate(data.date)}
         </h2>
 

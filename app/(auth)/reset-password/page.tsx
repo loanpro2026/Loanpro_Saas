@@ -37,14 +37,14 @@ export default function ResetPasswordPage() {
   if (ready === null) return <p className="text-sm text-slate-500">Checking your reset link…</p>
   if (!ready) return (
     <div>
-      <h1 className="text-2xl font-bold text-slate-900">Reset link expired</h1>
+      <h1 className="text-17 font-bold text-ink">Reset link expired</h1>
       <p className="mt-2 text-sm text-slate-600">Request a fresh link and use the newest email we send.</p>
       <Link href="/forgot-password" className="mt-6 inline-block font-semibold text-primary-700">Request another link</Link>
     </div>
   )
   if (done) return (
     <div>
-      <h1 className="text-2xl font-bold text-slate-900">Password updated</h1>
+      <h1 className="text-17 font-bold text-ink">Password updated</h1>
       <p className="mt-2 text-sm text-slate-600">All devices have been signed out. Sign in again with your new password.</p>
       <Link href="/login" className="mt-6 inline-block font-semibold text-primary-700">Go to sign in</Link>
     </div>
@@ -52,7 +52,7 @@ export default function ResetPasswordPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-slate-900">Choose a new password</h1>
+      <h1 className="text-17 font-bold text-ink">Choose a new password</h1>
       <p className="mb-7 mt-1.5 text-sm text-slate-500">Use at least 8 characters.</p>
       <form onSubmit={submit} className="space-y-4">
         <Input label="New password" type="password" autoComplete="new-password" required value={password} onChange={event => setPassword(event.target.value)} />

@@ -28,7 +28,7 @@ export default function ForgotPasswordPage() {
   if (sent) {
     return (
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Check your email</h1>
+        <h1 className="text-17 font-bold text-ink">Check your email</h1>
         <p className="mt-2 text-sm leading-6 text-slate-600">
           If an account exists for <span className="font-medium">{email}</span>, we sent a secure password-reset link.
         </p>
@@ -40,7 +40,7 @@ export default function ForgotPasswordPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-slate-900">Reset your password</h1>
+      <h1 className="text-17 font-bold text-ink">Reset your password</h1>
       <p className="mb-7 mt-1.5 text-sm text-slate-500">We’ll email you a secure link to choose a new password.</p>
       <form onSubmit={submit} className="space-y-4">
         <Input label="Email" type="email" autoComplete="email" required value={email} onChange={event => setEmail(event.target.value)} error={error || undefined} />

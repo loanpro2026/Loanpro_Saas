@@ -93,10 +93,10 @@ export function HelpWorkspace({
             key={key}
             onClick={() => setTab(key)}
             className={cn(
-              'inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition-colors',
+              'inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-13 font-semibold transition-colors',
               tab === key
-                ? 'bg-primary-700 text-white border-primary-700'
-                : 'bg-white text-slate-600 border-surface-border hover:border-slate-300'
+                ? 'border-primary bg-primary-tint text-primary'
+                : 'border-surface-border bg-surface-card text-ink-muted hover:border-primary hover:text-primary'
             )}
           >
             <Icon className="h-4 w-4" />
@@ -109,7 +109,7 @@ export function HelpWorkspace({
         <div className="space-y-5">
           {HELP_ARTICLES.map(group => (
             <section key={group.title} className="card">
-              <h2 className="text-sm font-semibold text-slate-900">{group.title}</h2>
+              <h2 className="card-title">{group.title}</h2>
               <p className="text-xs text-slate-500 mt-0.5">{group.description}</p>
 
               <div className="mt-3 divide-y divide-surface-border border-t border-surface-border">

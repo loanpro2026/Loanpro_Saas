@@ -1,25 +1,39 @@
 'use client'
-
-import { useState } from 'react'
+/**
+ * Add New Record — issue a loan against pledged gold or silver.
+ *
+ * One card, two sections, exactly as the design lays it out: who the customer
+ * is and what they look like on the top row, then the money and the item below
+ * a rule. The photo sits beside the personal details rather than after the
+ * loan fields because it is captured while the customer is still being
+ * identified, not while the item is being weighed.
+ *
+ * The footer states cash in hand after this loan is issued. A shop's real
+ * constraint at the counter is the drawer, and working that out in your head
+ * while a customer waits is how a shop ends up unable to make change.
+ */
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import toast from 'react-hot-toast'
-import { ArrowLeft, CalendarDays, CheckCircle2, Gem, Save, UserRound, WifiOff } from 'lucide-react'
+import { CheckCircle2, WifiOff } from 'lucide-react'
 
 import { createLoan } from '@/app/(app)/loans/actions'
+import { createClient } from '@/lib/supabase/client'
+import { asObject, numberAt, objectAt } from '@/lib/json'
 import { PhotoCapture } from '@/components/loans/PhotoCapture'
 import { useOffline } from '@/components/offline/OfflineProvider'
 import { useSettings } from '@/components/settings/SettingsProvider'
 import { AutoSuggest } from '@/components/ui/AutoSuggest'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
-import { Select } from '@/components/ui/Select'
+import { PageHeader } from '@/components/ui/Page'
 import { photoCaptureEnabled, photoRequiredAtCreation } from '@/lib/settings'
 import { compressImage, uploadLoanPhoto } from '@/lib/storage'
-import { formatCurrency, todayIST } from '@/lib/utils'
+import { cn, formatCurrency, todayIST } from '@/lib/utils'
 
 const schema = z.object({
   name: z.string().min(1, 'Customer name is required'),
@@ -42,6 +56,7 @@ export default function NewLoanPage() {
   const { online, queueWrite } = useOffline()
   const [loading, setLoading] = useState(false)
   const [photoFile, setPhotoFile] = useState<File | null>(null)
+  const [cashInHand, setCashInHand] = useState<number | null>(null)
 
   const showAddress = settings.add_record_address_field_enabled
   const showNotes = settings.add_record_additional_information_field_enabled
@@ -55,6 +70,19 @@ export default function NewLoanPage() {
       issue_date: todayIST(),
     },
   })
+
+  // The drawer balance, for the footer projection. Read once on mount and
+  // allowed to fail quietly — it is context, not something the form depends on.
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      const supabase = createClient()
+      const { data, error } = await supabase.rpc('dashboard_snapshot')
+      if (cancelled || error) return
+      setCashInHand(numberAt(objectAt(asObject(data), 'cash'), 'cash_in_hand'))
+    })()
+    return () => { cancelled = true }
+  }, [])
 
   const onSubmit = async (data: FormData) => {
     if (photoNeeded && !photoFile) {
@@ -88,7 +116,9 @@ export default function NewLoanPage() {
       }
 
       const result = await createLoan(loan)
-      if (!result.ok || !result.data) throw new Error(result.error ?? 'The database did not create a loan number.')
+      if (!result.ok || !result.data) {
+        throw new Error(result.error ?? 'The database did not create a loan number.')
+      }
       const loanId = result.data
 
       if (photoFile) {
@@ -113,148 +143,187 @@ export default function NewLoanPage() {
   const customerName = watch('name') ?? ''
   const amount = Number(watch('amount') || 0)
   const category = watch('category_type') ?? settings.default_category ?? 'Silver'
+  const isGold = category === 'Gold'
+  const remaining = cashInHand === null ? null : cashInHand - amount
 
   return (
-    <div className="mx-auto flex min-h-0 max-w-[1500px] flex-col gap-3">
-      <div className="flex min-h-10 items-center gap-2">
-        <Link href="/view-records/active" className="btn-icon" aria-label="Back to active records">
-          <ArrowLeft className="h-4 w-4" />
-        </Link>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <h1 className="page-title">Add New Record</h1>
-            <span className="rounded-full border border-surface-border bg-white px-2 py-0.5 text-[10px] font-semibold text-slate-500">
-              New loan
-            </span>
-          </div>
-          <p className="page-subtitle">Issue a new loan against pledged gold or silver. Fields marked * are required.</p>
-        </div>
-        <div className="hidden items-center gap-2 text-xs text-slate-500 sm:flex">
-          {online ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <WifiOff className="h-4 w-4 text-amber-500" />}
-          {online ? 'Ready to save' : 'Will save on this device'}
-        </div>
-      </div>
+    <div className="space-y-3.5">
+      <PageHeader
+        title="Add New Record"
+        subtitle="Issue a new loan against pledged gold or silver. Fields marked * are required."
+        actions={
+          <span className="hidden items-center gap-2 text-12 text-ink-muted sm:flex">
+            {online
+              ? <><CheckCircle2 className="h-4 w-4 text-green" /> Ready to save</>
+              : <><WifiOff className="h-4 w-4 text-amber" /> Will save on this device</>}
+          </span>
+        }
+      />
 
-      <form
-        onSubmit={handleSubmit(onSubmit)}
-        className="grid gap-3 xl:h-[calc(100dvh-10rem)] xl:min-h-[500px] xl:grid-cols-[minmax(0,1fr)_320px] xl:grid-rows-[minmax(0,1fr)_auto]"
-      >
-        <div className="workspace-card min-w-0 p-4 sm:p-5 xl:overflow-y-auto">
-          <section>
-            <div className="mb-3 flex items-center gap-2">
-              <UserRound className="h-4 w-4 text-primary-600" />
-              <h2 className="section-kicker">Personal information</h2>
-              <span className="ml-auto hidden text-[10px] text-slate-400 md:block">Suggestions come from this shop&rsquo;s records</span>
-            </div>
-            <div className="grid gap-3 md:grid-cols-3">
+      <form onSubmit={handleSubmit(onSubmit)} className="card max-w-[1180px] p-5">
+        <div className="grid gap-6 xl:grid-cols-[2fr_300px] xl:items-start">
+          <div>
+            <h2 className="section-kicker mb-3">Personal information</h2>
+            <div className="grid gap-3 sm:grid-cols-2">
               <AutoSuggest
-                field="name" label="Customer name" required placeholder="Start typing a name"
+                field="name" label="Customer name" required placeholder="Enter customer name"
                 error={errors.name?.message}
                 value={customerName}
                 onChange={value => setValue('name', value, { shouldValidate: true })}
               />
               <AutoSuggest
-                field="father_name" label="Father&rsquo;s name" placeholder="Start typing a name"
+                field="father_name" label="Father&rsquo;s name" placeholder="Enter father's name"
                 value={watch('father_name') ?? ''}
                 onChange={value => setValue('father_name', value)}
               />
               <AutoSuggest
-                field="location" label="Location" placeholder="City, village or area"
+                field="location" label="Location" placeholder="Area or bazaar"
                 value={watch('location') ?? ''}
                 onChange={value => setValue('location', value)}
               />
               {showAddress && (
-                <div className="md:col-span-2">
-                  <Input label="Address" placeholder="Street or complete address" {...register('address')} />
-                </div>
+                <Input label="Address" optional placeholder="House no., street, city" {...register('address')} />
               )}
               {showNotes && (
-                <div className={showAddress ? '' : 'md:col-span-3'}>
-                  <label className="label">Additional customer information</label>
-                  <input className="input" placeholder="Optional customer note" {...register('additional_information')} />
+                <div className={showAddress ? 'sm:col-span-2' : ''}>
+                  <label htmlFor="additional_information" className="label">
+                    Additional customer information<span className="label-optional"> (optional)</span>
+                  </label>
+                  <input
+                    id="additional_information"
+                    className="input"
+                    placeholder="Optional customer note"
+                    {...register('additional_information')}
+                  />
                 </div>
               )}
             </div>
-          </section>
+          </div>
 
-          <div className="my-4 border-t border-surface-border" />
-
-          <section>
-            <div className="mb-3 flex items-center gap-2">
-              <Gem className="h-4 w-4 text-primary-600" />
-              <h2 className="section-kicker">Loan and item</h2>
-            </div>
-            <div className="grid gap-3 md:grid-cols-4">
-              <Input label="Loan date" required type="date" error={errors.issue_date?.message} {...register('issue_date')} />
-              <Input
-                label="Loan amount (₹)" required type="number" inputMode="decimal" placeholder="0"
-                error={errors.amount?.message} {...register('amount')}
-              />
-              <Select
-                label="Metal" required
-                options={[{ value: 'Gold', label: 'Gold' }, { value: 'Silver', label: 'Silver' }]}
-                error={errors.category_type?.message} {...register('category_type')}
-              />
-              <Input label="Weight (g)" type="number" step="0.001" inputMode="decimal" placeholder="0.000" {...register('weight')} />
-
-              <div className="md:col-span-2">
-                <AutoSuggest
-                  field="detailed_type" label="Jewellery / item" placeholder="Chain, ring, anklet…"
-                  value={watch('detailed_type') ?? ''}
-                  onChange={value => setValue('detailed_type', value)}
-                />
+          <div>
+            <h2 className="section-kicker mb-3">
+              Customer photo{photoNeeded && <span className="ml-0.5 text-red">*</span>}
+            </h2>
+            {captureEnabled ? (
+              <>
+                <PhotoCapture onPhoto={setPhotoFile} />
+                <p className="mt-2 text-11.5 leading-relaxed text-ink-muted">
+                  Stored securely and never shared. Change the capture device under
+                  {' '}<Link href="/settings" className="text-primary hover:underline">Settings → Devices &amp; capture</Link>.
+                </p>
+                {photoNeeded && !photoFile && (
+                  <p className="mt-2 text-11.5 text-amber">
+                    A photo must be attached before this record can be saved.
+                  </p>
+                )}
+              </>
+            ) : (
+              <div className="flex aspect-[3/4] flex-col items-center justify-center gap-2 rounded-xl border
+                              border-dashed border-surface-border bg-surface-muted p-3 text-center text-12 text-ink-faint">
+                <CheckCircle2 className="h-6 w-6" />
+                <p className="text-13 font-semibold text-ink">Photo capture is off</p>
+                <p className="text-11.5">Enable it under Settings → Identity.</p>
               </div>
-              <div className="md:col-span-2">
-                <label className="label">Loan remarks</label>
-                <input className="input" placeholder="Condition, packet or identification note" {...register('remarks')} />
-              </div>
-            </div>
-          </section>
-
-          <div className="mt-4 grid grid-cols-3 gap-2 rounded-lg bg-surface-muted p-3 text-xs">
-            <div><span className="block text-[10px] uppercase tracking-wide text-slate-400">Customer</span><strong className="block truncate text-slate-700">{customerName || 'Not entered'}</strong></div>
-            <div><span className="block text-[10px] uppercase tracking-wide text-slate-400">Principal</span><strong className="block truncate tabular-nums text-slate-700">{amount > 0 ? formatCurrency(amount) : '₹0'}</strong></div>
-            <div><span className="block text-[10px] uppercase tracking-wide text-slate-400">Item class</span><strong className="block truncate text-slate-700">{category}</strong></div>
+            )}
           </div>
         </div>
 
-        <aside className="workspace-card flex min-h-[220px] flex-col p-4 sm:p-5 xl:min-h-0 xl:overflow-y-auto">
-          <div className="mb-3 flex items-center gap-2">
-            <CalendarDays className="h-4 w-4 text-primary-600" />
-            <h2 className="section-kicker">Identity photo</h2>
-            {photoNeeded && <span className="ml-auto rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800">Required</span>}
-          </div>
-          {captureEnabled ? (
-            <>
-              <p className="mb-4 text-xs leading-5 text-slate-500">
-                On a phone, capture directly. On desktop, continue through the paired phone or choose an image.
-              </p>
-              <PhotoCapture onPhoto={setPhotoFile} />
-              {photoNeeded && !photoFile && (
-                <p className="mt-auto border-t border-surface-border pt-3 text-xs text-amber-700">
-                  A photo must be attached before this record can be saved.
-                </p>
-              )}
-            </>
-          ) : (
-            <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed border-surface-border bg-surface-muted p-5 text-center">
-              <div>
-                <CheckCircle2 className="mx-auto h-6 w-6 text-slate-400" />
-                <p className="mt-2 text-sm font-medium text-slate-700">Photo capture is off</p>
-                <p className="mt-1 text-xs text-slate-500">You can enable it under Settings → Identity.</p>
-              </div>
+        <div className="mt-5 border-t border-surface-border pt-4">
+          <h2 className="section-kicker mb-3">Loan details</h2>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <div>
+              <label htmlFor="amount" className="label">Loan amount (₹)<span className="ml-0.5 text-red">*</span></label>
+              <input
+                id="amount" type="number" inputMode="decimal" placeholder="50,000"
+                className={cn('input-money', errors.amount && 'input-error')}
+                {...register('amount')}
+              />
+              {errors.amount && <p className="error-msg">{errors.amount.message}</p>}
             </div>
-          )}
-        </aside>
 
-        <div className="sticky bottom-[4.5rem] z-20 flex items-center justify-between gap-3 rounded-xl border border-surface-border bg-white/95 p-2.5 shadow-card backdrop-blur-xl xl:static xl:col-span-2">
-          <p className="hidden px-2 text-xs text-slate-500 sm:block">
-            Review the customer and principal before saving. Interest is calculated when the loan closes.
+            {/* Two buttons rather than a dropdown: there are exactly two metals,
+                and the choice changes the weight unit below it. */}
+            <div>
+              <span className="label">Metal<span className="ml-0.5 text-red">*</span></span>
+              <div className="flex h-10 overflow-hidden rounded-lg border border-surface-border">
+                <button
+                  type="button"
+                  aria-pressed={isGold}
+                  onClick={() => setValue('category_type', 'Gold', { shouldValidate: true })}
+                  className={cn(
+                    'flex-1 text-13 font-semibold transition-colors',
+                    isGold ? 'bg-gold-bg text-gold' : 'bg-surface-card text-ink-muted'
+                  )}
+                >
+                  Gold
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={!isGold}
+                  onClick={() => setValue('category_type', 'Silver', { shouldValidate: true })}
+                  className={cn(
+                    'flex-1 border-l border-surface-border text-13 font-semibold transition-colors',
+                    !isGold ? 'bg-silver-bg text-silver' : 'bg-surface-card text-ink-muted'
+                  )}
+                >
+                  Silver
+                </button>
+              </div>
+              <input type="hidden" {...register('category_type')} />
+            </div>
+
+            <AutoSuggest
+              field="detailed_type" label="Jewellery type" placeholder="Chain, kada, payal…"
+              value={watch('detailed_type') ?? ''}
+              onChange={value => setValue('detailed_type', value)}
+            />
+
+            {/* Weight is stored in grams for both metals; silver is displayed in
+                kilos everywhere it is read back. Entering it in grams here keeps
+                one unit in the database and one conversion in one place. */}
+            <Input
+              label="Weight (grams)" type="number" step="0.001" inputMode="decimal"
+              placeholder="24.600" fieldSize="lg" {...register('weight')}
+            />
+
+            <Input
+              label="Loan date" required type="date" fieldSize="lg"
+              error={errors.issue_date?.message} {...register('issue_date')}
+            />
+
+            <div className="sm:col-span-1 xl:col-span-3">
+              <label htmlFor="remarks" className="label">
+                Additional information<span className="label-optional"> (optional)</span>
+              </label>
+              <input
+                id="remarks" className="input-lg"
+                placeholder="Any note about the item or terms"
+                {...register('remarks')}
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-5 flex flex-col gap-3 border-t border-surface-border pt-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-12 text-ink-faint">
+            {remaining === null ? (
+              <>Interest is calculated when the loan is settled, not now.</>
+            ) : (
+              <>
+                Cash in hand after issuing this loan:{' '}
+                <span className={cn('font-semibold', remaining < 0 ? 'text-red' : 'text-ink')}>
+                  {formatCurrency(remaining)}
+                </span>
+                {remaining < 0 && ' — more than the drawer holds'}
+              </>
+            )}
           </p>
-          <div className="ml-auto flex w-full gap-2 sm:w-auto">
-            <Link href="/view-records/active" className="flex-1 sm:flex-none"><Button variant="secondary" className="w-full">Cancel</Button></Link>
-            <Button type="submit" loading={loading} className="flex-1 sm:min-w-44">
-              {!loading && <Save className="h-4 w-4" />} {loading ? 'Creating loan record' : 'Create loan record'}
+          <div className="flex gap-2.5 sm:justify-end">
+            <Link href="/dashboard" className="flex-1 sm:flex-none">
+              <Button variant="secondary" size="lg" type="button" className="w-full">Cancel</Button>
+            </Link>
+            <Button type="submit" size="lg" loading={loading} className="flex-1 sm:flex-none sm:px-5">
+              {loading ? 'Creating loan record…' : 'Create loan record'}
             </Button>
           </div>
         </div>

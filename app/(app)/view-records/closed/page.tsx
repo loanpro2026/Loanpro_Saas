@@ -1,24 +1,22 @@
 /**
  * View Records → Closed — /view-records/closed
  *
- * Its own table, not the active one with a filter applied. A settled loan is a
- * different record: "Age" and "Status" mean nothing once it is closed, and the
- * three figures that matter — what was lent, what interest was charged, what
- * came back — are absent from the active view entirely.
+ * Its own screen, not the active table with a filter applied. A settled loan is
+ * a different record: the date that matters is the closing date, not the issue
+ * date, and the figures a shop comes here for — what interest was charged, what
+ * came back — belong to the settlement rather than the loan.
  *
- * Columns follow the desktop's closed-records screen (RecordsPage with
- * recordType="closed"), which reads closed_date and interest alongside the
- * loan's own fields.
+ * Columns follow the design's records table, with "Closed" in place of
+ * "Issued". Interest and returned principal live on the record itself and in
+ * View Accounts → Interest, which is where the design puts them.
  */
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import Link from 'next/link'
 import { Archive } from 'lucide-react'
-import { Badge } from '@/components/ui/Badge'
 import { EmptyState } from '@/components/ui/EmptyState'
-import { Button } from '@/components/ui/Button'
+import { PageHeader } from '@/components/ui/Page'
 import { LoanFilters } from '@/components/loans/LoanFilters'
-import { formatCurrency, formatDate, formatDuration } from '@/lib/utils'
+import { RecordsTable, Pagination, type RecordRow } from '@/components/loans/RecordsTable'
 import type { Tables } from '@/types/supabase'
 
 export const dynamic = 'force-dynamic'
@@ -30,15 +28,9 @@ const CATEGORIES = ['Gold', 'Silver'] as const satisfies readonly Category[]
 const isCategory = (v?: string): v is Category =>
   !!v && (CATEGORIES as readonly string[]).includes(v)
 
-/** Whole days between two ISO dates. Both are plain dates, so no timezone. */
-function daysHeld(issue: string, closed: string): number {
-  const ms = Date.parse(`${closed}T00:00:00Z`) - Date.parse(`${issue}T00:00:00Z`)
-  return Number.isFinite(ms) ? Math.round(ms / 86_400_000) : 0
-}
-
 interface Props {
   searchParams: Promise<{
-    category?: string; q?: string; field?: string; page?: string
+    category?: string; q?: string; field?: string; page?: string; sort?: string
     from?: string; to?: string; min?: string; max?: string
   }>
 }
@@ -47,6 +39,12 @@ const SEARCH_FIELDS = ['name', 'father_name', 'location', 'id'] as const
 type SearchField = (typeof SEARCH_FIELDS)[number]
 const isSearchField = (value?: string): value is SearchField =>
   !!value && (SEARCH_FIELDS as readonly string[]).includes(value)
+
+const SORTS = ['newest', 'oldest', 'amount'] as const
+type Sort = (typeof SORTS)[number]
+const isSort = (value?: string): value is Sort =>
+  !!value && (SORTS as readonly string[]).includes(value)
+
 const validDate = (value?: string) => value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null
 const validAmount = (value?: string) => {
   const amount = Number(value)
@@ -61,22 +59,25 @@ export default async function ClosedRecordsPage({ searchParams }: Props) {
   if (!user) redirect('/login')
 
   const page = Math.max(1, Number(params.page ?? 1) || 1)
-  const from = (page - 1) * PAGE_SIZE
+  const offset = (page - 1) * PAGE_SIZE
+  const sort: Sort = isSort(params.sort) ? params.sort : 'newest'
 
   let query = supabase
     .from('loans')
     .select(
-      'id, name, father_name, amount, interest, category_type, detailed_type, weight, issue_date, closed_date',
+      'id, name, father_name, location, amount, interest, category_type, detailed_type, weight, issue_date, closed_date',
       { count: 'exact' }
     )
     .eq('status', 'closed')
-    // Most recently settled first: a shop on this screen is nearly always
-    // checking something that happened today or yesterday.
-    .order('closed_date', { ascending: false })
-    .order('id', { ascending: false })
-    .range(from, from + PAGE_SIZE - 1)
+
+  // Most recently settled first: a shop on this screen is nearly always
+  // checking something that happened today or yesterday.
+  if (sort === 'amount') query = query.order('amount', { ascending: false })
+  else query = query.order('closed_date', { ascending: sort === 'oldest' })
+  query = query.order('id', { ascending: sort === 'oldest' }).range(offset, offset + PAGE_SIZE - 1)
 
   if (isCategory(params.category)) query = query.eq('category_type', params.category)
+
   const search = params.q?.trim().slice(0, 100)
   const field: SearchField = isSearchField(params.field) ? params.field : 'name'
   if (search) {
@@ -95,40 +96,38 @@ export default async function ClosedRecordsPage({ searchParams }: Props) {
 
   const { data: loans, count, error } = await query
   if (error) throw new Error(`Closed records could not be loaded: ${error.message}`)
+
   const total = count ?? 0
   const lastPage = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
   const pageHref = (n: number) => {
     const sp = new URLSearchParams()
-    if (params.category) sp.set('category', params.category)
-    if (params.q) sp.set('q', params.q)
-    if (params.field) sp.set('field', params.field)
-    if (params.from) sp.set('from', params.from)
-    if (params.to) sp.set('to', params.to)
-    if (params.min) sp.set('min', params.min)
-    if (params.max) sp.set('max', params.max)
+    for (const key of ['category', 'q', 'field', 'sort', 'from', 'to', 'min', 'max'] as const) {
+      const value = params[key]
+      if (value) sp.set(key, value)
+    }
     if (n > 1) sp.set('page', String(n))
     const qs = sp.toString()
     return qs ? `/view-records/closed?${qs}` : '/view-records/closed'
   }
 
   return (
-    <div className="space-y-4" style={{ fontFamily: "'IBM Plex Sans', Inter, system-ui, sans-serif" }}>
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">Closed Records</h1>
-          <p className="page-subtitle">Settled loans with preserved deposits and interest ·{' '}
-            {total === 0 ? 'No settled loans'
-              : total <= PAGE_SIZE ? `${total} settled loan${total === 1 ? '' : 's'}`
-              : `${from + 1}–${Math.min(from + PAGE_SIZE, total)} of ${total}`}
-          </p>
-        </div>
-      </div>
-
-      <LoanFilters
-        currentStatus="closed" currentCategory={params.category} query={params.q}
-        searchField={params.field} issueFrom={params.from} issueTo={params.to}
-        minAmount={params.min} maxAmount={params.max}
+    <div className="space-y-3.5">
+      <PageHeader
+        title="Closed Records"
+        subtitle={
+          total === 0
+            ? 'Loans appear here once they are settled.'
+            : `${total} settled loan${total === 1 ? '' : 's'} · deposits and interest are archived, ` +
+              'records stay editable by the owner'
+        }
+        actions={
+          <LoanFilters
+            currentStatus="closed" currentCategory={params.category} query={params.q}
+            searchField={params.field} sort={sort} issueFrom={params.from} issueTo={params.to}
+            minAmount={params.min} maxAmount={params.max}
+          />
+        }
       />
 
       {!loans?.length ? (
@@ -137,104 +136,21 @@ export default async function ClosedRecordsPage({ searchParams }: Props) {
           title="No closed records"
           description={
             params.q
-              ? `No settled loans matching "${params.q}"`
-              : 'Loans appear here once they are settled.'
+              ? `No settled loans match “${params.q}”.`
+              : 'Loans appear here once they are settled on the Remove Record page.'
           }
         />
       ) : (
-        <div className="table-container lg:max-h-[calc(100dvh-17rem)] lg:overflow-auto">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>#ID</th>
-                <th>Name</th>
-                <th>Type</th>
-                <th className="hidden sm:table-cell">Weight</th>
-                <th>Amount</th>
-                <th>Interest</th>
-                <th className="hidden lg:table-cell">Returned</th>
-                <th className="hidden md:table-cell">Issued</th>
-                <th>Closed</th>
-                <th className="hidden lg:table-cell">Held</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loans.map(loan => {
-                // `interest` is the amount charged in rupees, written by
-                // close_loan. It is never a rate, and it is null on a loan
-                // closed without one.
-                const interest = loan.interest ?? 0
-                const returned = loan.amount + interest
-
-                return (
-                  <tr key={loan.id}>
-                    <td className="text-slate-400 text-xs tabular-nums">#{loan.id}</td>
-                    <td>
-                      <Link href={`/loans/${loan.id}`} className="hover:text-primary-700 transition-colors">
-                        <p className="font-medium text-sm">{loan.name}</p>
-                        {loan.father_name && (
-                          <p className="text-xs text-slate-400">S/o {loan.father_name}</p>
-                        )}
-                      </Link>
-                    </td>
-                    <td>
-                      <Badge variant={loan.category_type === 'Gold' ? 'gold' : 'silver'}>
-                        {loan.detailed_type || loan.category_type}
-                      </Badge>
-                    </td>
-                    <td className="hidden sm:table-cell text-slate-600 text-sm tabular-nums">
-                      {loan.weight
-                        ? loan.category_type === 'Silver'
-                          ? `${(loan.weight / 1000).toLocaleString('en-IN', { maximumFractionDigits: 3 })} kg`
-                          : `${loan.weight.toLocaleString('en-IN')} g`
-                        : '—'}
-                    </td>
-                    <td className="font-semibold tabular-nums text-sm">
-                      {formatCurrency(loan.amount)}
-                    </td>
-                    <td className="tabular-nums text-sm text-slate-600">
-                      {loan.interest != null ? formatCurrency(interest) : '—'}
-                    </td>
-                    <td className="hidden lg:table-cell font-semibold tabular-nums text-sm text-emerald-700">
-                      {formatCurrency(returned)}
-                    </td>
-                    <td className="hidden md:table-cell text-slate-500 text-sm">
-                      {formatDate(loan.issue_date)}
-                    </td>
-                    <td className="text-slate-600 text-sm">
-                      {loan.closed_date ? formatDate(loan.closed_date) : '—'}
-                    </td>
-                    <td className="hidden lg:table-cell text-slate-500 text-sm">
-                      {loan.closed_date
-                        ? formatDuration(daysHeld(loan.issue_date, loan.closed_date))
-                        : '—'}
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {lastPage > 1 && (
-        <nav className="flex items-center justify-between gap-3" aria-label="Pagination">
-          <Link
-            href={pageHref(page - 1)}
-            aria-disabled={page <= 1}
-            className={page <= 1 ? 'pointer-events-none opacity-40' : ''}
-          >
-            <Button size="sm" variant="secondary">Previous</Button>
-          </Link>
-          <span className="text-xs text-slate-500">Page {page} of {lastPage}</span>
-          <Link
-            href={pageHref(page + 1)}
-            aria-disabled={page >= lastPage}
-            className={page >= lastPage ? 'pointer-events-none opacity-40' : ''}
-          >
-            <Button size="sm" variant="secondary">Next</Button>
-          </Link>
-        </nav>
+        <RecordsTable
+          variant="closed"
+          rows={loans as RecordRow[]}
+          countLabel={
+            total <= PAGE_SIZE
+              ? `Showing all ${total} closed record${total === 1 ? '' : 's'}`
+              : `Showing ${offset + 1}–${Math.min(offset + PAGE_SIZE, total)} of ${total} closed records`
+          }
+          pagination={<Pagination page={page} lastPage={lastPage} hrefFor={pageHref} />}
+        />
       )}
     </div>
   )

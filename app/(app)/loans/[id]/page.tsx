@@ -1,10 +1,25 @@
+/**
+ * One loan, in the design's two modes.
+ *
+ * Arriving from Active or Closed Records this is a read-only record: what was
+ * pledged, what has been paid, what is on file. Arriving from Remove Record
+ * (`?from=remove-record`) it becomes the settlement workspace and grows the two
+ * controls that move money — add deposit and settle.
+ *
+ * The mode is carried in the URL rather than inferred from the loan's status,
+ * because it is about intent, not state: the same active loan is a reference on
+ * one screen and a transaction on the other, and a shop should not be one
+ * mis-click from settling something they only meant to look up.
+ */
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
-import { ArrowLeft } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import type { LoanDetailPayload } from '@/types/rpc'
 import { formatCurrency, formatDate, formatDuration } from '@/lib/utils'
-import { Badge } from '@/components/ui/Badge'
+import { Badge, MetalBadge } from '@/components/ui/Badge'
+import { Card, StatStrip, StatStripCell } from '@/components/ui/Page'
+import { Icon } from '@/components/ui/Icon'
+import { ICON } from '@/lib/nav'
 import { DepositHistory } from '@/components/loans/DepositHistory'
 import { LoanActions } from '@/components/loans/LoanActions'
 import { LoanPhoto } from '@/components/loans/LoanPhoto'
@@ -42,31 +57,55 @@ export default async function LoanDetailPage({ params, searchParams }: Props) {
   const daysHeld = Number(detail.days_held ?? 0)
   const suggestedInterest = Number(detail.suggested_interest ?? 0)
   const chargedInterest = Number(loan.interest ?? 0)
+  const interest = isClosed ? chargedInterest : suggestedInterest
   const outstanding = Math.max(0, Number(loan.amount) - totalDeposits)
-  const customerPays = outstanding + (isClosed ? chargedInterest : suggestedInterest)
-  const fromRemove = query.from === 'remove-record'
-  const backHref = fromRemove ? '/remove-record' : isClosed ? '/view-records/closed' : '/view-records/active'
-  const backLabel = fromRemove ? 'Back to results' : isClosed ? 'Back to closed records' : 'Back to active records'
+  const customerPays = outstanding + interest
+
+  // Settlement mode. Only ever reached from Remove Record, and never for a loan
+  // that is already closed.
+  const settleMode = query.from === 'remove-record' && !isClosed
+  const backHref = settleMode ? '/remove-record' : isClosed ? '/view-records/closed' : '/view-records/active'
+  const backLabel = settleMode ? 'Back to search results' : isClosed ? 'Back to closed records' : 'Back to active records'
+  const context = settleMode ? 'Settlement workspace' : isClosed ? 'Archived record' : 'Read-only record'
+
   const collectionPhoto = detail.photos?.collection ?? null
+  const depositShare = Number(loan.amount) > 0 ? (totalDeposits / Number(loan.amount)) * 100 : 0
 
   return (
-    <div className="space-y-3.5" style={{ fontFamily: "'IBM Plex Sans', Inter, system-ui, sans-serif" }}>
-      <header className="sticky top-[61px] z-20 -mx-3 flex flex-wrap items-start gap-3 border-b border-surface-border bg-surface/95 px-3 py-3 backdrop-blur-xl sm:-mx-4 sm:px-4 lg:-mx-5 lg:px-5">
-        <Link href={backHref} className="btn-icon mt-0.5 shrink-0" aria-label={backLabel}>
-          <ArrowLeft className="h-4 w-4" />
-        </Link>
-        <div className="min-w-0 flex-1">
-          <Link href={backHref} className="text-[11px] font-medium text-primary-700 hover:underline">{backLabel}</Link>
-          <div className="mt-0.5 flex flex-wrap items-center gap-2">
-            <h1 className="truncate text-lg font-bold text-slate-900">#{loan.id} · {loan.name}</h1>
-            <Badge variant={isClosed ? 'closed' : 'active'}>{loan.status}</Badge>
-            <span className="text-[11px] text-slate-400">{fromRemove ? 'Settlement workspace' : isClosed ? 'Archived record' : 'Active record'}</span>
+    <div className="space-y-3.5">
+      <header className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex min-w-0 items-center gap-3.5">
+          <Link
+            href={backHref}
+            aria-label={backLabel}
+            title={backLabel}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-surface-border
+                       bg-surface-card text-15 text-ink-muted transition-colors hover:border-primary hover:text-primary"
+          >
+            ←
+          </Link>
+
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full
+                          border border-surface-border bg-surface-muted text-ink-faint">
+            <Icon d={ICON.person} size={22} strokeWidth={1.6} />
           </div>
-          <p className="truncate text-xs text-slate-500">
-            {loan.father_name && <>S/o {loan.father_name} · </>}
-            {loan.location || 'Location not recorded'}
-          </p>
+
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <h1 className="truncate text-19 font-bold text-ink">{loan.name}</h1>
+              <Badge variant={isClosed ? 'closed' : 'active'}>{isClosed ? 'Closed' : 'Active'}</Badge>
+              <span className="text-11.5 text-ink-faint">#{loan.id} · {context}</span>
+            </div>
+            <p className="mt-0.5 truncate text-12.5 text-ink-muted">
+              {[
+                loan.father_name ? `S/o ${loan.father_name}` : null,
+                loan.location,
+                loan.address,
+              ].filter(Boolean).join(' · ') || 'No address on file'}
+            </p>
+          </div>
         </div>
+
         <LoanActions
           loan={loan}
           totalDeposits={totalDeposits}
@@ -75,80 +114,143 @@ export default async function LoanDetailPage({ params, searchParams }: Props) {
           canManage={userResult.data?.role === 'owner'}
           photoRequiredAtClosure={photoPolicyResult.data === true}
           hasCollectionPhoto={!!collectionPhoto}
+          settleMode={settleMode}
         />
       </header>
 
-      <section className="card overflow-hidden p-0" aria-label="Loan financial summary">
-        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6">
-          <Summary label="Original principal" value={formatCurrency(loan.amount)} />
-          <Summary label="Deposits paid" value={formatCurrency(totalDeposits)} tone="good" />
-          <Summary label="Outstanding principal" value={formatCurrency(outstanding)} emphasis />
-          <Summary label={isClosed ? 'Interest collected' : 'Suggested interest'} value={formatCurrency(isClosed ? chargedInterest : suggestedInterest)} tone="attention" />
-          <Summary label={isClosed ? 'Paid at settlement' : 'Total due today'} value={formatCurrency(customerPays)} emphasis />
-          <Summary label="Days held" value={formatDuration(daysHeld)} />
-        </div>
-      </section>
+      <StatStrip columns={4}>
+        <StatStripCell label="Loan amount" value={formatCurrency(loan.amount)} />
+        <StatStripCell label="Deposits paid" value={formatCurrency(totalDeposits)} tone="green" />
+        <StatStripCell
+          label={isClosed ? 'Interest collected' : 'Interest if closed today'}
+          value={formatCurrency(interest)}
+          tone="amber"
+        />
+        <StatStripCell
+          highlight
+          label={isClosed ? 'Duration held' : 'Days held'}
+          value={
+            <span className="flex items-baseline gap-1.5">
+              <span className="text-primary">{daysHeld}</span>
+              <span className="text-12.5 font-semibold text-primary">days · {formatDuration(daysHeld)}</span>
+            </span>
+          }
+          sub={`${formatDate(loan.issue_date)} → ${loan.closed_date ? `${formatDate(loan.closed_date)} (closed)` : 'today'}`}
+        />
+      </StatStrip>
 
-      <div className="grid items-start gap-3 lg:grid-cols-3">
-        <div className="space-y-3 lg:col-span-2">
-          <section className="card space-y-4" aria-labelledby="collateral-title">
-            <h2 id="collateral-title" className="text-sm font-bold text-slate-900">Overview</h2>
-            <dl className="grid grid-cols-2 gap-x-4 gap-y-4 text-sm sm:grid-cols-4">
-              <Field label="Customer">{loan.name}</Field>
-              <Field label="Father&rsquo;s name">{loan.father_name || '—'}</Field>
-              <Field label="Location">{loan.location || '—'}</Field>
-              <Field label="Issued">{formatDate(loan.issue_date)}</Field>
-              <Field label="Metal"><Badge variant={loan.category_type === 'Gold' ? 'gold' : 'silver'}>{loan.category_type}</Badge></Field>
+      <div className="grid items-start gap-3.5 lg:grid-cols-3">
+        <div className="flex flex-col gap-3.5 lg:col-span-2">
+          <Card className="p-4">
+            <h2 className="card-title mb-3">Collateral</h2>
+            <dl className="grid grid-cols-2 gap-3.5 text-13 sm:grid-cols-4">
+              <Field label="Metal"><MetalBadge metal={loan.category_type} /></Field>
               <Field label="Jewellery type">{loan.detailed_type || '—'}</Field>
               <Field label="Weight">{collateralWeight(loan.category_type, loan.weight)}</Field>
-              <Field label="Closed">{loan.closed_date ? formatDate(loan.closed_date) : '—'}</Field>
+              <Field label="Issue date">{formatDate(loan.issue_date)}</Field>
             </dl>
-            {(loan.address || loan.additional_information) && (
-              <div className="grid gap-3 border-t border-surface-border pt-4 sm:grid-cols-2">
-                {loan.address && <Field label="Address">{loan.address}</Field>}
-                {loan.additional_information && <Field label="Additional information">{loan.additional_information}</Field>}
+
+            {(loan.additional_information || loan.closed_date) && (
+              <div className="mt-3.5 grid gap-3 border-t border-surface-border pt-3 sm:grid-cols-2">
+                {loan.additional_information && (
+                  <div>
+                    <p className="text-11.5 text-ink-faint">Additional information</p>
+                    <p className="mt-0.5 text-13 leading-relaxed text-ink-muted">{loan.additional_information}</p>
+                  </div>
+                )}
+                {loan.closed_date && (
+                  <div>
+                    <p className="text-11.5 text-ink-faint">Closed on</p>
+                    <p className="mt-0.5 text-13 font-semibold text-ink">{formatDate(loan.closed_date)}</p>
+                  </div>
+                )}
               </div>
             )}
-          </section>
+          </Card>
 
-          <DepositHistory loanId={loan.id} deposits={deposits} readOnly={isClosed} principal={loan.amount} />
+          <DepositHistory
+            loanId={loan.id}
+            deposits={deposits}
+            readOnly={isClosed}
+            principal={loan.amount}
+            canAdd={settleMode}
+            summary={
+              deposits.length === 0
+                ? 'No part-payments received yet'
+                : `${formatCurrency(totalDeposits)} received across ${deposits.length} part-payment` +
+                  `${deposits.length === 1 ? '' : 's'} · ${depositShare.toFixed(0)}% of the loan amount`
+            }
+          />
+
           <RemarksLog loanId={loan.id} remarks={loan.remarks} />
         </div>
 
-        <aside className="space-y-3 lg:sticky lg:top-[142px]">
-          <section className="card">
-            <p className="text-xs text-slate-500">{isClosed ? 'Paid at settlement' : 'Customer pays if settled today'}</p>
-            <p className="mt-1 text-2xl font-bold tabular-nums text-primary-700">{formatCurrency(customerPays)}</p>
-            <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
-              {formatCurrency(loan.amount)} principal − {formatCurrency(totalDeposits)} deposits + {formatCurrency(isClosed ? chargedInterest : suggestedInterest)} interest
-            </p>
-          </section>
+        <aside className="flex flex-col gap-3.5">
+          <Card className="p-4">
+            <h2 className="card-title mb-3">Identity on file</h2>
+            <LoanPhoto
+              loanId={loan.id}
+              hasPhoto={!!detail.photos?.pledge}
+              verifiedBy={loan.face_verified_by}
+              readOnly={isClosed}
+              stage="pledge"
+              bare
+            />
+            <div className="mt-3 flex items-center gap-2.5 border-t border-surface-border pt-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border
+                              border-surface-border bg-surface-muted text-ink-faint">
+                <Icon d={ICON.camera} size={18} strokeWidth={1.6} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-12.5 font-semibold text-ink">Collection photo</p>
+                <p className={`text-11.5 ${collectionPhoto ? 'text-green' : 'text-ink-faint'}`}>
+                  {collectionPhoto
+                    ? `Captured ${loan.closed_date ? formatDate(loan.closed_date) : ''} at settlement`.trim()
+                    : 'Captured at settlement'}
+                </p>
+              </div>
+            </div>
+            {(collectionPhoto || settleMode) && (
+              <div className="mt-3">
+                <LoanPhoto
+                  loanId={loan.id}
+                  hasPhoto={!!collectionPhoto}
+                  verifiedBy={null}
+                  readOnly={isClosed}
+                  stage="collection"
+                  bare
+                />
+              </div>
+            )}
+          </Card>
 
-          <div>
-            <p className="mb-1.5 text-xs font-semibold text-slate-600">Pledge identity</p>
-            <LoanPhoto loanId={loan.id} hasPhoto={!!detail.photos?.pledge} verifiedBy={loan.face_verified_by} readOnly={isClosed} stage="pledge" />
-          </div>
-          <div>
-            <p className="mb-1.5 text-xs font-semibold text-slate-600">Collection identity</p>
-            <LoanPhoto loanId={loan.id} hasPhoto={!!collectionPhoto} verifiedBy={null} readOnly={isClosed} stage="collection" />
-          </div>
+          {/* The settlement figure only appears where settling is possible. On a
+              read-only record it would invite an action this screen cannot take. */}
+          {(settleMode || isClosed) && (
+            <Card accent={settleMode} className="p-4">
+              <p className="text-12 text-ink-muted">
+                {isClosed ? 'Paid at settlement' : 'Customer pays if settled today'}
+              </p>
+              <p className="mt-1 text-2xl font-bold tabular-nums text-primary">{formatCurrency(customerPays)}</p>
+              <p className="mt-1 text-11.5 leading-relaxed text-ink-faint">
+                {formatCurrency(loan.amount)} loan − {formatCurrency(totalDeposits)} deposits
+                {' '}+ {formatCurrency(interest)} interest
+              </p>
+            </Card>
+          )}
         </aside>
       </div>
     </div>
   )
 }
 
-function Summary({ label, value, tone, emphasis }: { label: string; value: string; tone?: 'good' | 'attention'; emphasis?: boolean }) {
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className={`min-h-20 border-b border-r border-surface-border p-3.5 last:border-r-0 xl:border-b-0 ${emphasis ? 'bg-primary-50/60' : ''}`}>
-      <p className="text-[11px] text-slate-500">{label}</p>
-      <p className={`mt-1 text-base font-bold tabular-nums ${tone === 'good' ? 'text-emerald-700' : tone === 'attention' ? 'text-amber-700' : emphasis ? 'text-primary-700' : 'text-slate-900'}`}>{value}</p>
+    <div>
+      <dt className="text-11.5 text-ink-faint">{label}</dt>
+      <dd className="mt-0.5 font-semibold text-ink">{children}</dd>
     </div>
   )
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return <div><dt className="text-[11px] text-slate-500">{label}</dt><dd className="mt-1 font-medium text-slate-900">{children}</dd></div>
 }
 
 function collateralWeight(category: string, weight: number | null): string {

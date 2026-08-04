@@ -82,34 +82,28 @@ export default function LoginPage() {
 
   return (
     <div>
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-slate-900">Welcome back</h1>
-        <p className="text-slate-500 mt-1.5 text-sm">Log in to your shop account</p>
-      </div>
+      <h1 className="sr-only">Sign in to your shop</h1>
 
       {/* A toast vanishes; this is the one error where the next step is not
           obvious, so it stays on screen until they act on it. */}
       {unconfirmed && (
-        <div
-          role="status"
-          className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900"
-        >
-          <p className="font-medium">This account is not confirmed yet</p>
-          <p className="mt-0.5 text-amber-800">
-            We sent a link to <span className="font-medium">{unconfirmed}</span>.
+        <div role="status" className="note-amber mb-3.5">
+          <p className="font-semibold">This account is not confirmed yet</p>
+          <p className="mt-0.5">
+            We sent a link to <span className="font-semibold">{unconfirmed}</span>.
             Open it, then sign in. Check the spam folder too.
           </p>
           <button
             type="button"
             onClick={resendConfirmation}
-            className="mt-1.5 text-amber-900 underline underline-offset-2 hover:no-underline"
+            className="mt-1.5 underline underline-offset-2 hover:no-underline"
           >
             Send it again
           </button>
         </div>
       )}
 
-      <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
+      <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-3.5">
         <Input
           label="Email"
           type="email"
@@ -132,27 +126,30 @@ export default function LoginPage() {
           <button
             type="button"
             onClick={() => setShowPass(p => !p)}
-            className="absolute right-3 top-8 text-slate-400 hover:text-slate-600 transition-colors"
+            className="absolute right-3 top-[34px] text-ink-faint transition-colors hover:text-ink-muted"
             aria-label={showPass ? 'Hide password' : 'Show password'}
           >
             {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           </button>
         </div>
 
-        <div className="-mt-1 text-right">
-          <Link href="/forgot-password" className="text-xs font-medium text-primary-700 hover:text-primary-800">
+        <Button type="submit" size="lg" loading={loading} className="mt-0.5 w-full">
+          Sign in
+        </Button>
+
+        <div className="flex items-center justify-between gap-3 text-12.5">
+          <Link href="/forgot-password" className="font-medium text-primary hover:underline">
             Forgot password?
           </Link>
+          {/* Stated up front: a session is bound to this device, and signing in
+              elsewhere will ask for approval. Better here than as a surprise. */}
+          <span className="text-ink-faint">Device-locked session</span>
         </div>
-
-        <Button type="submit" loading={loading} className="w-full">
-          Log in
-        </Button>
       </form>
 
-      <p className="mt-6 text-center text-sm text-slate-500">
+      <p className="mt-6 text-center text-13 text-ink-muted">
         Don&apos;t have an account?{' '}
-        <Link href="/register" className="font-semibold text-primary-700 hover:text-primary-800">
+        <Link href="/register" className="font-semibold text-primary hover:underline">
           Create one free
         </Link>
       </p>

@@ -47,7 +47,7 @@ export function IdentitySettings({ settings }: { settings: ShopSettings }) {
       <section className="card space-y-4">
         <div className="flex items-center gap-2">
           <ShieldCheck className="h-4 w-4 text-slate-400" />
-          <h2 className="text-sm font-semibold text-slate-900">Customer identity</h2>
+          <h2 className="card-title">Customer identity</h2>
         </div>
 
         <Toggle
@@ -102,7 +102,7 @@ export function IdentitySettings({ settings }: { settings: ShopSettings }) {
       <section className="card space-y-4">
         <div className="flex items-center gap-2">
           <Camera className="h-4 w-4 text-slate-400 opacity-0" aria-hidden />
-          <h2 className="text-sm font-semibold text-slate-900">Interest</h2>
+          <h2 className="card-title">Interest</h2>
         </div>
 
         <p className="text-xs text-slate-500 -mt-2">
@@ -159,7 +159,7 @@ export function IdentitySettings({ settings }: { settings: ShopSettings }) {
       <section className="card space-y-4">
         <div className="flex items-center gap-2">
           <FormInput className="h-4 w-4 text-slate-400" />
-          <h2 className="text-sm font-semibold text-slate-900">Fields on the loan form</h2>
+          <h2 className="card-title">Fields on the loan form</h2>
         </div>
 
         <Toggle

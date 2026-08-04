@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { asObject } from '@/lib/json'
 import { redirect } from 'next/navigation'
 import { SettingsWorkspace } from '@/components/settings/SettingsWorkspace'
+import { PageHeader } from '@/components/ui/Page'
 import { withDefaults } from '@/lib/settings'
 
 export const dynamic = 'force-dynamic'
@@ -31,13 +32,11 @@ export default async function SettingsPage() {
 
 
   return (
-    <div className="mx-auto max-w-6xl space-y-4">
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">Settings</h1>
-          <p className="page-subtitle">{tenant?.shop_name} · preferences apply to this shop, with devices and data managed per workspace</p>
-        </div>
-      </div>
+    <div className="mx-auto max-w-6xl space-y-3.5">
+      <PageHeader
+        title="Settings"
+        subtitle={`${tenant?.shop_name ?? 'This shop'} · preferences apply to this shop. Devices and backups are managed per workspace.`}
+      />
 
       {/* shop_members() is RETURNS TABLE, so every column types as nullable.
           Normalised below so SettingsWorkspace keeps its non-null Member type. */}

@@ -64,7 +64,7 @@ export function InventoryReport({ rows }: { rows: Row[] }) {
         { label: 'Silver', items: silver, total: silverAmount },
       ].filter(g => g.items.length > 0).map(group => (
         <div key={group.label} className="card">
-          <h2 className="text-sm font-semibold text-slate-900 mb-3">
+          <h2 className="card-title mb-3">
             {group.label} items
           </h2>
           <div className="space-y-2">

@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { HelpWorkspace } from '@/components/help/HelpWorkspace'
+import { PageHeader } from '@/components/ui/Page'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,15 +20,11 @@ export default async function HelpPage() {
   const { data: tickets } = await supabase.rpc('my_tickets')
 
   return (
-    <div className="space-y-5 max-w-4xl">
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">Help &amp; support</h1>
-          <p className="page-subtitle">
-            Guides for daily work, plus direct support when you need it
-          </p>
-        </div>
-      </div>
+    <div className="max-w-5xl space-y-3.5">
+      <PageHeader
+        title="Help & Support"
+        subtitle="Guides for daily work, plus direct support when you need it."
+      />
 
       {/* my_tickets() is RETURNS TABLE — nullable columns. Normalise so the
           workspace keeps its non-null Ticket type. */}

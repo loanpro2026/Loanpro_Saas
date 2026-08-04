@@ -1,38 +1,25 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { ArrowRight, Landmark, Plus } from 'lucide-react'
+import { Landmark, Plus } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { asObject, numberAt, objectAt, stringAt } from '@/lib/json'
 import type { Json, Tables } from '@/types/supabase'
-import { formatCurrency, formatDate, getLoanAge } from '@/lib/utils'
-import { Badge } from '@/components/ui/Badge'
+import { formatCurrency, formatDate } from '@/lib/utils'
+import { MetalBadge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
-import { ActivityFeed } from '@/components/dashboard/ActivityFeed'
 import { CashSummary } from '@/components/dashboard/CashSummary'
 import { PeriodCards } from '@/components/dashboard/PeriodCards'
 import { QuickActions } from '@/components/dashboard/QuickActions'
-import { QuickReports } from '@/components/dashboard/QuickReports'
 import { StockChart } from '@/components/dashboard/StockChart'
 import { TopLocations, type LocationRow } from '@/components/dashboard/TopLocations'
 import { TrendChart } from '@/components/dashboard/TrendChart'
-
-type ActivityRow = Pick<
-  Tables<'activity_log'>,
-  'id' | 'type' | 'description' | 'amount' | 'color' | 'icon' | 'time'
->
 
 type RecentLoanRow = Pick<
   Tables<'loans'>,
   'id' | 'name' | 'father_name' | 'amount' | 'category_type'
   | 'detailed_type' | 'issue_date' | 'status'
 >
-
-type BreakdownRow = {
-  name: string | null
-  total_amount: number | null
-  percentage: number | null
-}
 
 type LocationReportRow = {
   location: string | null
@@ -62,23 +49,18 @@ export default async function DashboardPage() {
   // turn unavailable money into a believable zero.
   const settled = await Promise.allSettled([
     supabase.rpc('dashboard_snapshot'),
-    supabase.from('activity_log')
-      .select('id, type, description, amount, color, icon, time')
-      .order('time', { ascending: false }).limit(8),
     supabase.from('loans')
       .select('id, name, father_name, amount, category_type, detailed_type, issue_date, status')
       .eq('status', 'active').order('issue_date', { ascending: false }).limit(5),
-    supabase.rpc('jewellery_breakdown', { p_category: 'Gold', p_limit: 4 }),
     supabase.rpc('chart_data', { p_months: 12 }),
     supabase.rpc('location_report', { p_locations: null, p_start: null, p_end: null }),
-    // The approved compact financial row uses the live deposit balance already
-    // exposed by this existing tenant-scoped report function.
+    // The compact financial row uses the live deposit balance already exposed
+    // by this existing tenant-scoped report function.
     supabase.rpc('lending_metrics'),
   ])
 
   const names = [
-    'dashboard_snapshot', 'activity_log', 'recent_loans', 'jewellery_breakdown',
-    'chart_data', 'location_report', 'lending_metrics',
+    'dashboard_snapshot', 'recent_loans', 'chart_data', 'location_report', 'lending_metrics',
   ] as const
   const failures = new Set<number>()
 
@@ -99,12 +81,10 @@ export default async function DashboardPage() {
   }
 
   const snapshot = unwrap<Json>(0)
-  const activity = unwrap<ActivityRow[]>(1)
-  const recentLoans = unwrap<RecentLoanRow[]>(2)
-  const goldBreakdown = unwrap<BreakdownRow[]>(3)
-  const trend = unwrap<TrendRow[]>(4)
-  const locations = unwrap<LocationReportRow[]>(5)
-  const lendingMetrics = unwrap<Json>(6)
+  const recentLoans = unwrap<RecentLoanRow[]>(1)
+  const trend = unwrap<TrendRow[]>(2)
+  const locations = unwrap<LocationReportRow[]>(3)
+  const lendingMetrics = unwrap<Json>(4)
 
   const metrics = asObject(snapshot)
   const stock = objectAt(snapshot, 'stock')
@@ -127,10 +107,7 @@ export default async function DashboardPage() {
   const firstName = (appUser.full_name ?? '').trim().split(/\s+/)[0] ?? ''
 
   return (
-    <div
-      className="dashboard-reference space-y-3.5"
-      style={{ fontFamily: "'IBM Plex Sans', Inter, system-ui, sans-serif" }}
-    >
+    <div className="space-y-3">
       <PeriodCards
         activePrincipal={numberAt(metrics, 'active_principal')}
         activeCount={numberAt(metrics, 'active_loans')}
@@ -147,13 +124,14 @@ export default async function DashboardPage() {
           noActivity: cash.no_activity === true,
         }}
         cashError={failures.has(0)}
-        depositsError={failures.has(6)}
+        depositsError={failures.has(4)}
       />
 
+      {/* Two thirds trend, one third safe — the design's ratio on both rows. */}
       <div className="grid items-stretch gap-3 lg:grid-cols-3">
         <div className="lg:col-span-2">
           <TrendChart
-            error={failures.has(4)}
+            error={failures.has(2)}
             rows={(trend ?? []).map(row => ({
               month: row.month ?? '',
               invested: row.invested ?? 0,
@@ -164,37 +142,32 @@ export default async function DashboardPage() {
         </div>
         <StockChart
           error={failures.has(0)}
-          breakdownError={failures.has(3)}
           cost={cost}
           weight={weight}
           counts={counts}
-          goldBreakdown={(goldBreakdown ?? []).map(item => ({
-            name: item.name ?? 'Other',
-            total_amount: item.total_amount ?? 0,
-            percentage: item.percentage ?? 0,
-          }))}
         />
       </div>
 
       <div className="grid items-start gap-3 lg:grid-cols-3">
-        <section className="card overflow-hidden p-0 lg:col-span-2" aria-labelledby="latest-loans-title">
-          <div className="flex items-center justify-between border-b border-surface-border px-4 py-3">
-            <h2 id="latest-loans-title" className="text-sm font-bold text-slate-900">Latest active loans</h2>
-            <Link href="/view-records/active" className="inline-flex items-center gap-1 text-xs font-semibold text-primary-700 hover:underline">
-              View all <ArrowRight className="h-3 w-3" />
-            </Link>
+        <section className="card-flush lg:col-span-2" aria-labelledby="latest-loans-title">
+          <div className="flex items-center justify-between gap-3 border-b border-surface-border px-4 py-3">
+            <h2 id="latest-loans-title" className="card-title">Latest active loans</h2>
+            <Link href="/view-records/active" className="btn-link">View all →</Link>
           </div>
 
-          {failures.has(2) ? (
+          {failures.has(1) ? (
             <div className="px-4 py-8 text-center">
-              <p className="text-sm font-semibold text-red-700">Latest active loans could not be loaded</p>
-              <p className="mt-1 text-xs text-slate-500">Existing loan records are unchanged. Other dashboard figures remain available.</p>
+              <p className="text-13 font-semibold text-red">Latest active loans could not be loaded</p>
+              <p className="mt-1 text-12 text-ink-faint">
+                Existing loan records are unchanged. Other dashboard figures remain available.
+              </p>
             </div>
           ) : !recentLoans?.length ? (
             <EmptyState
               icon={Landmark}
               title="No loans yet"
               description="Add your first loan to begin the active portfolio."
+              className="border-0"
               action={
                 <Link href="/add-record">
                   <Button size="sm"><Plus className="h-4 w-4" /> Add your first loan</Button>
@@ -202,24 +175,27 @@ export default async function DashboardPage() {
               }
             />
           ) : (
-            <ul className="divide-y divide-surface-border">
+            <ul>
               {recentLoans.map(loan => (
                 <li key={loan.id}>
                   <Link
                     href={`/loans/${loan.id}`}
-                    className="grid min-h-12 grid-cols-[3.5rem_minmax(0,1fr)_auto] items-center gap-2 px-4 py-2 text-sm transition-colors hover:bg-slate-50 sm:grid-cols-[4rem_minmax(0,1.3fr)_auto_minmax(7rem,1fr)_9rem_auto]"
+                    className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2.5 border-b
+                               border-surface-border px-4 py-2.5 text-12.5 transition-colors last:border-0
+                               hover:bg-surface-muted sm:grid-cols-[100px_1.4fr_1fr_1fr_76px]"
                   >
-                    <span className="font-semibold tabular-nums text-slate-700">#{loan.id}</span>
-                    <span className="min-w-0">
-                      <span className="block truncate font-medium text-slate-900">{loan.name}</span>
-                      <span className="block truncate text-[11px] text-slate-400 sm:hidden">{formatDate(loan.issue_date)}</span>
-                    </span>
-                    <Badge variant={loan.category_type === 'Gold' ? 'gold' : 'silver'}>{loan.category_type}</Badge>
-                    <span className="hidden truncate text-xs text-slate-500 sm:block">{loan.detailed_type || '—'}</span>
-                    <span className="hidden text-xs text-slate-500 sm:block">{formatDate(loan.issue_date)} · {getLoanAge(loan.issue_date)}</span>
-                    <span className="col-span-3 text-right font-semibold tabular-nums text-slate-900 sm:col-span-1">
+                    <span className="hidden font-semibold tabular-nums text-ink sm:block">
                       {formatCurrency(loan.amount)}
                     </span>
+                    <span className="min-w-0">
+                      <span className="block truncate font-medium text-ink">{loan.name}</span>
+                      <span className="block truncate text-11 text-ink-faint sm:hidden">
+                        {formatCurrency(loan.amount)} · {formatDate(loan.issue_date)}
+                      </span>
+                    </span>
+                    <span className="hidden truncate text-ink-muted sm:block">{loan.detailed_type || '—'}</span>
+                    <span className="hidden text-ink-muted sm:block">{formatDate(loan.issue_date)}</span>
+                    <MetalBadge metal={loan.category_type} className="justify-self-end" />
                   </Link>
                 </li>
               ))}
@@ -227,25 +203,22 @@ export default async function DashboardPage() {
           )}
         </section>
 
-        <QuickActions />
-      </div>
-
-      <div className="grid items-start gap-3 md:grid-cols-2 xl:grid-cols-3">
-        <TopLocations
-          error={failures.has(5)}
-          rows={(locations ?? []).reduce<LocationRow[]>((all, row) => {
-            if (row.location) {
-              all.push({
-                location: row.location,
-                active_count: row.active_count ?? 0,
-                active_amount: row.active_amount ?? 0,
-              })
-            }
-            return all
-          }, [])}
-        />
-        <QuickReports />
-        <ActivityFeed items={activity ?? []} error={failures.has(1)} />
+        <div className="flex flex-col gap-3">
+          <QuickActions />
+          <TopLocations
+            error={failures.has(3)}
+            rows={(locations ?? []).reduce<LocationRow[]>((all, row) => {
+              if (row.location) {
+                all.push({
+                  location: row.location,
+                  active_count: row.active_count ?? 0,
+                  active_amount: row.active_amount ?? 0,
+                })
+              }
+              return all
+            }, [])}
+          />
+        </div>
       </div>
     </div>
   )

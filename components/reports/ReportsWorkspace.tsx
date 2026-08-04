@@ -168,20 +168,20 @@ export function ReportsWorkspace({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {/* Report picker. Hidden when the page is already one specific report —
           /view-accounts/investment showing a row of buttons to switch to the
           daily book would just be a second, competing navigation. */}
-      <div className={cn('flex gap-2 overflow-x-auto pb-1 -mx-1 px-1', lockToInitial && 'hidden')}>
+      <div className={cn('-mx-1 flex gap-2 overflow-x-auto px-1 pb-1', lockToInitial && 'hidden')}>
         {REPORTS.map(r => (
           <button
             key={r.key}
             onClick={() => setKey(r.key)}
             className={cn(
-              'shrink-0 rounded-lg px-3.5 py-2 text-sm font-medium transition-colors border',
+              'shrink-0 rounded-lg border px-3.5 py-2 text-13 font-semibold transition-colors',
               key === r.key
-                ? 'bg-primary-700 text-white border-primary-700'
-                : 'bg-white text-slate-600 border-surface-border hover:border-slate-300'
+                ? 'border-primary bg-primary-tint text-primary'
+                : 'border-surface-border bg-surface-card text-ink-muted hover:border-primary hover:text-primary'
             )}
           >
             {r.title}
@@ -189,18 +189,20 @@ export function ReportsWorkspace({
         ))}
       </div>
 
-      {/* Controls */}
-      <div className="card flex flex-wrap items-end gap-3">
-        <div className="flex-1 min-w-48">
-          <p className="text-sm font-medium text-slate-900">{meta.title}</p>
-          <p className="text-xs text-slate-500">{meta.description}</p>
+      {/* Controls. The design puts the date range and the export beside the
+          page title; here they sit on one line above the result, which is the
+          same reading order once the report picker is hidden. */}
+      <div className="card flex flex-wrap items-end gap-3 p-3.5">
+        <div className="min-w-48 flex-1">
+          <p className="text-13 font-semibold text-ink">{meta.title}</p>
+          <p className="text-12 text-ink-muted">{meta.description}</p>
         </div>
 
         {meta.input === 'single-date' && (
           <div>
             <label htmlFor="rep-date" className="label">Date</label>
             <input
-              id="rep-date" type="date" className="input w-44"
+              id="rep-date" type="date" className="select h-9 w-44"
               value={date} max={todayIST()}
               onChange={e => setDate(e.target.value)}
             />
@@ -212,7 +214,7 @@ export function ReportsWorkspace({
             <div>
               <label htmlFor="rep-start" className="label">From</label>
               <input
-                id="rep-start" type="date" className="input w-40"
+                id="rep-start" type="date" className="select h-9 w-40"
                 value={start} max={end}
                 onChange={e => setStart(e.target.value)}
               />
@@ -220,7 +222,7 @@ export function ReportsWorkspace({
             <div>
               <label htmlFor="rep-end" className="label">To</label>
               <input
-                id="rep-end" type="date" className="input w-40"
+                id="rep-end" type="date" className="select h-9 w-40"
                 value={end} min={start} max={todayIST()}
                 onChange={e => setEnd(e.target.value)}
               />
@@ -232,6 +234,7 @@ export function ReportsWorkspace({
           <div className="w-44">
             <Select
               label="Showing"
+              fieldSize="md"
               value={accountType}
               onChange={e => setAccountType(e.target.value as any)}
               options={[
@@ -244,14 +247,14 @@ export function ReportsWorkspace({
         )}
 
         <div className="flex gap-2">
-          <Button variant="secondary" size="sm" onClick={onExportCsv} disabled={loading || !data}>
+          <Button variant="secondary" onClick={onExportCsv} disabled={loading || !data}>
             <Download className="h-4 w-4" /> CSV
           </Button>
           <Button
-            variant="secondary" size="sm" onClick={onPrint}
+            variant="secondary" onClick={onPrint}
             loading={printing} disabled={loading || !data}
           >
-            <Printer className="h-4 w-4" /> Print
+            <Printer className="h-4 w-4" /> Export PDF
           </Button>
         </div>
       </div>

@@ -8,6 +8,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { ReportsWorkspace } from '@/components/reports/ReportsWorkspace'
+import { PageHeader } from '@/components/ui/Page'
 
 export const dynamic = 'force-dynamic'
 
@@ -23,13 +24,11 @@ export default async function ReturnsAccountPage() {
     : { data: null }
 
   return (
-    <div className="space-y-5">
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">Returns</h1>
-          <p className="page-subtitle">Principal returned from loans settled in the selected period</p>
-        </div>
-      </div>
+    <div className="space-y-3.5">
+      <PageHeader
+        title="View Accounts · Returns"
+        subtitle="Principal returned from loans settled in the selected period"
+      />
 
       <ReportsWorkspace
         shopName={tenant?.shop_name ?? 'LoanPro'}

@@ -14,6 +14,7 @@ interface Props {
 }
 
 type Mode = 'idle' | 'camera' | 'push-wait' | 'qr-wait'
+type CaptureSource = 'cloud-companion' | 'browser-qr'
 
 // ── Supabase browser client (lightweight — only used for Realtime) ─────────
 export function PhotoCapture({ onPhoto, existingPhotoUrl, loanId }: Props) {
@@ -28,6 +29,7 @@ export function PhotoCapture({ onPhoto, existingPhotoUrl, loanId }: Props) {
   const [sessionId,  setSessionId]  = useState<string | null>(null)
   const [qrUrl,      setQrUrl]      = useState<string | null>(null)
   const [showQr,     setShowQr]     = useState(false)
+  const [captureSource, setCaptureSource] = useState<CaptureSource | null>(null)
 
   const videoRef   = useRef<HTMLVideoElement>(null)
   const streamRef  = useRef<MediaStream | null>(null)
@@ -48,7 +50,7 @@ export function PhotoCapture({ onPhoto, existingPhotoUrl, loanId }: Props) {
     setIsMobile(mobile)
     if (!mobile) {
       // Check if user has a paired phone
-      fetch('/api/devices')
+      fetch('/api/mobile-capture/devices')
         .then(r => r.json())
         .then(d => setHasPaired(d.devices?.length > 0))
         .catch(() => setHasPaired(false))
@@ -77,7 +79,7 @@ export function PhotoCapture({ onPhoto, existingPhotoUrl, loanId }: Props) {
 
   // ── Supabase Realtime — listen for photo on push-wait ─────────────────────
   useEffect(() => {
-    if (mode !== 'push-wait' || !sessionId) return
+    if (mode !== 'push-wait' || captureSource !== 'browser-qr' || !sessionId) return
 
     const channel = supabase
       .channel(`camera_session_${sessionId}`)
@@ -123,7 +125,65 @@ export function PhotoCapture({ onPhoto, existingPhotoUrl, loanId }: Props) {
 
     return () => { channel.unsubscribe(); clearTimeout(timer) }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, sessionId, sessionKey])
+  }, [mode, sessionId, sessionKey, captureSource])
+
+  // The Android app sends the image to Cloud Run only as a temporary relay.
+  // This converts the completed relay payload back into the same File used by
+  // direct camera/upload, so the existing loan save path remains responsible
+  // for permanent R2 storage.
+  useEffect(() => {
+    if (mode !== 'push-wait' || captureSource !== 'cloud-companion' || !sessionId) return
+
+    let stopped = false
+    let polling = false
+    const poll = async () => {
+      if (stopped || polling) return
+      polling = true
+      try {
+        const response = await fetch(`/api/mobile-capture/capture?session_id=${encodeURIComponent(sessionId)}`, {
+          cache: 'no-store',
+        })
+        const data = await response.json().catch(() => ({}))
+        if (!response.ok) throw new Error(data.error || 'Could not check the phone capture')
+
+        if (data.status === 'captured' && data.image_base64) {
+          stopped = true
+          const binary = atob(data.image_base64)
+          const bytes = new Uint8Array(binary.length)
+          for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i)
+          const mimeType = data.image_content_type || 'image/jpeg'
+          const file = new File([bytes], 'phone-capture.jpg', { type: mimeType })
+          showLocalPreview(file)
+          onPhoto(file)
+          setMode('idle')
+          setCaptureSource(null)
+          setSessionId(null)
+          void fetch(`/api/mobile-capture/capture?session_id=${encodeURIComponent(sessionId)}`, {
+            method: 'DELETE',
+          }).catch(() => undefined)
+          toast.success('Photo received from your phone.')
+          return
+        }
+
+        if (data.status === 'failed' || data.status === 'expired') {
+          throw new Error('The phone capture expired. Please try again.')
+        }
+      } catch (error) {
+        stopped = true
+        setMode('idle')
+        setCaptureSource(null)
+        setSessionId(null)
+        toast.error(error instanceof Error ? error.message : 'Phone capture failed')
+      } finally {
+        polling = false
+      }
+    }
+
+    void poll()
+    const timer = setInterval(() => void poll(), 1500)
+    return () => { stopped = true; clearInterval(timer) }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, captureSource, sessionId])
 
   // ── Direct camera (mobile) ────────────────────────────────────────────────
   const startCamera = async () => {
@@ -179,9 +239,10 @@ export function PhotoCapture({ onPhoto, existingPhotoUrl, loanId }: Props) {
   }
 
   // ── Push capture (desktop → phone) ────────────────────────────────────────
-  const startPushCapture = async () => {
+  const startBrowserQrCapture = async () => {
     setMode('push-wait')
-    setShowQr(false)
+    setCaptureSource('browser-qr')
+    setShowQr(true)
     try {
       const res  = await fetch('/api/camera/push', {
         method:  'POST',
@@ -202,13 +263,49 @@ export function PhotoCapture({ onPhoto, existingPhotoUrl, loanId }: Props) {
         setShowQr(true)
       }
     } catch {
-      alert('Failed to send capture request. Try again or use Upload.')
+      toast.error('Failed to create a camera QR. Try again or choose a photo.')
       setMode('idle')
+      setCaptureSource(null)
+    }
+  }
+
+  const startPushCapture = async () => {
+    if (!hasPaired) {
+      await startBrowserQrCapture()
+      return
+    }
+
+    setMode('push-wait')
+    setCaptureSource('cloud-companion')
+    setShowQr(false)
+    setQrUrl(null)
+    try {
+      const response = await fetch('/api/mobile-capture/capture', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok || !data.session_id) {
+        throw new Error(data.error || 'Could not send the capture request')
+      }
+      setSessionId(data.session_id)
+      setSessionKey(null)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to notify the paired phone')
+      setMode('idle')
+      setCaptureSource(null)
     }
   }
 
   const cancelPush = () => {
+    if (captureSource === 'cloud-companion' && sessionId) {
+      void fetch(`/api/mobile-capture/capture?session_id=${encodeURIComponent(sessionId)}`, {
+        method: 'DELETE',
+      }).catch(() => undefined)
+    }
     setMode('idle')
+    setCaptureSource(null)
     setSessionKey(null)
     setSessionId(null)
     setQrUrl(null)
@@ -274,7 +371,7 @@ export function PhotoCapture({ onPhoto, existingPhotoUrl, loanId }: Props) {
     return (
       <div className="space-y-4 max-w-sm">
         {/* Sent push notification — waiting for photo */}
-        {!showQr && (
+        {captureSource === 'cloud-companion' && !showQr && (
           <div className="flex flex-col items-center gap-3 py-6 px-4 bg-primary-50 rounded-xl border border-primary-100 text-center">
             <div className="relative">
               <Smartphone className="h-10 w-10 text-primary-600" />
@@ -312,13 +409,13 @@ export function PhotoCapture({ onPhoto, existingPhotoUrl, loanId }: Props) {
         )}
 
         <div className="flex flex-wrap gap-2">
-          {!showQr && (
-            <Button variant="ghost" size="sm" onClick={() => setShowQr(true)}>
+          {captureSource === 'cloud-companion' && !showQr && (
+            <Button variant="ghost" size="sm" onClick={() => { cancelPush(); void startBrowserQrCapture() }}>
               <QrCode className="h-3.5 w-3.5" /> Show QR instead
             </Button>
           )}
-          {showQr && (
-            <Button variant="ghost" size="sm" onClick={() => setShowQr(false)}>
+          {captureSource === 'browser-qr' && showQr && hasPaired && (
+            <Button variant="ghost" size="sm" onClick={() => { cancelPush(); void startPushCapture() }}>
               <Wifi className="h-3.5 w-3.5" /> Use push notification
             </Button>
           )}

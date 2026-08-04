@@ -36,7 +36,7 @@ export function AppearanceSettings({ initialTheme }: { initialTheme: ShopSetting
       <div className="flex items-center gap-2">
         <Palette className="h-4 w-4 text-slate-400" />
         <div>
-          <h2 className="text-sm font-semibold text-slate-900">Appearance</h2>
+          <h2 className="card-title">Appearance</h2>
           <p className="mt-0.5 text-xs text-slate-500">Saved for your shop and applied on every device.</p>
         </div>
       </div>

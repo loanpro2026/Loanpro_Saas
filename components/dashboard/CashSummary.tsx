@@ -64,7 +64,7 @@ export function CashSummary({
   }
 
   return (
-    <section className="card overflow-hidden" aria-labelledby="cash-summary-title">
+    <section className="card-flush" aria-labelledby="cash-summary-title">
       <div className="flex flex-col gap-3 border-b border-surface-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <h2 id="cash-summary-title" className="card-title whitespace-nowrap">Current financial position</h2>
 

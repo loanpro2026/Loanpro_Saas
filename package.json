@@ -35,8 +35,9 @@
     "check:deps": "node scripts/deps.js",
     "check:env": "node scripts/env.js",
     "check:sql": "node scripts/sql.js",
+    "check:theme": "node scripts/theme.js",
     "check:syntax": "node scripts/check.js && node scripts/imports.js && node --check public/sw.js",
-    "test": "npm run migrate:test && npm run test:cash && npm run test:reports && npm run test:interest && npm run test:offline && npm run test:plans && npm run test:billing && npm run test:devices && npm run test:capture-device && npm run test:sw && npm run check:rpc && npm run check:guard && npm run check:links && npm run check:parity && npm run check:deps && npm run check:syntax && npm run typecheck:scripts",
+    "test": "npm run migrate:test && npm run test:cash && npm run test:reports && npm run test:interest && npm run test:offline && npm run test:plans && npm run test:billing && npm run test:devices && npm run test:capture-device && npm run test:sw && npm run check:rpc && npm run check:guard && npm run check:links && npm run check:parity && npm run check:deps && npm run check:theme && npm run check:syntax && npm run typecheck:scripts",
     "typecheck:scripts": "tsc -p tsconfig.scripts.json"
   },
   "dependencies": {
@@ -51,6 +52,7 @@
     "jspdf-autotable": "^5.0.8",
     "lucide-react": "^0.544.0",
     "next": "^15.5.22",
+    "qrcode": "^1.5.4",
     "razorpay": "^2.9.6",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
@@ -64,6 +66,7 @@
   "devDependencies": {
     "@types/archiver": "^6.0.3",
     "@types/node": "^22.15.3",
+    "@types/qrcode": "^1.5.5",
     "@types/react": "^19.1.2",
     "@types/react-dom": "^19.1.3",
     "@types/web-push": "^3.6.4",

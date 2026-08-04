@@ -151,15 +151,15 @@
 
 @layer components {
   /* ---------------------------------------------------------------- surfaces */
-  /* The design's card: 12px radius, 1px border, the flat --shadow. */
+  /* The design's card: 12px radius, 1px border, the flat --shadow, 16px of
+     padding. Cards whose children are full-bleed rows — tables, settings lists,
+     ledgers — clear it with `p-0`, since a utility beats a component class. */
   .card {
-    @apply rounded-2xl border border-surface-border bg-surface-card shadow-card;
+    @apply rounded-2xl border border-surface-border bg-surface-card p-4 shadow-card;
   }
-  .card-pad   { @apply card p-4; }
-  .card-tight { @apply card p-3.5; }
 
-  /* A card whose children are full-bleed rows (tables, settings lists). */
-  .card-flush { @apply card overflow-hidden; }
+  /* A card whose children are full-bleed rows. */
+  .card-flush { @apply card overflow-hidden p-0; }
 
   .workspace-card { @apply card; }
 
@@ -290,6 +290,20 @@
   .grid-foot {
     @apply flex items-center justify-between border-t border-surface-border px-4 py-2.5
            text-12.5 text-ink-muted;
+  }
+
+  /* The Active / Closed records table.
+     Nine aligned columns on a counter monitor; a two-line summary plus the row
+     actions on a phone, where nine columns would be nine unreadable ones. */
+  .records-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  @media (min-width: 1024px) {
+    .records-grid {
+      /* Amount | Customer | Father | Location | Date | Metal | Type | Weight | Actions */
+      grid-template-columns: 110px 1.3fr 1.1fr 1fr 100px 76px 1fr 90px 84px;
+    }
   }
 
   .table-container {

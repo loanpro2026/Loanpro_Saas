@@ -112,7 +112,7 @@ export function AccessDevices({ recovery = false }: { recovery?: boolean }) {
         <div className="flex gap-2">
           <ShieldCheck className="mt-0.5 h-4 w-4 text-slate-400" />
           <div>
-            <h2 className="text-sm font-semibold text-slate-900">Signed-in devices</h2>
+            <h2 className="card-title">Signed-in devices</h2>
             <p className="mt-0.5 text-xs text-slate-500">
               Use LoanPro on all your devices. Device limits are not enforced during testing.
             </p>

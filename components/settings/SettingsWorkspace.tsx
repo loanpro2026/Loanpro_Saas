@@ -19,6 +19,7 @@ import { IdentitySettings } from '@/components/settings/IdentitySettings'
 import { DataExport } from '@/components/settings/DataExport'
 import { AccessDevices } from '@/components/settings/AccessDevices'
 import { AppearanceSettings } from '@/components/settings/AppearanceSettings'
+import { MobileCaptureSettings } from '@/components/settings/MobileCaptureSettings'
 import type { ShopSettings } from '@/lib/settings'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -95,7 +96,12 @@ export function SettingsWorkspace({ me, shopName, plan, members, settings, staff
 
   return (
     <div className="space-y-4">
-      <nav className="flex gap-1 overflow-x-auto rounded-xl border border-surface-border bg-white p-1" aria-label="Settings sections">
+      {/* The design's segmented control: a tinted active chip rather than a
+          solid dark one, so the same markup reads correctly in dark mode. */}
+      <nav
+        className="flex gap-0.5 overflow-x-auto rounded-lg border border-surface-border bg-surface-card p-[3px]"
+        aria-label="Settings sections"
+      >
         {([
           ['business', Store, 'Business'],
           ['preferences', SlidersHorizontal, 'Preferences'],
@@ -106,8 +112,12 @@ export function SettingsWorkspace({ me, shopName, plan, members, settings, staff
             key={value}
             type="button"
             onClick={() => setTab(value)}
-            className={`flex min-w-max flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
-              tab === value ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-950' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800'
+            aria-pressed={tab === value}
+            className={`flex min-w-max flex-1 items-center justify-center gap-2 rounded-md px-3 py-[5px]
+                        text-12.5 transition-colors ${
+              tab === value
+                ? 'bg-primary-tint font-semibold text-primary'
+                : 'font-medium text-ink-muted hover:bg-surface-muted'
             }`}
           >
             <Icon className="h-4 w-4" /> {label}
@@ -121,7 +131,7 @@ export function SettingsWorkspace({ me, shopName, plan, members, settings, staff
       <section className="card space-y-3">
         <div className="flex items-center gap-2">
           <CreditCard className="h-4 w-4 text-slate-400" />
-          <h2 className="text-sm font-semibold text-slate-900">Plan</h2>
+          <h2 className="card-title">Plan</h2>
         </div>
 
         <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -153,7 +163,7 @@ export function SettingsWorkspace({ me, shopName, plan, members, settings, staff
       <section className="card space-y-4">
         <div className="flex items-center gap-2">
           <Store className="h-4 w-4 text-slate-400" />
-          <h2 className="text-sm font-semibold text-slate-900">Shop</h2>
+          <h2 className="card-title">Shop</h2>
         </div>
 
         <div className="flex items-end gap-3">
@@ -195,7 +205,7 @@ export function SettingsWorkspace({ me, shopName, plan, members, settings, staff
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Users className="h-4 w-4 text-slate-400" />
-            <h2 className="text-sm font-semibold text-slate-900">People</h2>
+            <h2 className="card-title">People</h2>
             <span className="text-xs text-slate-400">
               {members.length} of {staffLimit}
             </span>
@@ -246,6 +256,7 @@ export function SettingsWorkspace({ me, shopName, plan, members, settings, staff
           General Settings screen (migration 012). */}
       {tab === 'preferences' && <div className="grid gap-4 xl:grid-cols-2">
         <IdentitySettings settings={settings} />
+        <MobileCaptureSettings isOwner={isOwner} />
         <AppearanceSettings initialTheme={settings.theme} />
       </div>}
 
@@ -256,7 +267,7 @@ export function SettingsWorkspace({ me, shopName, plan, members, settings, staff
       <section className="card space-y-4">
         <div className="flex items-center gap-2">
           <Lock className="h-4 w-4 text-slate-400" />
-          <h2 className="text-sm font-semibold text-slate-900">Screen lock</h2>
+          <h2 className="card-title">Screen lock</h2>
         </div>
 
         <Select

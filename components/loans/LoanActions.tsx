@@ -1,20 +1,25 @@
 'use client'
 /**
- * Close / reopen / delete controls for a loan.
+ * The controls at the top right of a loan.
  *
- * Closing is the important one: it settles the money, so the dialog shows the
- * exact figure the customer pays before anything is committed. The desktop app
- * makes the operator compute interest in their head; showing the arithmetic
- * here removes a whole class of counter mistakes.
+ * Two sets, as in the design. Looking a record up gives Edit and Delete;
+ * working through a settlement gives Add deposit and Settle loan. Nothing else
+ * is offered in either mode — the point of splitting them is that the screen
+ * you are on can only do the thing you came to do.
+ *
+ * The settlement dialog shows the arithmetic before anything is committed. The
+ * desktop app makes the operator work out interest in their head, which is a
+ * whole class of counter mistake this removes.
  */
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
-import { MoreVertical, Archive, RotateCcw, Trash2, Pencil, AlertTriangle } from 'lucide-react'
 import Link from 'next/link'
+import { RotateCcw } from 'lucide-react'
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
-import { Input } from '@/components/ui/Input'
+import { Icon } from '@/components/ui/Icon'
+import { ICON } from '@/lib/nav'
 import { formatCurrency, formatDuration, todayIST } from '@/lib/utils'
 import { closeLoan, reopenLoan, deleteLoan } from '@/app/(app)/loans/actions'
 
@@ -26,32 +31,36 @@ interface Props {
     interest: number | null
     issue_date: string
     status: string
+    category_type?: string
+    detailed_type?: string | null
+    weight?: number | null
   }
   totalDeposits: number
   daysHeld: number
-  /** From calculate_interest() server-side — the shop's annual rate applied
-   *  over the days held. Not a per-loan property. */
+  /** From calculate_interest() server-side — the shop's rate over the days
+   *  held. Not a per-loan property. */
   suggestedInterest: number
   canManage: boolean
   photoRequiredAtClosure?: boolean
   hasCollectionPhoto?: boolean
+  /** Reached from Remove Record: show the money controls instead of Edit/Delete. */
+  settleMode?: boolean
 }
 
 export function LoanActions({
   loan, totalDeposits, daysHeld, suggestedInterest, canManage,
-  photoRequiredAtClosure = false, hasCollectionPhoto = false,
+  photoRequiredAtClosure = false, hasCollectionPhoto = false, settleMode = false,
 }: Props) {
   const router = useRouter()
-  const [menuOpen, setMenuOpen] = useState(false)
   const [closing, setClosing] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [pending, startTransition] = useTransition()
 
   const isClosed = loan.status === 'closed'
 
-  // Pre-filled from the shop's annual rate over the days held, exactly as the
-  // desktop computes it. Fully editable — settlements get negotiated, rounded
-  // or waived for regulars, and the app should not fight that.
+  // Pre-filled from the shop's rate over the days held, exactly as the desktop
+  // computes it. Fully editable — settlements get negotiated, rounded or waived
+  // for regulars, and the app should not fight that.
   const [interest, setInterest] = useState(String(suggestedInterest))
   const [closedDate, setClosedDate] = useState(todayIST())
   const [confirmText, setConfirmText] = useState('')
@@ -62,194 +71,206 @@ export function LoanActions({
 
   const onClose = () => startTransition(async () => {
     if (photoBlocked) return
-    const res = await closeLoan(loan.id, interestNum, closedDate)
-    if (res.ok) {
+    const result = await closeLoan(loan.id, interestNum, closedDate)
+    if (result.ok) {
       toast.success(`Loan #${loan.id} for ${loan.name} was settled. Customer payment: ${formatCurrency(customerPays)}.`)
       setClosing(false)
       router.refresh()
-    } else toast.error(`Loan #${loan.id} remains active and its cash history is unchanged. ${res.error ?? 'Please reload the record and try again.'}`)
+      return
+    }
+    toast.error(
+      `Loan #${loan.id} remains active and its cash history is unchanged. ` +
+      `${result.error ?? 'Please reload the record and try again.'}`
+    )
   })
 
   const onReopen = () => startTransition(async () => {
-    const res = await reopenLoan(loan.id)
-    if (res.ok) { toast.success(`Loan #${loan.id} for ${loan.name} is active again.`); router.refresh() }
-    else toast.error(`Loan #${loan.id} was not reopened. ${res.error ?? 'Its historical cash entries were left unchanged.'}`)
+    const result = await reopenLoan(loan.id)
+    if (result.ok) {
+      toast.success(`Loan #${loan.id} for ${loan.name} is active again.`)
+      router.refresh()
+      return
+    }
+    toast.error(
+      `Loan #${loan.id} was not reopened. ${result.error ?? 'Its historical cash entries were left unchanged.'}`
+    )
   })
 
   const onDelete = () => startTransition(async () => {
-    const res = await deleteLoan(loan.id)
-    if (res.ok) {
+    const result = await deleteLoan(loan.id)
+    if (result.ok) {
       toast.success(`Mistaken loan #${loan.id} for ${loan.name} was permanently deleted.`)
       router.push(isClosed ? '/view-records/closed' : '/view-records/active')
+      return
     }
-    else toast.error(`Loan #${loan.id} was not deleted. ${res.error ?? 'No record or photo was removed.'}`)
+    toast.error(`Loan #${loan.id} was not deleted. ${result.error ?? 'No record or photo was removed.'}`)
   })
+
+  const item = [loan.category_type?.toLowerCase(), loan.detailed_type?.toLowerCase()]
+    .filter(Boolean).join(' ')
 
   return (
     <>
-      <div className="flex shrink-0 items-center gap-2">
-        {!isClosed && (
-          <Button size="sm" onClick={() => setClosing(true)}>
-            Settle loan
-          </Button>
-        )}
-        <div className="relative">
-        <button
-          onClick={() => setMenuOpen(v => !v)}
-          className="btn-icon"
-          aria-label="Loan actions"
-          aria-expanded={menuOpen}
-        >
-          <MoreVertical className="h-4 w-4" />
-        </button>
-
-        {menuOpen && (
+      <div className="flex shrink-0 flex-wrap items-center gap-2">
+        {settleMode && !isClosed ? (
           <>
-            <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
-            <div className="absolute right-0 top-10 z-20 w-52 rounded-xl border border-surface-border bg-white shadow-lg py-1">
-              {!isClosed && (
-                <>
-                  <Link
-                    href={`/loans/${loan.id}/edit`}
-                    className="menu-item"
-                    onClick={() => setMenuOpen(false)}
-                  >
-                    <Pencil className="h-4 w-4" /> Edit details
-                  </Link>
-                  <button className="menu-item" onClick={() => { setMenuOpen(false); setClosing(true) }}>
-                    <Archive className="h-4 w-4" /> Settle loan
-                  </button>
-                </>
-              )}
-
-              {isClosed && canManage && (
-                <button className="menu-item" onClick={() => { setMenuOpen(false); onReopen() }}>
-                  <RotateCcw className="h-4 w-4" /> Reopen loan
-                </button>
-              )}
-
-              {canManage && (
-                <button
-                  className="menu-item text-red-600 hover:bg-red-50"
-                  onClick={() => { setMenuOpen(false); setDeleting(true) }}
-                >
-                  <Trash2 className="h-4 w-4" /> Delete permanently
-                </button>
-              )}
-            </div>
+            {/* Adding a deposit is the same dialog the deposit list opens; the
+                list is the source of truth, so this scrolls to it rather than
+                duplicating the form. */}
+            <a href="#deposits" className="btn-secondary">+ Add deposit</a>
+            <Button onClick={() => setClosing(true)}>Settle loan</Button>
+          </>
+        ) : (
+          <>
+            <Link href={`/loans/${loan.id}/edit`} className="btn-secondary gap-[7px]">
+              <Icon d={ICON.edit} size={14} /> Edit record
+            </Link>
+            {isClosed && canManage && (
+              <Button variant="secondary" onClick={onReopen} loading={pending}>
+                <RotateCcw className="h-3.5 w-3.5" /> Reopen
+              </Button>
+            )}
+            {canManage && (
+              <button
+                type="button"
+                onClick={() => setDeleting(true)}
+                className="btn h-9 gap-[7px] border border-surface-border bg-surface-card px-3.5
+                           text-red hover:border-red hover:bg-red-bg"
+              >
+                <Icon d={ICON.trashSlim} size={14} /> Delete
+              </button>
+            )}
           </>
         )}
-        </div>
       </div>
 
-      {/* ── Close ─────────────────────────────────────────────────────────── */}
-      <Modal open={closing} onClose={() => setClosing(false)} title={`Settle loan #${loan.id}`}>
-        <div className="space-y-4">
-          <p className="text-sm text-slate-600">
-            {loan.name} has held this loan for <strong>{formatDuration(daysHeld)}</strong>.
-          </p>
-
-          {photoBlocked && (
-            <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
-              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-              <p>This shop requires a collection photo before settlement. Close this dialog, capture the collection photo, then settle loan #{loan.id}.</p>
-            </div>
+      {/* ── Settle ─────────────────────────────────────────────────────────── */}
+      <Modal
+        open={closing}
+        onClose={() => setClosing(false)}
+        size="lg"
+        title={`Settle loan · ${loan.name}`}
+        subtitle={
+          <>
+            {item ? `${item} ` : ''}
+            {loan.weight ? `${loan.weight} ` : ''}· held {formatDuration(daysHeld)}. The record moves to
+            Closed Records; deposit and cash history are preserved.
+          </>
+        }
+      >
+        <div className="mt-4 flex flex-col gap-2.5 text-13">
+          <SettleRow label="Loan amount" value={formatCurrency(loan.amount)} />
+          {totalDeposits > 0 && (
+            <SettleRow
+              label="Deposits already received"
+              value={`− ${formatCurrency(totalDeposits)}`}
+              tone="green"
+            />
           )}
-
-          <div className="grid grid-cols-2 gap-3">
-            <Input
-              label="Interest charged"
+          <div className="flex items-center justify-between gap-3">
+            <label htmlFor="settle-interest" className="text-ink-muted">Interest (₹, editable)</label>
+            <input
+              id="settle-interest"
               type="number"
               min={0}
               value={interest}
-              onChange={e => setInterest(e.target.value)}
-              helper={`${formatCurrency(suggestedInterest)} at the shop's rate`}
+              onChange={event => setInterest(event.target.value)}
+              className="h-[34px] w-[110px] rounded-md border border-surface-border bg-surface-muted px-2.5
+                         text-right text-14 font-semibold text-ink focus:border-primary"
             />
-            <Input
-              label="Closing date"
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <label htmlFor="settle-date" className="text-ink-muted">Closure date</label>
+            <input
+              id="settle-date"
               type="date"
               value={closedDate}
               max={todayIST()}
-              onChange={e => setClosedDate(e.target.value)}
+              onChange={event => setClosedDate(event.target.value)}
+              className="h-[34px] w-[150px] rounded-md border border-surface-border bg-surface-muted px-2.5
+                         text-12.5 text-ink focus:border-primary"
             />
           </div>
+        </div>
 
-          {/* The settlement, shown before anything is committed. */}
-          <div className="rounded-xl bg-surface-muted p-4 space-y-1.5 text-sm">
-            <Row label="Principal" value={formatCurrency(loan.amount)} />
-            <Row label="Interest" value={`+ ${formatCurrency(interestNum)}`} />
-            {totalDeposits > 0 && (
-              <Row label="Deposits already paid" value={`− ${formatCurrency(totalDeposits)}`} />
-            )}
-            <div className="pt-2 mt-1 border-t border-surface-border flex justify-between font-semibold">
-              <span>Customer pays now</span>
-              <span className="tabular-nums">{formatCurrency(customerPays)}</span>
-            </div>
-          </div>
+        <div className="mt-3.5 flex items-baseline justify-between rounded-xl bg-primary-tint p-3.5">
+          <span className="text-13 font-semibold text-primary">Customer pays now</span>
+          <span className="text-22 font-bold tabular-nums text-primary">{formatCurrency(customerPays)}</span>
+        </div>
 
-          {customerPays < 0 && (
-            <p className="text-xs text-amber-700 bg-amber-50 rounded-lg p-2.5">
-              Deposits exceed principal plus interest — the shop owes
-              {' '}{formatCurrency(Math.abs(customerPays))} back.
-            </p>
-          )}
-
-          <p className="text-xs text-slate-500">
-            Settling moves loan #{loan.id} to Closed Records and preserves its deposit and cash history.
+        {customerPays < 0 && (
+          <p className="note-amber mt-3">
+            Deposits exceed principal plus interest — the shop owes
+            {' '}{formatCurrency(Math.abs(customerPays))} back.
           </p>
+        )}
 
-          <div className="flex gap-2 justify-end pt-1">
-            <Button variant="secondary" onClick={() => setClosing(false)}>Cancel</Button>
-            <Button onClick={onClose} loading={pending} disabled={photoBlocked}>
-              {pending ? `Settling loan #${loan.id} and updating cash history…` : 'Settle and close loan'}
-            </Button>
-          </div>
+        {photoBlocked && (
+          <p className="note-amber mt-3">
+            Collection photo required — capture it on this record to enable settlement.
+          </p>
+        )}
+
+        <div className="modal-actions">
+          <Button variant="secondary" onClick={() => setClosing(false)}>Cancel</Button>
+          <Button onClick={onClose} loading={pending} disabled={photoBlocked}>
+            Settle and close loan
+          </Button>
         </div>
       </Modal>
 
-      {/* ── Delete ────────────────────────────────────────────────────────── */}
-      <Modal open={deleting} onClose={() => setDeleting(false)} title="Delete this loan?" size="sm">
-        <div className="space-y-4">
-          <p className="text-sm text-slate-600">
-            This removes loan <strong>#{loan.id}</strong> ({loan.name}), its deposits and its
-            photo permanently. It cannot be undone.
-          </p>
-          <p className="text-sm text-slate-600">
-            To close a loan a customer has repaid, use <strong>Close loan</strong> instead —
-            that keeps the record and its history.
-          </p>
-
-          {/* Typing the number is deliberate friction: these are financial
-              records, and a misplaced click should not be enough. */}
-          <Input
-            label={`Type ${loan.id} to confirm`}
+      {/* ── Delete ─────────────────────────────────────────────────────────── */}
+      <Modal
+        open={deleting}
+        onClose={() => setDeleting(false)}
+        title="Delete this record?"
+        danger
+        subtitle={
+          <>
+            {loan.name} · {formatCurrency(loan.amount)}{item ? ` · ${item}` : ''}. Deleting removes the
+            record{totalDeposits > 0 ? ` and its ${formatCurrency(totalDeposits)} deposit history` : ''},
+            and adjusts the cash book. This cannot be undone. To close a loan a customer has repaid, settle
+            it instead — that keeps the record and its history.
+          </>
+        }
+      >
+        {/* Typing the word is deliberate friction: these are financial records,
+            and a misplaced click should not be enough. */}
+        <div className="mt-3.5">
+          <label htmlFor="confirm-delete-loan" className="label">Type DELETE to confirm</label>
+          <input
+            id="confirm-delete-loan"
             value={confirmText}
-            onChange={e => setConfirmText(e.target.value)}
-            placeholder={String(loan.id)}
+            onChange={event => setConfirmText(event.target.value)}
+            placeholder="DELETE"
+            autoComplete="off"
+            className="input"
           />
+        </div>
 
-          <div className="flex gap-2 justify-end">
-            <Button variant="secondary" onClick={() => setDeleting(false)}>Cancel</Button>
-            <Button
-              variant="danger"
-              onClick={onDelete}
-              loading={pending}
-              disabled={confirmText.trim() !== String(loan.id)}
-            >
-              Delete permanently
-            </Button>
-          </div>
+        <div className="modal-actions">
+          <Button variant="secondary" onClick={() => setDeleting(false)}>Cancel</Button>
+          <Button
+            variant="danger"
+            onClick={onDelete}
+            loading={pending}
+            disabled={confirmText.trim().toUpperCase() !== 'DELETE'}
+          >
+            Delete record
+          </Button>
         </div>
       </Modal>
     </>
   )
 }
 
-function Row({ label, value }: { label: string; value: string }) {
+function SettleRow({ label, value, tone }: { label: string; value: string; tone?: 'green' }) {
   return (
-    <div className="flex justify-between text-slate-600">
-      <span>{label}</span>
-      <span className="tabular-nums">{value}</span>
+    <div className="flex justify-between gap-3">
+      <span className="text-ink-muted">{label}</span>
+      <span className={`font-semibold tabular-nums ${tone === 'green' ? 'text-green' : 'text-ink'}`}>
+        {value}
+      </span>
     </div>
   )
 }

@@ -2,44 +2,55 @@
 /**
  * Record cash going into or out of the drawer.
  *
+ * Two buttons rather than one with a type dropdown, as the design has it: money
+ * in and money out are different intentions, and picking the wrong one from a
+ * select is a mistake that silently doubles an error in the closing balance.
+ * The direction is fixed by the button you pressed and shown in the dialog.
+ *
  * Goes through `record_cash_transaction` rather than inserting directly: cash
  * is a running balance, so a new entry changes every subsequent day's closing
- * figure. The previous version inserted straight into the table, which left
- * `daily_cash_summary` stale until something else recalculated it.
+ * figure. Inserting straight into the table leaves `daily_cash_summary` stale
+ * until something else recalculates it.
  */
 import { useState, useTransition } from 'react'
-import { Plus, CloudOff } from 'lucide-react'
+import { CloudOff } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
-import { Input } from '@/components/ui/Input'
-import { Select } from '@/components/ui/Select'
 import { formatCurrency, todayIST } from '@/lib/utils'
 import { recordCash } from '@/app/(app)/loans/actions'
 import { useOffline } from '@/components/offline/OfflineProvider'
 
+type TxType = 'add' | 'remove'
+
 export function CashTxButton() {
   const router = useRouter()
   const { online, queueWrite } = useOffline()
-  const [open, setOpen] = useState(false)
+  const [type, setType] = useState<TxType | null>(null)
   const [pending, startTransition] = useTransition()
 
-  const [type, setType] = useState<'add' | 'remove'>('add')
   const [amount, setAmount] = useState('')
   const [reason, setReason] = useState('')
   const [date, setDate] = useState(todayIST())
 
-  const reset = () => {
-    setType('add'); setAmount(''); setReason(''); setDate(todayIST())
+  const close = () => {
+    setType(null); setAmount(''); setReason(''); setDate(todayIST())
   }
 
-  const onSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+  const onSubmit = (event: React.FormEvent) => {
+    event.preventDefault()
+    if (!type) return
     const value = Number(amount)
 
-    if (!value || value <= 0) { toast.error('Enter a cash amount greater than zero. No transaction was recorded.'); return }
-    if (!reason.trim()) { toast.error('Add a reason so this transaction can be identified in the cash book.'); return }
+    if (!value || value <= 0) {
+      toast.error('Enter a cash amount greater than zero. No transaction was recorded.')
+      return
+    }
+    if (!reason.trim()) {
+      toast.error('Add a reason so this transaction can be identified in the cash book.')
+      return
+    }
 
     startTransition(async () => {
       if (!online) {
@@ -48,72 +59,96 @@ export function CashTxButton() {
           `${formatCurrency(value)} saved on this device — it will sync when you are back online`,
           { duration: 6000 }
         )
-        reset(); setOpen(false)
+        close()
         return
       }
 
-      const res = await recordCash(type, value, reason.trim(), date)
-      if (res.ok) {
-        toast.success(`${formatCurrency(value)} ${type === 'add' ? 'added to' : 'removed from'} the cash drawer for “${reason.trim()}” on ${date}.`)
-        reset(); setOpen(false)
+      const result = await recordCash(type, value, reason.trim(), date)
+      if (result.ok) {
+        toast.success(
+          `${formatCurrency(value)} ${type === 'add' ? 'added to' : 'removed from'} the cash drawer ` +
+          `for “${reason.trim()}” on ${date}.`
+        )
+        close()
         router.refresh()
-      } else {
-        toast.error(`The ${formatCurrency(value)} cash ${type === 'add' ? 'addition' : 'removal'} was not recorded. ${res.error ?? 'The cash book is unchanged.'}`)
+        return
       }
+      toast.error(
+        `The ${formatCurrency(value)} cash ${type === 'add' ? 'addition' : 'removal'} was not recorded. ` +
+        `${result.error ?? 'The cash book is unchanged.'}`
+      )
     })
   }
 
+  const adding = type === 'add'
+
   return (
     <>
-      <Button size="sm" onClick={() => setOpen(true)}>
-        <Plus className="h-4 w-4" /> Add Transaction
-      </Button>
+      <div className="flex gap-2">
+        <Button variant="success" onClick={() => setType('add')}>+ Add cash</Button>
+        <Button variant="warn" onClick={() => setType('remove')}>− Remove cash</Button>
+      </div>
 
-      <Modal open={open} onClose={() => setOpen(false)} title="Cash transaction">
-        <form onSubmit={onSubmit} className="space-y-4">
+      <Modal
+        open={type !== null}
+        onClose={close}
+        size="sm"
+        title={adding ? 'Add cash to drawer' : 'Remove cash from drawer'}
+        subtitle={
+          adding
+            ? "Increases today's cash in hand with a reason on record."
+            : "Reduces today's cash in hand with a reason on record."
+        }
+      >
+        <form onSubmit={onSubmit}>
           {!online && (
-            <p className="flex items-start gap-2 text-xs text-amber-900 bg-amber-50 rounded-lg px-3 py-2">
-              <CloudOff className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-              No internet. This will be saved on this device and sent when the
-              connection returns.
+            <p className="note-amber mt-4 flex items-start gap-2">
+              <CloudOff className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              No internet. This will be saved on this device and sent when the connection returns.
             </p>
           )}
 
-          <Select
-            label="Type"
-            required
-            value={type}
-            onChange={e => setType(e.target.value as 'add' | 'remove')}
-            options={[
-              { value: 'add', label: 'Cash in — money into the drawer' },
-              { value: 'remove', label: 'Cash out — money taken out' },
-            ]}
-          />
-
-          <div className="grid grid-cols-2 gap-4">
-            <Input
-              label="Amount (₹)" required type="number" min={1} placeholder="0"
-              value={amount} onChange={e => setAmount(e.target.value)}
-            />
-            <Input
-              label="Date" required type="date" max={todayIST()}
-              value={date} onChange={e => setDate(e.target.value)}
-            />
+          <div className="mt-4 grid grid-cols-2 gap-3">
+            <div>
+              <label htmlFor="cash-amount" className="label">Amount (₹)</label>
+              <input
+                id="cash-amount" type="number" min={1} required autoFocus placeholder="10,000"
+                value={amount} onChange={event => setAmount(event.target.value)}
+                className="input-money"
+              />
+            </div>
+            <div>
+              <label htmlFor="cash-date" className="label">Date</label>
+              <input
+                id="cash-date" type="date" required max={todayIST()}
+                value={date} onChange={event => setDate(event.target.value)}
+                className="input-lg"
+              />
+            </div>
           </div>
 
-          <Input
-            label="Reason" required
-            placeholder="e.g. Withdrawn from bank, shop rent"
-            value={reason} onChange={e => setReason(e.target.value)}
-            helper="This shows in the cash book and the daily report"
-          />
+          <div className="mt-3">
+            <label htmlFor="cash-reason" className="label">Reason</label>
+            <textarea
+              id="cash-reason" rows={2} required
+              placeholder={adding ? 'Morning opening float…' : 'Bank deposit, shop rent…'}
+              value={reason} onChange={event => setReason(event.target.value)}
+              className="textarea resize-none"
+            />
+            <p className="mt-1 text-11.5 text-ink-faint">
+              This shows in the cash book and the daily report.
+            </p>
+          </div>
 
-          <div className="flex gap-3 pt-1">
-            <Button variant="secondary" type="button" onClick={() => setOpen(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" loading={pending} className="flex-1">
-              {online ? 'Save' : 'Save on this device'}
+          <div className="modal-actions">
+            <Button variant="secondary" type="button" onClick={close}>Cancel</Button>
+            <Button
+              type="submit"
+              variant={adding ? 'primary' : 'danger'}
+              loading={pending}
+              className={adding ? 'bg-green hover:brightness-110' : 'bg-amber hover:brightness-110'}
+            >
+              {online ? (adding ? 'Add cash' : 'Remove cash') : 'Save on this device'}
             </Button>
           </div>
         </form>

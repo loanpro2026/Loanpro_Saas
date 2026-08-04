@@ -31,10 +31,12 @@ interface Props {
    * shown.
    */
   stage?: PhotoStage
+  /** Render without the card wrapper and heading, for use inside another card. */
+  bare?: boolean
 }
 
 export function LoanPhoto({
-  loanId, hasPhoto, verifiedBy, readOnly, stage = 'pledge',
+  loanId, hasPhoto, verifiedBy, readOnly, stage = 'pledge', bare = false,
 }: Props) {
   const router = useRouter()
   const settings = useSettings()
@@ -91,15 +93,19 @@ export function LoanPhoto({
   })
 
   return (
-    <div className="card space-y-3">
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-slate-900">Customer photo</h2>
-        {verifiedBy && (
-          <span className="inline-flex items-center gap-1 text-xs text-emerald-600">
-            <ShieldCheck className="h-3.5 w-3.5" /> {verifiedBy}
-          </span>
-        )}
-      </div>
+    // `bare` drops the card chrome: on the loan detail this panel already sits
+    // inside "Identity on file", and a card within a card reads as a mistake.
+    <div className={bare ? 'space-y-3' : 'card space-y-3'}>
+      {!bare && (
+        <div className="flex items-center justify-between">
+          <h2 className="card-title">Customer photo</h2>
+          {verifiedBy && (
+            <span className="inline-flex items-center gap-1 text-12 text-green">
+              <ShieldCheck className="h-3.5 w-3.5" /> {verifiedBy}
+            </span>
+          )}
+        </div>
+      )}
 
       <div className="aspect-[3/4] rounded-xl overflow-hidden bg-surface-muted flex items-center justify-center relative">
         {queuedPhoto ? (

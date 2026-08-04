@@ -165,6 +165,24 @@ if (supaUrl && !/^https:\/\/[a-z0-9-]+\.supabase\.(co|in)$/.test(supaUrl.replace
        'Expected https://<ref>.supabase.co')
 }
 
+// â”€â”€ Optional Cloud Run mobile capture: both values or neither â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+const mobileCaptureUrl = env.MOBILE_CAPTURE_API_BASE_URL
+const mobileCaptureKey = env.MOBILE_CAPTURE_API_KEY
+if (Boolean(mobileCaptureUrl) !== Boolean(mobileCaptureKey)) {
+  fail(
+    'Cloud Run mobile capture is only partly configured',
+    `Missing: ${mobileCaptureUrl ? 'MOBILE_CAPTURE_API_KEY' : 'MOBILE_CAPTURE_API_BASE_URL'}`
+  )
+} else if (mobileCaptureUrl && mobileCaptureKey) {
+  if (!/^https:\/\//.test(mobileCaptureUrl) && !/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(mobileCaptureUrl)) {
+    fail('MOBILE_CAPTURE_API_BASE_URL must use HTTPS', 'Only localhost may use HTTP during development.')
+  } else if (mobileCaptureUrl.endsWith('/')) {
+    warn('MOBILE_CAPTURE_API_BASE_URL ends with a slash', 'Remove it; server routes append their own paths.')
+  } else {
+    ok('Cloud Run mobile capture configured')
+  }
+}
+
 // ── Razorpay: all four together, or none ───────────────────────────────────
 const rzp = ['RAZORPAY_KEY_ID', 'RAZORPAY_KEY_SECRET',
              'NEXT_PUBLIC_RAZORPAY_KEY_ID', 'RAZORPAY_WEBHOOK_SECRET']

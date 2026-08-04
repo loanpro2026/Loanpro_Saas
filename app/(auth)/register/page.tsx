@@ -86,8 +86,8 @@ export default function RegisterPage() {
   return (
     <div>
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-slate-900">Create your account</h1>
-        <p className="text-slate-500 mt-1.5 text-sm">Start your 60-day free trial. No credit card needed.</p>
+        <h1 className="text-17 font-bold text-ink">Create your account</h1>
+        <p className="mt-1 text-12.5 text-ink-muted">Start your 60-day free trial. No credit card needed.</p>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">

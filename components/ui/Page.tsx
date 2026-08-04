@@ -40,7 +40,7 @@ export function Card({
   accent?: boolean
 }) {
   return (
-    <div className={cn('card', flush && 'overflow-hidden', accent && 'border-primary', className)}>
+    <div className={cn(flush ? 'card-flush' : 'card', accent && 'border-primary', className)}>
       {children}
     </div>
   )
@@ -100,7 +100,21 @@ export function StatCard({
   )
 }
 
-/** Figures fused into one card and divided by hairlines, as on the loan detail. */
+/**
+ * Figures fused into one card and divided by hairlines, as on the loan detail.
+ *
+ * The column count is a class rather than an inline `grid-template-columns`:
+ * an inline style outranks every class, so a responsive override could never
+ * take effect and the strip would stay at its widest count on a phone.
+ */
+const STRIP_COLUMNS: Record<number, string> = {
+  2: 'grid-cols-2',
+  3: 'grid-cols-1 sm:grid-cols-3',
+  4: 'grid-cols-2 lg:grid-cols-4',
+  5: 'grid-cols-2 lg:grid-cols-5',
+  6: 'grid-cols-2 sm:grid-cols-3 xl:grid-cols-6',
+}
+
 export function StatStrip({
   children, columns = 4, className,
 }: {
@@ -109,10 +123,7 @@ export function StatStrip({
   className?: string
 }) {
   return (
-    <div
-      className={cn('card grid overflow-hidden', className)}
-      style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
-    >
+    <div className={cn('card-flush grid', STRIP_COLUMNS[columns] ?? STRIP_COLUMNS[4], className)}>
       {children}
     </div>
   )

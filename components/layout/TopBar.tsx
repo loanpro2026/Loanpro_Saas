@@ -1,51 +1,57 @@
 'use client'
+/**
+ * The top bar, built to the design reference.
+ *
+ * A three-column grid — title, search, controls — rather than a flex row, so
+ * the search field stays optically centred no matter how long the page title
+ * is. Search is the most-used control in the app and gets the middle third;
+ * below `lg` it takes the whole bar and the title steps aside.
+ */
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Settings } from 'lucide-react'
 import { getInitials } from '@/lib/utils'
 import { GlobalSearch } from '@/components/layout/GlobalSearch'
-import type { AppUser } from '@/types'
 import { NotificationMenu } from '@/components/layout/NotificationMenu'
-
-const PAGE_TITLES: Record<string, string> = {
-  '/dashboard': 'Dashboard',
-  '/loans':     'Loans',
-  '/cash':      'Cash',
-  '/reports':   'Reports',
-  '/settings':  'Settings',
-  '/billing':   'Billing',
-}
+import { ThemeToggle } from '@/components/layout/ThemeToggle'
+import { Icon } from '@/components/ui/Icon'
+import { ICON, pageTitle } from '@/lib/nav'
+import type { ShopSettings } from '@/lib/settings'
+import type { AppUser } from '@/types'
 
 interface TopBarProps {
   user: AppUser
+  theme: ShopSettings['theme']
 }
 
-export function TopBar({ user }: TopBarProps) {
+export function TopBar({ user, theme }: TopBarProps) {
   const pathname = usePathname()
-  const title = Object.entries(PAGE_TITLES).find(([k]) => pathname.startsWith(k))?.[1] ?? 'LoanPro'
 
   return (
-    <header className="sticky top-0 z-30 flex h-[61px] items-center gap-3 border-b border-surface-border
-                       bg-white/95 px-3 backdrop-blur-xl sm:px-4 lg:px-5">
-      {/* Mobile: menu hint (sidebar handled by Sidebar component) */}
-      <div className="lg:hidden w-5 h-5" aria-hidden />
+    <header
+      className="sticky top-0 z-30 grid h-[60px] shrink-0 grid-cols-[1fr] items-center gap-4
+                 border-b border-surface-border bg-surface-card px-4
+                 lg:grid-cols-[1fr_minmax(320px,560px)_1fr] lg:px-5"
+    >
+      <div className="hidden truncate text-13 font-medium text-ink-muted lg:block">
+        {pageTitle(pathname)}
+      </div>
 
-      <h1 className="hidden shrink-0 text-sm font-semibold text-slate-700 xl:block">{title}</h1>
-
-      {/* Search is the most-used control in the desktop app, so it gets prime
-          position rather than hiding behind a menu. */}
-      <div className="flex flex-1 justify-center lg:absolute lg:left-1/2 lg:w-full lg:max-w-md lg:-translate-x-1/2">
+      <div className="min-w-0">
         <GlobalSearch />
       </div>
 
-      <div className="flex items-center gap-1">
+      <div className="hidden items-center justify-end gap-1.5 lg:flex">
+        <ThemeToggle initialTheme={theme} />
         <NotificationMenu />
-        <Link href="/settings" aria-label="Settings" className="btn-icon hidden lg:flex">
-          <Settings className="h-4 w-4" />
+        <Link href="/settings" aria-label="Settings" title="Settings" className="btn-icon">
+          <Icon d={ICON.settings} size={17} />
         </Link>
-        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-100
-                        cursor-default select-none" title={user.full_name}>
-          <span className="text-xs font-bold text-primary-700">{getInitials(user.full_name)}</span>
+        <div
+          title={user.full_name}
+          className="ml-0.5 flex h-8 w-8 cursor-default select-none items-center justify-center
+                     rounded-full bg-primary-tint text-12 font-bold text-primary"
+        >
+          {getInitials(user.full_name)}
         </div>
       </div>
     </header>

@@ -1,4 +1,14 @@
 'use client'
+/**
+ * The design's dialog: a fixed-width card on a flat scrim, 12px radius, 22px of
+ * padding, title and subtitle stacked at the top and the actions right-aligned
+ * at the bottom.
+ *
+ * Widths are named rather than free: the reference uses 400px for a single-field
+ * dialog (add deposit, add cash), 420px for a confirmation and 460px for the
+ * settlement summary. On a phone the panel becomes a bottom sheet, since a
+ * centred 400px card with a keyboard open is unusable.
+ */
 import { cn } from '@/lib/utils'
 import { X } from 'lucide-react'
 import { useEffect } from 'react'
@@ -7,12 +17,25 @@ interface ModalProps {
   open: boolean
   onClose: () => void
   title?: string
+  /** One line under the title — the design puts context here, not in the body. */
+  subtitle?: React.ReactNode
   children: React.ReactNode
   size?: 'sm' | 'md' | 'lg' | 'xl'
+  /** Tints the title red, for destructive confirmations. */
+  danger?: boolean
   className?: string
 }
 
-export function Modal({ open, onClose, title, children, size = 'md', className }: ModalProps) {
+const SIZES = {
+  sm: 'sm:max-w-[400px]',
+  md: 'sm:max-w-[420px]',
+  lg: 'sm:max-w-[460px]',
+  xl: 'sm:max-w-2xl',
+}
+
+export function Modal({
+  open, onClose, title, subtitle, children, size = 'md', danger, className,
+}: ModalProps) {
   useEffect(() => {
     if (!open) return
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -26,42 +49,41 @@ export function Modal({ open, onClose, title, children, size = 'md', className }
 
   if (!open) return null
 
-  const sizes = {
-    sm: 'max-w-sm',
-    md: 'max-w-lg',
-    lg: 'max-w-2xl',
-    xl: 'max-w-4xl',
-  }
-
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+      className="fixed inset-0 z-[100] flex items-end justify-center p-0 sm:items-center sm:p-6"
       role="dialog"
       aria-modal="true"
     >
-      {/* Scrim */}
       <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-fade-in"
+        className="absolute inset-0 animate-fade-in"
+        style={{ background: 'var(--scrim)' }}
         onClick={onClose}
       />
-      {/* Panel */}
       <div
         className={cn(
-          'relative w-full bg-white shadow-modal animate-slide-up',
-          'rounded-t-3xl sm:rounded-2xl',
-          sizes[size],
+          'relative w-full animate-slide-up border border-surface-border bg-surface-card',
+          'rounded-t-3xl p-[22px] shadow-modal sm:rounded-2xl',
+          SIZES[size],
           className
         )}
       >
         {title && (
-          <div className="flex items-center justify-between px-6 py-4 border-b border-surface-border">
-            <h2 className="text-base font-semibold text-slate-900">{title}</h2>
-            <button onClick={onClose} className="btn-icon" aria-label="Close">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h2 className={cn('text-15.5 font-bold', danger ? 'text-red' : 'text-ink')}>{title}</h2>
+              {subtitle && <p className="modal-subtitle">{subtitle}</p>}
+            </div>
+            <button
+              onClick={onClose}
+              className="-mr-1 -mt-1 shrink-0 p-1 text-ink-faint transition-colors hover:text-ink"
+              aria-label="Close"
+            >
               <X className="h-4 w-4" />
             </button>
           </div>
         )}
-        <div className="p-6">{children}</div>
+        {children}
       </div>
     </div>
   )

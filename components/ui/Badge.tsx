@@ -1,6 +1,11 @@
 import { cn } from '@/lib/utils'
 
-type BadgeVariant = 'gold' | 'silver' | 'active' | 'closed' | 'warning' | 'info'
+/**
+ * The design's pill: a 5px-radius rectangle, not a lozenge — 11px/700 on a
+ * tinted ground. Metal badges are the most-repeated element in the app, and a
+ * fully rounded pill made columns of them read as noise.
+ */
+type BadgeVariant = 'gold' | 'silver' | 'active' | 'closed' | 'warning' | 'danger' | 'info'
 
 interface BadgeProps {
   variant?: BadgeVariant
@@ -9,22 +14,32 @@ interface BadgeProps {
 }
 
 const styles: Record<BadgeVariant, string> = {
-  gold:    'bg-gold-100 text-gold-700',
-  silver:  'bg-slate-100 text-slate-600',
-  active:  'bg-emerald-100 text-emerald-700',
-  closed:  'bg-slate-100 text-slate-500',
-  warning: 'bg-amber-100 text-amber-700',
-  info:    'bg-primary-100 text-primary-700',
+  gold:    'bg-gold-bg text-gold',
+  silver:  'bg-silver-bg text-silver',
+  active:  'bg-green-bg text-green',
+  closed:  'bg-surface-muted text-ink-muted',
+  warning: 'bg-amber-bg text-amber',
+  danger:  'bg-red-bg text-red',
+  info:    'bg-primary-tint text-primary',
 }
 
 export function Badge({ variant = 'info', children, className }: BadgeProps) {
   return (
     <span className={cn(
-      'inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium',
+      'inline-flex items-center gap-1 rounded-[5px] px-2 py-0.5 text-11 font-bold uppercase',
       styles[variant],
       className
     )}>
       {children}
     </span>
+  )
+}
+
+/** Convenience for the Gold/Silver column, which appears on six screens. */
+export function MetalBadge({ metal, className }: { metal: string; className?: string }) {
+  return (
+    <Badge variant={metal?.toLowerCase() === 'silver' ? 'silver' : 'gold'} className={className}>
+      {metal}
+    </Badge>
   )
 }

@@ -1,4 +1,9 @@
 'use client'
+/**
+ * The phone's bottom bar. No equivalent exists in the design reference, which
+ * is desktop-only, so it follows the same tokens — card surface, hairline
+ * border, tinted active state — rather than inventing a second visual language.
+ */
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
@@ -9,7 +14,7 @@ export function BottomNav() {
   return (
     <nav
       className="fixed inset-x-0 bottom-0 z-40 flex items-center justify-around border-t border-surface-border
-                 bg-white/95 px-2 pb-safe shadow-[0_-8px_30px_-24px_rgb(15_23_42/0.45)] backdrop-blur-xl lg:hidden"
+                 bg-surface-card/95 px-2 pb-safe backdrop-blur-xl lg:hidden"
       aria-label="Mobile navigation"
     >
       {NAV.map(({ href, label, icon: Icon }) => {
@@ -19,15 +24,14 @@ export function BottomNav() {
             key={href}
             href={href}
             className={cn(
-              'relative flex min-w-0 flex-col items-center gap-0.5 rounded-lg px-3 py-2',
-              'transition-colors duration-150',
-              active ? 'text-primary-700' : 'text-slate-400 hover:text-slate-600'
+              'relative flex min-w-0 flex-col items-center gap-0.5 rounded-lg px-3 py-2 transition-colors',
+              active ? 'text-primary' : 'text-ink-faint hover:text-ink-muted'
             )}
             aria-current={active ? 'page' : undefined}
           >
-            {active && <span className="absolute -top-px h-0.5 w-6 rounded-full bg-primary-600" />}
-            <Icon className={cn('h-5 w-5', active && 'fill-current opacity-20')} strokeWidth={active ? 2.5 : 1.75} />
-            <span className={cn('text-[10px] font-medium', active ? 'text-primary-700' : 'text-slate-500')}>
+            {active && <span className="absolute -top-px h-0.5 w-6 rounded-full bg-primary" />}
+            <Icon className="h-5 w-5" strokeWidth={active ? 2.2 : 1.8} />
+            <span className={cn('text-10 font-semibold', active ? 'text-primary' : 'text-ink-faint')}>
               {label}
             </span>
           </Link>

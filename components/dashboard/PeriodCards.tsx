@@ -1,37 +1,61 @@
 'use client'
-
+/**
+ * The dashboard's greeting row and the four figures under it.
+ *
+ * Built to the design reference: a segmented period switch and the primary
+ * action on the right, then Active investment / Investment / Removals /
+ * Interest across four equal cards. Only the last three follow the period —
+ * active principal is a live balance and does not have a "this week" — which is
+ * why it carries the LIVE pill instead of a period suffix.
+ *
+ * Each card fails on its own. A shop whose `dashboard_stats` call times out
+ * still sees its active principal, and no unavailable figure is ever drawn as
+ * a believable zero.
+ */
 import Link from 'next/link'
 import { useEffect, useState, useTransition } from 'react'
-import {
-  ArrowDown, ArrowUp, Landmark, MinusCircle, Percent, Plus,
-  RefreshCw, TrendingUp,
-} from 'lucide-react'
+import { RefreshCw } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { asObject, numberAt } from '@/lib/json'
 import { cn, formatCurrency } from '@/lib/utils'
+import { ICON } from '@/lib/nav'
+import { Icon } from '@/components/ui/Icon'
 
 const PERIODS = [
-  { value: 'today', label: 'Today' },
-  { value: 'week', label: 'Week' },
-  { value: 'month', label: 'Month' },
+  { value: 'today',   label: 'Today' },
+  { value: 'week',    label: 'Week' },
+  { value: 'month',   label: 'Month' },
   { value: 'quarter', label: 'Quarter' },
-  { value: 'year', label: 'Year' },
+  { value: 'year',    label: 'Year' },
 ] as const
 
 type Period = (typeof PERIODS)[number]['value']
 
-interface Card {
+type Tone = 'default' | 'amber' | 'green'
+
+interface Figure {
   title: string
-  icon: React.ElementType
   value: number
   records: string
-  trend: number | null
-  accent: string
+  tone: Tone
+  /** Active principal is a balance, not a period total. */
+  live?: boolean
 }
 
-function pctChange(now: number, before: number): number | null {
-  if (!Number.isFinite(now) || !Number.isFinite(before) || before === 0) return null
-  return ((now - before) / before) * 100
+const TONE_CLASS: Record<Tone, string> = {
+  default: 'text-ink',
+  amber:   'text-amber',
+  green:   'text-green',
+}
+
+/** "Good morning" before noon, in the shop's timezone rather than the browser's. */
+function greeting(): string {
+  const hour = Number(new Intl.DateTimeFormat('en-IN', {
+    timeZone: 'Asia/Kolkata', hour: 'numeric', hour12: false,
+  }).format(new Date()))
+  if (hour < 12) return 'Good morning'
+  if (hour < 17) return 'Good afternoon'
+  return 'Good evening'
 }
 
 export function PeriodCards({
@@ -67,56 +91,51 @@ export function PeriodCards({
     return () => { cancelled = true }
   }, [period])
 
-  const issued = numberAt(stats, 'issued_amount')
-  const closed = numberAt(stats, 'closed_amount')
+  const periodLabel = PERIODS.find(item => item.value === period)?.label ?? 'Today'
+  const issued   = numberAt(stats, 'issued_amount')
+  const closed   = numberAt(stats, 'closed_amount')
   const interest = numberAt(stats, 'interest_earned')
 
-  const cards: Card[] = [
+  const figures: Figure[] = [
     {
-      title: 'Active investment', icon: TrendingUp, value: activePrincipal,
-      records: `${activeCount} active loans`, trend: null,
-      accent: 'text-violet-600 bg-violet-50',
+      title: 'Active investment', value: activePrincipal, tone: 'default', live: true,
+      records: `${activeCount} active loans`,
     },
     {
-      title: 'Investment', icon: Landmark, value: issued,
-      records: `${numberAt(stats, 'issued_count')} new loans`,
-      trend: pctChange(issued, numberAt(stats, 'prev_issued_amount')),
-      accent: 'text-amber-700 bg-amber-50',
+      title: `Investment · ${periodLabel}`, value: issued, tone: 'amber',
+      records: `${numberAt(stats, 'issued_count')} new loans issued`,
     },
     {
-      title: 'Removals', icon: MinusCircle, value: closed,
-      records: `${numberAt(stats, 'closed_count')} settled`,
-      trend: pctChange(closed, numberAt(stats, 'prev_closed_amount')),
-      accent: 'text-emerald-700 bg-emerald-50',
+      title: `Removals · ${periodLabel}`, value: closed, tone: 'green',
+      records: `${numberAt(stats, 'closed_count')} loans settled`,
     },
     {
-      title: 'Interest', icon: Percent, value: interest,
-      records: `${numberAt(stats, 'interest_count')} collections`,
-      trend: pctChange(interest, numberAt(stats, 'prev_interest_earned')),
-      accent: 'text-primary-700 bg-primary-50',
+      title: `Interest · ${periodLabel}`, value: interest, tone: 'default',
+      records: `${numberAt(stats, 'interest_count')} collections on settlement`,
     },
   ]
 
   return (
     <section className="space-y-3" aria-labelledby="dashboard-greeting">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h1 id="dashboard-greeting" className="text-xl font-bold tracking-tight text-slate-900">
-          Good morning{firstName ? `, ${firstName}` : ''}
+        <h1 id="dashboard-greeting" className="text-xl font-bold leading-tight text-ink">
+          {greeting()}{firstName ? `, ${firstName}` : ''}
         </h1>
 
-        <div className="flex items-center gap-2 sm:justify-end">
-          <div className="scrollbar-hide flex min-w-0 flex-1 overflow-x-auto rounded-lg border border-surface-border bg-white p-0.5 sm:flex-none">
+        <div className="flex items-center gap-2.5 sm:justify-end">
+          <div className="scrollbar-hide flex min-w-0 flex-1 gap-0.5 overflow-x-auto rounded-lg border border-surface-border bg-surface-card p-[3px] sm:flex-none">
             {PERIODS.map(item => (
               <button
                 key={item.value}
                 type="button"
                 onClick={() => startTransition(() => setPeriod(item.value))}
                 disabled={pending}
+                aria-pressed={period === item.value}
                 className={cn(
-                  'min-h-9 shrink-0 rounded-md px-3 text-xs font-medium transition-colors',
+                  'shrink-0 rounded-md px-3 py-[5px] text-12.5 transition-colors',
                   period === item.value
-                    ? 'bg-primary-50 text-primary-700'
-                    : 'text-slate-600 hover:bg-slate-50'
+                    ? 'bg-primary-tint font-semibold text-primary'
+                    : 'font-medium text-ink-muted hover:bg-surface-muted'
                 )}
               >
                 {item.label}
@@ -124,67 +143,54 @@ export function PeriodCards({
             ))}
           </div>
 
-          <Link href="/add-record" className="btn-primary min-h-10 shrink-0 px-3 sm:px-4">
-            <Plus className="h-4 w-4" />
+          <Link href="/add-record" className="btn-primary shrink-0 gap-[7px]">
+            <Icon d={ICON.plus} size={14} strokeWidth={2.2} />
             <span className="hidden sm:inline">Add New Record</span>
             <span className="sm:hidden">Add</span>
           </Link>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4 lg:gap-3">
-        {cards.map(card => {
-          const Icon = card.icon
-          const isActive = card.title === 'Active investment'
-          const failed = isActive ? activeError : statsError
-          const isLoading = !isActive && loading
-          const up = (card.trend ?? 0) > 0
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {figures.map(figure => {
+          const failed    = figure.live ? activeError : statsError
+          const isLoading = !figure.live && loading
 
           return (
-            <article key={card.title} className="card min-h-[116px] p-3.5 sm:p-4">
-              <div className="flex items-start justify-between gap-2">
-                <span className="truncate text-xs font-semibold text-slate-600">{card.title}</span>
-                {isActive ? (
-                  <span className="rounded-md bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700">LIVE</span>
-                ) : (
-                  <span className={cn('flex h-6 w-6 shrink-0 items-center justify-center rounded-md', card.accent)}>
-                    <Icon className="h-3.5 w-3.5" />
+            <article key={figure.title} className="card min-h-[92px] px-4 py-3.5">
+              <div className="flex items-center justify-between gap-2">
+                <span className="truncate text-12 font-semibold text-ink-muted">{figure.title}</span>
+                {figure.live && (
+                  <span className="shrink-0 rounded-[5px] bg-green-bg px-1.5 py-0.5 text-10 font-bold text-green">
+                    LIVE
                   </span>
                 )}
               </div>
 
               {failed ? (
-                <div className="mt-3">
-                  <p className="text-xs font-medium leading-snug text-red-700">
-                    {isActive ? 'Active balance could not be loaded' : `${card.title} could not be loaded`}
+                <div className="mt-2">
+                  <p className="text-11.5 font-medium leading-snug text-red">
+                    {figure.live ? 'Active balance could not be loaded' : 'This figure could not be loaded'}
                   </p>
-                  {isActive && <p className="mt-0.5 text-[10px] text-slate-500">Other figures remain available.</p>}
-                  <button type="button" onClick={() => location.reload()} className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-primary-700">
+                  <button
+                    type="button"
+                    onClick={() => location.reload()}
+                    className="mt-1 inline-flex items-center gap-1 text-11 font-semibold text-primary"
+                  >
                     <RefreshCw className="h-3 w-3" /> Retry
                   </button>
                 </div>
               ) : isLoading ? (
-                <div className="mt-3 space-y-2" aria-label={`Loading ${card.title}`}>
-                  <div className="skeleton h-6 w-24" />
+                <div className="mt-2 space-y-2" aria-label={`Loading ${figure.title}`}>
+                  <div className="skeleton h-6 w-28" />
                   <div className="skeleton h-3 w-20" />
                 </div>
               ) : (
                 <>
-                  <p className="mt-2 text-lg font-bold tabular-nums text-slate-900 sm:text-xl">
-                    {formatCurrency(card.value)}
+                  <p className={cn('mt-1.5 text-22 font-bold tabular-nums', TONE_CLASS[figure.tone])}>
+                    {formatCurrency(figure.value)}
                   </p>
-                  <div className="mt-0.5 flex items-center gap-2">
-                    <span className="truncate text-[11px] text-slate-500 sm:text-xs">{card.records}</span>
-                    {card.trend !== null && (
-                      <span className={cn(
-                        'hidden items-center gap-0.5 text-xs font-medium sm:inline-flex',
-                        up ? 'text-emerald-600' : 'text-red-600'
-                      )}>
-                        {up ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
-                        {Math.abs(card.trend).toFixed(0)}%
-                      </span>
-                    )}
-                  </div>
+                  <p className="mt-0.5 truncate text-12 text-ink-faint">{figure.records}</p>
                 </>
               )}
             </article>

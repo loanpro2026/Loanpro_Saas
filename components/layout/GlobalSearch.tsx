@@ -139,13 +139,21 @@ export function GlobalSearch() {
 
   return (
     <>
+      {/* Reads as the design's search field, but it is a button: the real input
+          lives in the overlay, which is where the results and the keyboard
+          navigation are. */}
       <button
         onClick={() => setOpen(true)}
-        className="flex h-9 w-full max-w-sm items-center gap-2 rounded-lg border border-surface-border bg-surface-muted px-3 text-sm text-slate-500 transition-colors hover:border-slate-300 hover:bg-white"
+        className="relative flex h-[38px] w-full items-center rounded-lg border border-surface-border
+                   bg-surface-muted pl-[34px] pr-16 text-13 text-ink-faint transition-colors
+                   hover:border-ink-faint/50"
       >
-        <Search className="h-4 w-4 shrink-0" />
-        <span className="flex-1 truncate text-left text-xs sm:text-sm">Search loan no., customer, father&rsquo;s name or location&hellip;</span>
-        <kbd className="hidden sm:inline text-[10px] text-slate-400 border border-surface-border rounded px-1 py-0.5">
+        <Search className="pointer-events-none absolute left-3 h-[15px] w-[15px] shrink-0" strokeWidth={1.8} />
+        <span className="truncate text-left">
+          Search customer, father&rsquo;s name, location or amount&hellip;
+        </span>
+        <kbd className="absolute right-2.5 hidden rounded-[5px] border border-surface-border bg-surface-card
+                        px-1.5 py-0.5 text-11 font-normal text-ink-faint sm:inline">
           Ctrl K
         </kbd>
       </button>
@@ -154,7 +162,7 @@ export function GlobalSearch() {
         <div className="fixed inset-0 z-50 flex items-start justify-center pt-[10vh] px-4">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setOpen(false)} />
 
-          <div className="relative w-full max-w-2xl overflow-hidden rounded-xl border border-surface-border bg-white shadow-modal">
+          <div className="relative w-full max-w-2xl overflow-hidden rounded-2xl border border-surface-border bg-surface-card shadow-modal">
             <div className="flex items-center gap-3 border-b border-surface-border px-4 py-3">
               {loading
                 ? <Loader2 className="h-4 w-4 text-slate-400 animate-spin shrink-0" />

@@ -59,13 +59,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <Sidebar tenant={tenant} user={appUser} />
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <TopBar user={appUser} />
+        <TopBar user={appUser} theme={appSettings.theme} />
         {/* Connection state sits directly under the top bar, above content —
             a shop must never have to hunt for whether their entry saved. */}
         <OfflineBanner />
 
-        <main className="min-h-0 flex-1 overflow-y-auto px-3 py-3 pb-24 sm:px-4 lg:px-5 lg:py-4 lg:pb-4">
-          <div className="mx-auto w-full max-w-[1600px]">
+        {/* The design's content well: 1600px max, 24px gutters, 40px of air at
+            the bottom so the last card never sits flush against the viewport. */}
+        <main className="min-h-0 flex-1 overflow-y-auto">
+          <div className="mx-auto w-full max-w-[1600px] px-3 pb-24 pt-3 sm:px-4 lg:px-6 lg:pb-10 lg:pt-5">
             {children}
           </div>
         </main>

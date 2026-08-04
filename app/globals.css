@@ -1,49 +1,112 @@
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Palette, type and spacing are taken verbatim from the LoanPro design
+ * reference (`LoanPro SaaS UI design reference/LoanPro App.dc.html`).
+ *
+ * The design ships one set of variables for light and one for dark; both are
+ * reproduced below exactly, then re-exposed through Tailwind in
+ * tailwind.config.ts. The old `slate-*` ramp is kept as an alias layer so
+ * screens still on the legacy classes pick up the new palette automatically.
+ */
 @layer base {
   :root {
-    --color-primary:       221 83% 53%;
-    --color-primary-light: 213 94% 68%;
-    --color-gold:          38 92% 50%;
-    --color-surface:       210 40% 98%;
-    --color-border:        214 32% 91%;
-    --surface: 246 248 251;
-    --surface-card: 255 255 255;
-    --surface-border: 226 230 237;
-    --surface-muted: 243 245 248;
-    --slate-50: 248 250 252;
-    --slate-100: 241 245 249;
-    --slate-200: 226 232 240;
-    --slate-300: 203 213 225;
-    --slate-400: 148 163 184;
-    --slate-500: 100 116 139;
-    --slate-600: 71 85 105;
-    --slate-700: 51 65 85;
-    --slate-800: 30 41 59;
-    --slate-900: 15 23 42;
-    --slate-950: 2 6 23;
+    /* --- Design tokens (light) --- */
+    --bg:        244 245 247;   /* #f4f5f7 */
+    --surface:   255 255 255;   /* #ffffff */
+    --surface2:  248 249 251;   /* #f8f9fb */
+    --border:    229 232 238;   /* #e5e8ee */
+    --text:       27  36  55;   /* #1b2437 */
+    --text2:      92 103 132;   /* #5c6784 */
+    --text3:     138 147 168;   /* #8a93a8 */
+
+    --primary:    37  87 214;   /* #2557d6 */
+    --primary-tint: rgba(37, 87, 214, .08);
+    --primary-200: 188 206 245;
+    --primary-300: 143 171 236;
+    --primary-400:  92 132 226;
+    --primary-700:  28  70 171;
+
+    --gold:      161  98   7;   /* #a16207 */
+    --gold-bg:   #faf3e0;
+    --silver:     91 100 114;   /* #5b6472 */
+    --silver-bg: #eef1f5;
+    --green:      10 125  84;   /* #0a7d54 */
+    --green-bg:  #e8f6ef;
+    --amber:     180  83   9;   /* #b45309 */
+    --amber-bg:  #fdf1e2;
+    --red:       217  45  32;   /* #d92d20 */
+    --red-bg:    #fdecec;
+
+    --shadow:        0 1px 2px rgba(16, 24, 40, .06);
+    --shadow-hover:  0 4px 14px -6px rgba(16, 24, 40, .16);
+    --shadow-menu:   0 8px 24px rgba(16, 24, 40, .14);
+    --shadow-modal:  0 16px 40px rgba(16, 24, 40, .20);
+    --scrim:         rgba(15, 20, 30, .45);
+
+    /* --- Legacy slate ramp, aliased onto the tokens --- */
+    --slate-50:  248 249 251;
+    --slate-100: 238 240 244;
+    --slate-200: 229 232 238;
+    --slate-300: 185 192 208;
+    --slate-400: 138 147 168;
+    --slate-500:  92 103 132;
+    --slate-600:  92 103 132;
+    --slate-700:  65  76 104;
+    --slate-800:  27  36  55;
+    --slate-900:  27  36  55;
+    --slate-950:  27  36  55;
   }
 
   .dark {
     color-scheme: dark;
-    --surface: 10 13 18;
-    --surface-card: 18 23 31;
-    --surface-border: 43 51 63;
-    --surface-muted: 28 34 44;
-    --slate-50: 21 27 36;
-    --slate-100: 30 37 48;
-    --slate-200: 49 58 71;
-    --slate-300: 79 90 106;
-    --slate-400: 148 163 184;
-    --slate-500: 148 163 184;
-    --slate-600: 203 213 225;
-    --slate-700: 226 232 240;
-    --slate-800: 241 245 249;
-    --slate-900: 248 250 252;
-    --slate-950: 255 255 255;
+
+    --bg:         20  22  25;   /* #141619 */
+    --surface:    29  32  37;   /* #1d2025 */
+    --surface2:   35  39  45;   /* #23272d */
+    --border:     47  52  60;   /* #2f343c */
+    --text:      231 234 240;   /* #e7eaf0 */
+    --text2:     154 163 181;   /* #9aa3b5 */
+    --text3:     112 122 140;   /* #707a8c */
+
+    --primary:   111 151 238;   /* #6f97ee */
+    --primary-tint: rgba(111, 151, 238, .13);
+    --primary-200:  60  82 128;
+    --primary-300:  78 108 168;
+    --primary-400:  94 129 200;
+    --primary-700: 145 176 243;
+
+    --gold:      212 165  69;   /* #d4a545 */
+    --gold-bg:   rgba(212, 165, 69, .13);
+    --silver:    154 166 184;   /* #9aa6b8 */
+    --silver-bg: rgba(154, 166, 184, .13);
+    --green:      52 185 138;   /* #34b98a */
+    --green-bg:  rgba(52, 185, 138, .13);
+    --amber:     224 154  62;   /* #e09a3e */
+    --amber-bg:  rgba(224, 154, 62, .13);
+    --red:       229 100  92;   /* #e5645c */
+    --red-bg:    rgba(229, 100, 92, .13);
+
+    --shadow:        none;
+    --shadow-hover:  none;
+    --shadow-menu:   0 8px 24px rgba(0, 0, 0, .45);
+    --shadow-modal:  0 16px 40px rgba(0, 0, 0, .55);
+    --scrim:         rgba(0, 0, 0, .58);
+
+    --slate-50:   35  39  45;
+    --slate-100:  39  43  50;
+    --slate-200:  47  52  60;
+    --slate-300:  74  82  95;
+    --slate-400: 112 122 140;
+    --slate-500: 154 163 181;
+    --slate-600: 154 163 181;
+    --slate-700: 205 211 222;
+    --slate-800: 231 234 240;
+    --slate-900: 231 234 240;
+    --slate-950: 231 234 240;
   }
 
   html {
@@ -54,186 +117,267 @@
   }
 
   body {
-    @apply bg-surface text-slate-900;
+    @apply bg-surface text-ink;
     min-height: 100dvh;
+    /* Money columns must line up. The design sets this globally. */
+    font-variant-numeric: tabular-nums;
     text-rendering: optimizeLegibility;
   }
 
-  .dark .bg-white { background-color: rgb(var(--surface-card)); }
-  .dark .bg-amber-50 { background-color: rgb(120 53 15 / 0.22); }
-  .dark .bg-amber-100 { background-color: rgb(120 53 15 / 0.32); }
-  .dark .text-amber-900,
-  .dark .text-amber-800,
-  .dark .text-amber-700 { color: rgb(253 230 138); }
-  .dark .border-amber-200 { border-color: rgb(180 83 9 / 0.65); }
-  .dark .bg-emerald-50,
-  .dark .bg-emerald-100 { background-color: rgb(6 78 59 / 0.28); }
-  .dark .text-emerald-700,
-  .dark .text-emerald-600 { color: rgb(110 231 183); }
-  .dark .bg-red-50,
-  .dark .bg-red-100 { background-color: rgb(127 29 29 / 0.26); }
-  .dark .text-red-700,
-  .dark .text-red-600 { color: rgb(252 165 165); }
-  .dark .border-red-200 { border-color: rgb(185 28 28 / 0.65); }
+  input, select, textarea, button {
+    font-family: inherit;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Anything still hard-coding white lands on the card token in dark. */
+  .dark .bg-white { background-color: rgb(var(--surface)); }
   .dark img { color-scheme: normal; }
 
   *:focus-visible {
-    @apply outline-none ring-2 ring-primary-500/70 ring-offset-2 ring-offset-white;
+    @apply outline-none ring-2 ring-primary/40 ring-offset-1 ring-offset-surface-card;
+  }
+  input:focus, select:focus, textarea:focus {
+    @apply border-primary;
+  }
+  input::placeholder, textarea::placeholder {
+    @apply text-ink-faint;
   }
 
-  /* Scrollbar */
-  ::-webkit-scrollbar       { width: 6px; height: 6px; }
-  ::-webkit-scrollbar-track { @apply bg-transparent; }
-  ::-webkit-scrollbar-thumb { @apply bg-slate-300 rounded-full; }
-  ::-webkit-scrollbar-thumb:hover { @apply bg-slate-400; }
+  ::-webkit-scrollbar       { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { @apply rounded bg-surface-border; }
+  ::-webkit-scrollbar-thumb:hover { @apply bg-ink-faint/50; }
 }
 
 @layer components {
-  /* Card */
+  /* ---------------------------------------------------------------- surfaces */
+  /* The design's card: 12px radius, 1px border, the flat --shadow. */
   .card {
-    @apply bg-white rounded-xl p-4 shadow-card border border-surface-border;
+    @apply rounded-2xl border border-surface-border bg-surface-card shadow-card;
+  }
+  .card-pad   { @apply card p-4; }
+  .card-tight { @apply card p-3.5; }
+
+  /* A card whose children are full-bleed rows (tables, settings lists). */
+  .card-flush { @apply card overflow-hidden; }
+
+  .workspace-card { @apply card; }
+
+  /* ---------------------------------------------------------------- headings */
+  .page-header {
+    @apply flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4;
+  }
+  .page-title    { @apply text-xl font-bold leading-tight text-ink; }
+  .page-subtitle { @apply text-13 text-ink-muted; }
+  /* 13.5px/700 — the heading used on every card in the design. */
+  .card-title    { @apply text-13.5 font-bold text-ink; }
+  .section-kicker {
+    @apply text-12 font-bold uppercase tracking-[0.06em] text-ink-faint;
   }
 
-  /* Buttons */
+  /* ---------------------------------------------------------------- buttons */
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg font-semibold
-           transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed
-           focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2;
+    @apply inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg
+           text-13 font-semibold transition-[filter,background-color,border-color,color] duration-150
+           disabled:cursor-not-allowed disabled:opacity-50;
   }
   .btn-primary {
-    @apply btn bg-primary-600 text-white hover:bg-primary-700 active:scale-[0.98]
-           px-4 py-2 text-sm shadow-sm;
+    @apply btn h-9 bg-primary px-4 text-white hover:brightness-110;
   }
   .btn-secondary {
-    @apply btn bg-surface-muted text-slate-700 hover:bg-slate-200 active:scale-[0.98]
-           border border-surface-border px-4 py-2 text-sm;
+    @apply btn h-9 border border-surface-border bg-surface-card px-4 text-ink
+           hover:border-primary hover:text-primary;
+  }
+  .btn-tinted {
+    @apply btn h-9 border border-primary bg-primary-tint px-4 text-primary hover:brightness-105;
+  }
+  .btn-success {
+    @apply btn h-9 border border-green bg-green-bg px-3.5 text-green hover:brightness-[0.98];
+  }
+  .btn-warn {
+    @apply btn h-9 border border-amber bg-amber-bg px-3.5 text-amber hover:brightness-[0.98];
   }
   .btn-danger {
-    @apply btn bg-red-600 text-white hover:bg-red-700 active:scale-[0.98]
-           px-4 py-2 text-sm shadow-sm;
+    @apply btn h-9 bg-red px-4 text-white hover:brightness-110;
   }
   .btn-ghost {
-    @apply btn text-slate-600 hover:bg-slate-100 px-3 py-2 text-sm;
+    @apply btn h-9 px-3 text-ink-muted hover:bg-surface-muted hover:text-ink;
   }
+  /* 34px square — the top bar's icon buttons. */
   .btn-icon {
-    @apply btn p-2 rounded-lg hover:bg-slate-100 text-slate-600;
+    @apply btn h-[34px] w-[34px] shrink-0 rounded-lg p-0 text-ink-muted hover:bg-surface-muted;
   }
-  /* Dropdown menu row — used by the loan actions menu */
-  .menu-item {
-    @apply flex w-full items-center gap-2.5 px-3.5 py-2.5 text-sm text-slate-700
-           hover:bg-slate-50 transition-colors text-left;
+  /* 28px square — the per-row edit/delete buttons in tables. */
+  .btn-row {
+    @apply btn h-7 w-7 rounded-md border border-surface-border bg-surface-card p-0 text-ink-muted;
   }
-  /* Autosuggest dropdown */
-  .suggest-panel {
-    @apply absolute z-40 mt-1.5 w-full rounded-xl border border-surface-border
-           bg-white shadow-modal p-1.5 max-h-56 overflow-y-auto;
+  .btn-row-edit   { @apply btn-row hover:border-primary hover:text-primary; }
+  .btn-row-delete { @apply btn-row hover:border-red hover:text-red; }
+  /* 30px — pagination and inline chips. */
+  .btn-mini {
+    @apply btn h-[30px] rounded-md border border-surface-border bg-surface-card px-3 text-12 font-medium text-ink;
   }
-  .suggest-item {
-    @apply flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-sm
-           text-slate-700 hover:bg-slate-100 text-left transition-colors;
+  .btn-mini-active {
+    @apply btn-mini border-surface-border bg-primary-tint font-semibold text-primary;
   }
-  .suggest-item-active {
-    @apply bg-primary-50 text-primary-800;
+  /* 32px — the right-hand control on a settings row. */
+  .btn-setting {
+    @apply btn h-8 rounded-md border border-surface-border bg-surface-muted px-3 text-12.5 text-ink;
+  }
+  .btn-setting-primary {
+    @apply btn h-8 rounded-md border border-primary bg-primary-tint px-3 text-12.5 text-primary;
+  }
+  .btn-link {
+    @apply text-12.5 font-semibold text-primary hover:underline;
   }
 
-  /* Form inputs */
+  /* ---------------------------------------------------------------- inputs */
   .input {
-    @apply w-full h-10 rounded-lg border border-surface-border bg-white px-3 py-2
-           text-sm text-slate-900 placeholder:text-slate-400
-           hover:border-slate-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/15
-           disabled:bg-slate-50 disabled:text-slate-500
-           transition-all duration-150;
+    @apply h-[38px] w-full rounded-lg border border-surface-border bg-surface-muted px-3
+           text-13.5 text-ink transition-colors duration-150
+           placeholder:text-ink-faint hover:border-ink-faint/60
+           focus:border-primary focus:ring-0
+           disabled:cursor-not-allowed disabled:opacity-60;
+  }
+  /* 40px — the taller fields in the loan-details grid and modals. */
+  .input-lg   { @apply input h-10; }
+  /* 44px — the Remove Record search bar. */
+  .input-xl   { @apply input h-11 rounded-[9px] text-14.5; }
+  /* 32px — a value editable in place on a settings row. */
+  .input-mini { @apply input h-8 rounded-md px-2.5 text-13; }
+  .input-money { @apply input-lg text-base font-semibold; }
+  .textarea {
+    @apply input h-auto py-2.5 leading-relaxed;
+  }
+  .select {
+    @apply h-9 rounded-lg border border-surface-border bg-surface-card px-2.5
+           text-13 text-ink focus:border-primary;
+  }
+  .select-mini {
+    @apply h-8 rounded-md border border-surface-border bg-surface-card px-2.5 text-12.5 text-ink;
   }
   .label {
-    @apply block text-xs font-semibold text-slate-600 mb-1.5;
+    @apply mb-1.5 block text-12.5 font-semibold text-ink-muted;
   }
-  .input-error {
-    @apply border-red-400 focus:border-red-500 focus:ring-red-500/20;
-  }
-  .error-msg {
-    @apply text-xs text-red-600 mt-1;
-  }
+  .label-optional { @apply font-normal text-ink-faint; }
+  .input-error { @apply border-red focus:border-red; }
+  .error-msg   { @apply mt-1 text-12 text-red; }
 
-  /* Badge */
+  /* ---------------------------------------------------------------- badges */
+  /* The design's pill: 5px radius, 2px/8px padding, 11px/700. */
   .badge {
-    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium;
+    @apply inline-flex items-center gap-1 rounded-[5px] px-2 py-0.5 text-11 font-bold;
   }
-  .badge-gold   { @apply badge bg-gold-100 text-gold-700; }
-  .badge-silver { @apply badge bg-slate-100 text-slate-700; }
-  .badge-active { @apply badge bg-emerald-100 text-emerald-700; }
-  .badge-closed { @apply badge bg-slate-100 text-slate-500; }
+  .badge-gold   { @apply badge bg-gold-bg text-gold; }
+  .badge-silver { @apply badge bg-silver-bg text-silver; }
+  .badge-active { @apply badge bg-green-bg text-green; }
+  .badge-closed { @apply badge bg-surface-muted text-ink-muted; }
+  .badge-warn   { @apply badge bg-amber-bg text-amber; }
+  .badge-danger { @apply badge bg-red-bg text-red; }
+  .badge-info   { @apply badge bg-primary-tint text-primary; }
 
-  /* Skeleton shimmer */
-  .skeleton {
-    @apply bg-gradient-to-r from-slate-200 via-slate-100 to-slate-200
-           bg-[length:200%_100%] animate-shimmer rounded-lg;
+  /* ---------------------------------------------------------------- tables */
+  /* Rows are CSS grids in the design, not <table> cells, so the header and the
+     body can share one template and stay aligned while the header sticks. */
+  .grid-head {
+    @apply sticky top-0 z-[5] grid items-center gap-2.5 border-b border-surface-border
+           bg-surface-muted px-4 py-2.5 text-11 font-bold uppercase tracking-[0.04em] text-ink-faint;
   }
-
-  /* Stat card */
-  .stat-card {
-    @apply card p-4 flex flex-col gap-1;
+  .grid-row {
+    @apply grid items-center gap-2.5 border-b border-surface-border px-4 py-2.5 text-12.5 text-ink;
   }
-  .stat-label {
-    @apply text-xs font-medium text-slate-500 uppercase tracking-wide;
-  }
-  .stat-value {
-    @apply text-2xl font-bold text-slate-900 tabular-nums;
-  }
-  .stat-sub {
-    @apply text-xs text-slate-500;
-  }
-
-  /* Page header */
-  .page-header {
-    @apply flex flex-col gap-2 sm:min-h-10 sm:flex-row sm:items-center sm:justify-between;
-  }
-  .page-title {
-    @apply text-xl font-semibold tracking-tight text-slate-900;
-  }
-  .page-subtitle {
-    @apply text-sm text-slate-500;
+  .grid-row-link { @apply grid-row cursor-pointer hover:bg-surface-muted; }
+  .grid-foot {
+    @apply flex items-center justify-between border-t border-surface-border px-4 py-2.5
+           text-12.5 text-ink-muted;
   }
 
-  /* Table */
   .table-container {
-    @apply overflow-x-auto rounded-xl border border-surface-border bg-white;
+    @apply overflow-x-auto rounded-2xl border border-surface-border bg-surface-card;
   }
-  .table {
-    @apply w-full text-sm text-left;
-  }
-  .table thead tr {
-    @apply bg-surface-muted border-b border-surface-border;
-  }
-  .table thead {
-    @apply sticky top-0 z-10;
-  }
+  .table { @apply w-full text-left text-13; }
+  .table thead    { @apply sticky top-0 z-10; }
+  .table thead tr { @apply border-b border-surface-border bg-surface-muted; }
   .table thead th {
-    @apply px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-slate-500 whitespace-nowrap;
+    @apply whitespace-nowrap px-4 py-2.5 text-11 font-bold uppercase tracking-[0.04em] text-ink-faint;
   }
-  .table tbody tr {
-    @apply border-b border-surface-border last:border-0
-           hover:bg-slate-50/60 transition-colors duration-100;
+  .table tbody tr { @apply border-b border-surface-border last:border-0 hover:bg-surface-muted; }
+  .table tbody td { @apply px-4 py-2.5 text-12.5 text-ink; }
+
+  /* ---------------------------------------------------------------- stats */
+  .stat-card  { @apply card px-4 py-3.5; }
+  .stat-label { @apply text-12 font-semibold text-ink-muted; }
+  .stat-value { @apply mt-1.5 text-22 font-bold tabular-nums text-ink; }
+  .stat-sub   { @apply mt-0.5 text-12 text-ink-faint; }
+
+  /* A row of figures fused into one card, divided by hairlines. */
+  .stat-strip      { @apply card grid overflow-hidden; }
+  .stat-strip-cell { @apply border-r border-surface-border px-4 py-3 last:border-r-0; }
+
+  /* ---------------------------------------------------------------- menus */
+  .menu-panel {
+    @apply overflow-hidden rounded-2xl border border-surface-border bg-surface-card shadow-menu;
   }
-  .table tbody td {
-    @apply px-4 py-2.5 text-slate-800;
+  .menu-item {
+    @apply flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-13 text-ink
+           transition-colors hover:bg-surface-muted;
+  }
+  .suggest-panel {
+    @apply absolute z-40 mt-1.5 max-h-56 w-full overflow-y-auto rounded-xl border
+           border-surface-border bg-surface-card p-1.5 shadow-menu;
+  }
+  .suggest-item {
+    @apply flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left
+           text-13 text-ink transition-colors hover:bg-surface-muted;
+  }
+  .suggest-item-active { @apply bg-primary-tint text-primary; }
+
+  /* ---------------------------------------------------------------- modals */
+  .modal-scrim {
+    @apply fixed inset-0 z-[100] flex items-center justify-center p-6;
+    background: var(--scrim);
+  }
+  .modal-panel {
+    @apply w-full rounded-2xl border border-surface-border bg-surface-card p-[22px] shadow-modal;
+  }
+  .modal-title    { @apply text-15.5 font-bold text-ink; }
+  .modal-subtitle { @apply mt-0.5 text-12.5 leading-relaxed text-ink-muted; }
+  .modal-actions  { @apply mt-4 flex justify-end gap-2.5; }
+  /* The tinted note strip inside a dialog. */
+  .note-green { @apply rounded-lg bg-green-bg px-3 py-2.5 text-12.5 font-medium text-green; }
+  .note-amber { @apply rounded-lg bg-amber-bg px-3 py-2.5 text-12.5 font-medium text-amber; }
+  .note-blue  { @apply rounded-xl bg-primary-tint p-3.5 text-12.5 font-medium text-primary; }
+
+  /* ---------------------------------------------------------------- misc */
+  .toggle {
+    @apply relative h-5 w-9 shrink-0 cursor-pointer rounded-full transition-colors;
+  }
+  .toggle-on  { @apply toggle bg-green; }
+  .toggle-off { @apply toggle bg-surface-border; }
+  .toggle-knob {
+    @apply absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-all;
   }
 
-  .workspace-card {
-    @apply rounded-xl border border-surface-border bg-white shadow-card;
+  .skeleton {
+    @apply animate-shimmer rounded-lg bg-gradient-to-r from-surface-muted via-surface-border
+           to-surface-muted bg-[length:200%_100%];
   }
-  .section-kicker {
-    @apply text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400;
+
+  .empty-state {
+    @apply flex flex-col items-center gap-2.5 rounded-2xl border border-dashed
+           border-surface-border bg-surface-card px-6 py-14 text-center;
   }
+
   .completion-input { background: transparent !important; }
 
   .lp-toast {
-    @apply flex w-[min(390px,calc(100vw-24px))] items-start gap-3 overflow-hidden rounded-xl
-           border border-surface-border bg-white p-3.5 text-slate-900 shadow-modal;
+    @apply flex w-[min(390px,calc(100vw-24px))] items-start gap-3 overflow-hidden rounded-2xl
+           border border-surface-border bg-surface-card p-3.5 text-ink shadow-modal;
   }
-  .lp-toast-success { @apply border-l-4 border-l-emerald-500; }
-  .lp-toast-error { @apply border-l-4 border-l-red-500; }
-  .lp-toast-loading { @apply border-l-4 border-l-primary-500; }
-  .lp-toast-blank { @apply border-l-4 border-l-slate-400; }
+  .lp-toast-success { @apply border-l-4 border-l-green; }
+  .lp-toast-error   { @apply border-l-4 border-l-red; }
+  .lp-toast-loading { @apply border-l-4 border-l-primary; }
+  .lp-toast-blank   { @apply border-l-4 border-l-ink-faint; }
 
   .loading-bar {
     transform-origin: left;
@@ -242,8 +386,8 @@
 }
 
 @keyframes loading-progress {
-  0% { transform: scaleX(0.04); opacity: 0.55; }
-  55% { transform: scaleX(0.68); opacity: 1; }
+  0%   { transform: scaleX(0.04); opacity: 0.55; }
+  55%  { transform: scaleX(0.68); opacity: 1; }
   100% { transform: scaleX(0.98); opacity: 0.35; }
 }
 

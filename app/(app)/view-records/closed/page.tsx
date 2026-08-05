@@ -16,6 +16,9 @@ import { Archive } from 'lucide-react'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { PageHeader } from '@/components/ui/Page'
 import { LoanFilters } from '@/components/loans/LoanFilters'
+import {
+  DiagnosticPanel, describeError, type CallFailure,
+} from '@/components/dashboard/DiagnosticPanel'
 import { RecordsTable, Pagination, type RecordRow } from '@/components/loans/RecordsTable'
 import type { Tables } from '@/types/supabase'
 
@@ -95,7 +98,17 @@ export default async function ClosedRecordsPage({ searchParams }: Props) {
   if (maxAmount !== null) query = query.lte('amount', maxAmount)
 
   const { data: loans, count, error } = await query
-  if (error) throw new Error(`Closed records could not be loaded: ${error.message}`)
+
+  // Reports the failure rather than throwing — see the note on the Active
+  // page. A digest in a production build tells nobody anything.
+  const diagnostics: CallFailure[] = []
+  if (error) {
+    diagnostics.push(describeError('loans (closed records)', error))
+    console.error('[view-records/closed] query errored:', error)
+  }
+
+  const { data: viewer } = await supabase
+    .from('users').select('role').eq('auth_id', user.id).maybeSingle()
 
   const total = count ?? 0
   const lastPage = Math.max(1, Math.ceil(total / PAGE_SIZE))
@@ -113,6 +126,8 @@ export default async function ClosedRecordsPage({ searchParams }: Props) {
 
   return (
     <div className="page-stack">
+      {viewer?.role === 'owner' && <DiagnosticPanel failures={diagnostics} />}
+
       <PageHeader
         title="Closed Records"
         subtitle={

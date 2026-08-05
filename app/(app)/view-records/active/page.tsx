@@ -15,6 +15,9 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { Button } from '@/components/ui/Button'
 import { PageHeader } from '@/components/ui/Page'
 import { LoanFilters } from '@/components/loans/LoanFilters'
+import {
+  DiagnosticPanel, describeError, type CallFailure,
+} from '@/components/dashboard/DiagnosticPanel'
 import { RecordsTable, Pagination, type RecordRow } from '@/components/loans/RecordsTable'
 import { formatCurrency } from '@/lib/utils'
 
@@ -70,7 +73,7 @@ export default async function ActiveRecordsPage({ searchParams }: Props) {
   if (!user) redirect('/login')
 
   const { data: appUser } = await supabase
-    .from('users').select('tenant_id').eq('auth_id', user.id).single()
+    .from('users').select('tenant_id, role').eq('auth_id', user.id).single()
   if (!appUser) redirect('/login')
 
   const page = Math.max(1, Number(params.page ?? 1) || 1)
@@ -110,7 +113,23 @@ export default async function ActiveRecordsPage({ searchParams }: Props) {
   if (maxAmount !== null) query = query.lte('amount', maxAmount)
 
   const { data: loans, count, error } = await query
-  if (error) throw new Error(`Active records could not be loaded: ${error.message}`)
+
+  /**
+   * A failed query reports itself instead of taking the screen down.
+   *
+   * This used to `throw`, which in a production build gives the error boundary
+   * and a digest — a number you have to carry to the Vercel logs to learn
+   * anything at all. For a screen whose whole job is to look records up, that
+   * turns "one query failed" into "the page is gone, and I cannot tell you
+   * why", which is how a five-second fix becomes a long afternoon.
+   *
+   * The page still renders. The reason appears above it, for owners.
+   */
+  const diagnostics: CallFailure[] = []
+  if (error) {
+    diagnostics.push(describeError('loans (active records)', error))
+    console.error('[view-records/active] query errored:', error)
+  }
 
   const total = count ?? 0
   const lastPage = Math.max(1, Math.ceil(total / PAGE_SIZE))
@@ -129,6 +148,8 @@ export default async function ActiveRecordsPage({ searchParams }: Props) {
 
   return (
     <div className="page-stack">
+      {appUser.role === 'owner' && <DiagnosticPanel failures={diagnostics} />}
+
       <PageHeader
         title="Active Records"
         subtitle={

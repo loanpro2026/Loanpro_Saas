@@ -1,6 +1,6 @@
 export default function DashboardLoading() {
   return (
-    <div className="space-y-3.5" aria-label="Loading dashboard">
+    <div className="page-stack" aria-label="Loading dashboard">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="skeleton h-7 w-52" />
         <div className="flex gap-2">

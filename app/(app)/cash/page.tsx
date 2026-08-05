@@ -99,7 +99,7 @@ export default async function CashPage() {
   })
 
   return (
-    <div className="space-y-3.5">
+    <div className="page-stack">
       <PageHeader
         title="Cash & Day-end"
         subtitle={
@@ -202,7 +202,7 @@ export default async function CashPage() {
         </section>
 
         <div className="flex flex-col gap-3">
-          <section className="card p-4" aria-labelledby="close-title">
+          <section className="card" aria-labelledby="close-title">
             <h2 id="close-title" className="card-title">End of day</h2>
             <p className="mt-1 text-12.5 leading-relaxed text-ink-muted">
               Count the drawer, check today&rsquo;s settlements and part-payments against it, then lock the

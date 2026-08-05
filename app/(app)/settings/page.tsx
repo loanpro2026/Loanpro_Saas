@@ -32,7 +32,7 @@ export default async function SettingsPage() {
 
 
   return (
-    <div className="mx-auto max-w-6xl space-y-3.5">
+    <div className="page-stack mx-auto max-w-6xl">
       <PageHeader
         title="Settings"
         subtitle={`${tenant?.shop_name ?? 'This shop'} · preferences apply to this shop. Devices and backups are managed per workspace.`}

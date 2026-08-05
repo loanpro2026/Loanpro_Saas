@@ -24,7 +24,7 @@ export default async function InterestAccountPage() {
     : { data: null }
 
   return (
-    <div className="space-y-3.5">
+    <div className="page-stack">
       <PageHeader
         title="View Accounts · Interest"
         subtitle="Rupee interest collected on settlements — an amount, never a rate"

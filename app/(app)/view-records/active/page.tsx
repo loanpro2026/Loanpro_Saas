@@ -128,7 +128,7 @@ export default async function ActiveRecordsPage({ searchParams }: Props) {
   }
 
   return (
-    <div className="space-y-3.5">
+    <div className="page-stack">
       <PageHeader
         title="Active Records"
         subtitle={

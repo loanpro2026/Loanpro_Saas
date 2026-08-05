@@ -37,9 +37,11 @@
     "check:deps": "node scripts/deps.js",
     "check:env": "node scripts/env.js",
     "check:sql": "node scripts/sql.js",
+    "check:css": "node scripts/css.js",
+    "check:unused": "node scripts/unused.js",
     "check:theme": "node scripts/theme.js",
     "check:syntax": "node scripts/check.js && node scripts/imports.js && node --check public/sw.js",
-    "test": "npm run migrate:test && npm run test:cash && npm run test:reports && npm run test:interest && npm run test:offline && npm run test:plans && npm run test:billing && npm run test:devices && npm run test:capture-device && npm run test:messages && npm run test:dashboard && npm run test:sw && npm run check:rpc && npm run check:guard && npm run check:links && npm run check:parity && npm run check:deps && npm run check:theme && npm run check:syntax && npm run typecheck:scripts",
+    "test": "npm run migrate:test && npm run test:cash && npm run test:reports && npm run test:interest && npm run test:offline && npm run test:plans && npm run test:billing && npm run test:devices && npm run test:capture-device && npm run test:messages && npm run test:dashboard && npm run test:sw && npm run check:rpc && npm run check:guard && npm run check:css && npm run check:unused && npm run check:links && npm run check:parity && npm run check:deps && npm run check:theme && npm run check:syntax && npm run typecheck:scripts",
     "typecheck:scripts": "tsc -p tsconfig.scripts.json"
   },
   "dependencies": {

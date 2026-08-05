@@ -136,35 +136,72 @@ const config: Config = {
       fontFamily: {
         sans: ['IBM Plex Sans', 'Inter', 'system-ui', 'sans-serif'],
       },
-      // The design works in half-pixels (12.5px labels, 13.5px card headings).
-      // These are its exact steps, named by pixel value.
+      /**
+       * Six rungs, not seventeen.
+       *
+       * The design reference works in half-pixels — 12.5px labels, 13.5px card
+       * headings — and the app reproduced every step faithfully. Measured
+       * across app/ and components/, that left 481 of 491 sized elements
+       * inside a 5.5px band (10px to 15.5px) spread over twelve sizes. Two of
+       * them were the same pixel value under two names: text-xs and text-12
+       * were both 12px, text-sm and text-14 both 14px.
+       *
+       * A type scale works by contrast. Half a pixel is not contrast — nobody
+       * can see it — so every piece of text on a screen carried the same
+       * weight and the eye had nothing to follow. That reads as noise, and it
+       * is the real reason the screens felt crowded: with nothing leading, the
+       * only way to find a number was to read all of them.
+       *
+       * So the ramp is collapsed onto six real rungs at roughly a 1.15–1.3
+       * ratio. Every old name is kept and re-pointed rather than removed, so
+       * this is one edit instead of 491 — and no screen can be left behind on
+       * a size that no longer exists.
+       *
+       *   micro  11.5  uppercase column heads, kickers
+       *   meta   13    supporting text, sub-labels, captions
+       *   body   14.5  the reading size — table cells, field values, buttons
+       *   lead   16.5  card titles, emphasised values
+       *   title  21    page titles
+       *   figure 26    the one number a screen is about
+       *
+       * Line heights are set per rung and are deliberately generous. Cramped
+       * leading was doing as much damage as the sizes.
+       */
       fontSize: {
-        '2xs':  ['0.625rem',  { lineHeight: '0.875rem' }],
-        '10':   ['0.625rem',  { lineHeight: '0.875rem' }],
-        '10.5': ['0.656rem',  { lineHeight: '0.875rem' }],
-        '11':   ['0.6875rem', { lineHeight: '1rem' }],
+        // ── micro ──
+        '2xs':  ['0.719rem',  { lineHeight: '1rem' }],
+        '10':   ['0.719rem',  { lineHeight: '1rem' }],
+        '10.5': ['0.719rem',  { lineHeight: '1rem' }],
+        '11':   ['0.719rem',  { lineHeight: '1rem' }],
         '11.5': ['0.719rem',  { lineHeight: '1rem' }],
-        '12':   ['0.75rem',   { lineHeight: '1rem' }],
-        '12.5': ['0.781rem',  { lineHeight: '1.125rem' }],
-        '13':   ['0.8125rem', { lineHeight: '1.125rem' }],
-        '13.5': ['0.844rem',  { lineHeight: '1.25rem' }],
-        '14':   ['0.875rem',  { lineHeight: '1.25rem' }],
-        '14.5': ['0.906rem',  { lineHeight: '1.25rem' }],
-        '15':   ['0.9375rem', { lineHeight: '1.375rem' }],
-        '15.5': ['0.969rem',  { lineHeight: '1.375rem' }],
-        '17':   ['1.0625rem', { lineHeight: '1.5rem' }],
-        '19':   ['1.1875rem', { lineHeight: '1.5rem' }],
-        '22':   ['1.375rem',  { lineHeight: '1.625rem' }],
-        'xs':   ['0.75rem',   { lineHeight: '1rem' }],
-        'sm':   ['0.875rem',  { lineHeight: '1.25rem' }],
-        'base': ['1rem',      { lineHeight: '1.5rem' }],
-        'lg':   ['1.125rem',  { lineHeight: '1.75rem' }],
-        'xl':   ['1.25rem',   { lineHeight: '1.5rem' }],
-        '2xl':  ['1.5rem',    { lineHeight: '1.75rem' }],
-        '3xl':  ['1.875rem',  { lineHeight: '2.25rem' }],
-        '4xl':  ['2.25rem',   { lineHeight: '2.5rem' }],
-        '5xl':  ['3rem',      { lineHeight: '1' }],
-        '6xl':  ['3.75rem',   { lineHeight: '1' }],
+        // ── meta ──
+        '12':   ['0.8125rem', { lineHeight: '1.125rem' }],
+        '12.5': ['0.8125rem', { lineHeight: '1.125rem' }],
+        'xs':   ['0.8125rem', { lineHeight: '1.125rem' }],
+        // ── body ──
+        '13':   ['0.90625rem', { lineHeight: '1.375rem' }],
+        '13.5': ['0.90625rem', { lineHeight: '1.375rem' }],
+        '14':   ['0.90625rem', { lineHeight: '1.375rem' }],
+        '14.5': ['0.90625rem', { lineHeight: '1.375rem' }],
+        'sm':   ['0.90625rem', { lineHeight: '1.375rem' }],
+        // ── lead ──
+        '15':   ['1.03125rem', { lineHeight: '1.5rem' }],
+        '15.5': ['1.03125rem', { lineHeight: '1.5rem' }],
+        'base': ['1.03125rem', { lineHeight: '1.5rem' }],
+        // ── subhead ──
+        '17':   ['1.125rem',  { lineHeight: '1.625rem' }],
+        'lg':   ['1.125rem',  { lineHeight: '1.625rem' }],
+        // ── title ──
+        '19':   ['1.3125rem', { lineHeight: '1.75rem' }],
+        'xl':   ['1.3125rem', { lineHeight: '1.75rem' }],
+        // ── figure ──
+        '22':   ['1.625rem',  { lineHeight: '1.875rem' }],
+        '2xl':  ['1.625rem',  { lineHeight: '1.875rem' }],
+        // ── display: marketing only ──
+        '3xl':  ['2rem',      { lineHeight: '2.375rem' }],
+        '4xl':  ['2.5rem',    { lineHeight: '2.875rem' }],
+        '5xl':  ['3.25rem',   { lineHeight: '1.1' }],
+        '6xl':  ['4rem',      { lineHeight: '1.05' }],
       },
       boxShadow: {
         'card':       'var(--shadow)',

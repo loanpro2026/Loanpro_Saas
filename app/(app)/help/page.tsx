@@ -20,7 +20,7 @@ export default async function HelpPage() {
   const { data: tickets } = await supabase.rpc('my_tickets')
 
   return (
-    <div className="max-w-5xl space-y-3.5">
+    <div className="page-stack max-w-5xl">
       <PageHeader
         title="Help & Support"
         subtitle="Guides for daily work, plus direct support when you need it."

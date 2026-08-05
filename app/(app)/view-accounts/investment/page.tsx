@@ -25,7 +25,7 @@ export default async function InvestmentAccountPage() {
     : { data: null }
 
   return (
-    <div className="space-y-3.5">
+    <div className="page-stack">
       <PageHeader
         title="View Accounts · Investment"
         subtitle="Principal issued on new loans in the selected period"

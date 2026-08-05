@@ -11,7 +11,7 @@ import {
 } from 'react'
 import toast from 'react-hot-toast'
 import { userFacingError } from '@/lib/user-message'
-import { enqueue, pendingCount, getQueue, type QueuedKind } from '@/lib/offline/db'
+import { enqueue, pendingCount, type QueuedKind } from '@/lib/offline/db'
 import { startAutoSync, syncQueue, refreshSnapshot, newKey } from '@/lib/offline/sync'
 
 interface OfflineState {

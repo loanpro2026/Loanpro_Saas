@@ -112,7 +112,7 @@ export default async function ClosedRecordsPage({ searchParams }: Props) {
   }
 
   return (
-    <div className="space-y-3.5">
+    <div className="page-stack">
       <PageHeader
         title="Closed Records"
         subtitle={

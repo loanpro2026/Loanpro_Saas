@@ -202,7 +202,7 @@ export function RemoveRecordWorkspace() {
   return (
     <div className="space-y-3.5">
       <form
-        className="card p-4 sm:p-[18px]"
+        className="card"
         onSubmit={event => { event.preventDefault(); void runSearch(0) }}
       >
         <div className="flex flex-col gap-2 lg:flex-row lg:items-end">

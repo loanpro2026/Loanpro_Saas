@@ -70,7 +70,7 @@ export function AccountReport({
         />
       </div>
 
-      <div className="card p-4">
+      <div className="card">
         <h2 className="card-title mb-3">{meta.title} by day</h2>
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">

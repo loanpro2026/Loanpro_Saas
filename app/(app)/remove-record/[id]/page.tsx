@@ -42,7 +42,7 @@ export default async function SettlementPage({ params }: { params: Promise<{ id:
   const pledgePhoto = detail.photos?.pledge ?? null
 
   return (
-    <div className="space-y-3.5">
+    <div className="page-stack">
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex min-w-0 items-start gap-3">
           <Link
@@ -64,7 +64,7 @@ export default async function SettlementPage({ params }: { params: Promise<{ id:
         <Link href={`/loans/${loan.id}`} className="btn-secondary">View read-only record</Link>
       </header>
 
-      <Card className="p-4">
+      <Card>
         <dl className="grid grid-cols-2 gap-4 text-13 sm:grid-cols-5">
           <Detail label="Loan amount" value={formatCurrency(loan.amount)} strong />
           <Detail label="Jewellery type" value={loan.detailed_type || '—'} />
@@ -74,8 +74,8 @@ export default async function SettlementPage({ params }: { params: Promise<{ id:
         </dl>
       </Card>
 
-      <div className="grid items-start gap-3.5 lg:grid-cols-3">
-        <div className="space-y-3.5 lg:col-span-2">
+      <div className="grid items-start gap-5 lg:grid-cols-3">
+        <div className="page-stack lg:col-span-2">
           <DepositHistory
             loanId={loan.id}
             deposits={deposits}
@@ -88,7 +88,7 @@ export default async function SettlementPage({ params }: { params: Promise<{ id:
           />
 
           {photoCaptureEnabled(settings) && (
-            <Card className="p-4">
+            <Card>
               <h2 className="card-title mb-3">
                 {photoRequired ? 'Collection photo' : 'Customer photo on file'}
               </h2>
@@ -123,8 +123,11 @@ function Detail({ label, value, strong = false }: {
 }) {
   return (
     <div>
-      <dt className="text-11.5 text-ink-faint">{label}</dt>
-      <dd className={`mt-0.5 ${strong ? 'text-16 font-bold' : 'font-semibold'} text-ink`}>{value}</dd>
+      <dt className="text-11 font-bold uppercase tracking-[0.07em] text-ink-faint">{label}</dt>
+      {/* Was `text-16`, which this project has never defined — so every field
+          marked `strong` here has been rendering at the same size as the rest
+          and only the weight was doing any work. */}
+      <dd className={`mt-1.5 ${strong ? 'text-15 font-bold' : 'font-semibold'} text-ink`}>{value}</dd>
     </div>
   )
 }

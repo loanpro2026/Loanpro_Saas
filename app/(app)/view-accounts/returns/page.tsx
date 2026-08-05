@@ -24,7 +24,7 @@ export default async function ReturnsAccountPage() {
     : { data: null }
 
   return (
-    <div className="space-y-3.5">
+    <div className="page-stack">
       <PageHeader
         title="View Accounts · Returns"
         subtitle="Principal returned from loans settled in the selected period"

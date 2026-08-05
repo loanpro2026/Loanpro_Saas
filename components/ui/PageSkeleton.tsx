@@ -15,7 +15,7 @@ export function PageSkeleton({ rows = 7 }: { rows?: number }) {
         </div>
         <Block className="h-9 w-32" />
       </div>
-      <div className="card p-4 flex gap-3">
+      <div className="card flex gap-3">
         <Block className="h-9 flex-1" />
         <Block className="h-9 w-40 hidden sm:block" />
         <Block className="h-9 w-40 hidden md:block" />

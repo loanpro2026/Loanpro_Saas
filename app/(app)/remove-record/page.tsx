@@ -43,7 +43,7 @@ export default async function RemoveRecordPage() {
   const settledToday = countOf(settledResult)
 
   return (
-    <div className="space-y-3.5">
+    <div className="page-stack">
       <PageHeader
         title="Remove Record"
         subtitle="Find an active loan, then add a deposit or settle and close it. Settlement happens only here."

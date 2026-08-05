@@ -152,7 +152,7 @@ export default function NewLoanPage() {
   const remaining = cashInHand === null ? null : cashInHand - amount
 
   return (
-    <div className="space-y-3.5">
+    <div className="page-stack">
       <PageHeader
         title="Add New Record"
         subtitle="Issue a new loan against pledged gold or silver. Fields marked * are required."

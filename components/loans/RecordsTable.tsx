@@ -60,16 +60,21 @@ export function RecordsTable({
   return (
     <div className="card-flush">
       <div className="lg:max-h-[calc(100dvh-16rem)] lg:overflow-y-auto">
+        {/* Columns appear in two tiers. Amount, customer, location, date and
+            metal are what a shop scans for and show from 1024px; father's
+            name, jewellery type and weight are what they confirm once they
+            have found the row, and wait for 1280px. All nine at once needed
+            12.5px type to fit a laptop, which is what made this unreadable. */}
         <div className="records-grid grid-head hidden lg:grid">
-          <span>Amount</span>
+          <span className="text-right">Amount</span>
           <span>Customer</span>
-          <span>Father&rsquo;s name</span>
+          <span className="hidden xl:block">Father&rsquo;s name</span>
           <span>Location</span>
           <span>{dateColumn}</span>
           <span>Metal</span>
-          <span>Type</span>
-          <span className="text-right">Weight</span>
-          <span className="text-right">Actions</span>
+          <span className="hidden xl:block">Type</span>
+          <span className="hidden text-right xl:block">Weight</span>
+          <span className="sr-only">Actions</span>
         </div>
 
         {rows.map(row => {
@@ -80,10 +85,13 @@ export function RecordsTable({
             <div
               key={row.id}
               onClick={() => router.push(`/loans/${row.id}`)}
-              className="records-grid cursor-pointer items-center gap-2.5 border-b border-surface-border
-                         px-4 py-2.5 text-12.5 transition-colors last:border-0 hover:bg-surface-muted"
+              className="records-grid group cursor-pointer items-center gap-4 border-b border-surface-border
+                         px-5 py-3 text-13 transition-colors last:border-0 hover:bg-surface-muted"
             >
-              <span className="hidden font-semibold tabular-nums text-ink lg:block">
+              {/* The amount is why this screen exists, so it is the one thing
+                  set above body size and right-aligned into a clean column of
+                  digits. Everything else on the row is support. */}
+              <span className="hidden text-right text-15 font-semibold tabular-nums tracking-[-0.01em] text-ink lg:block">
                 {formatCurrency(row.amount)}
               </span>
 
@@ -91,27 +99,36 @@ export function RecordsTable({
                 <Link
                   href={`/loans/${row.id}`}
                   onClick={event => event.stopPropagation()}
-                  className="block truncate font-medium text-ink hover:text-primary"
+                  className="block truncate font-medium text-ink group-hover:text-primary"
                 >
                   {row.name}
                 </Link>
                 {/* Phone: everything that did not fit, on one muted line. */}
-                <span className="block truncate text-11.5 text-ink-faint lg:hidden">
+                <span className="mt-0.5 block truncate text-12 text-ink-faint lg:hidden">
                   {[formatCurrency(row.amount), row.category_type, row.location, shown]
                     .filter(Boolean).join(' · ')}
                 </span>
               </div>
 
-              <span className="hidden truncate text-ink-muted lg:block">{row.father_name || '—'}</span>
+              <span className="hidden truncate text-ink-muted xl:block">{row.father_name || '—'}</span>
               <span className="hidden truncate text-ink-muted lg:block">{row.location || '—'}</span>
-              <span className="hidden text-ink-muted lg:block">{shown}</span>
+              <span className="hidden whitespace-nowrap text-ink-muted lg:block">{shown}</span>
               <MetalBadge metal={row.category_type} className="hidden justify-self-start lg:inline-flex" />
-              <span className="hidden truncate text-ink-muted lg:block">{row.detailed_type || '—'}</span>
-              <span className="hidden text-right tabular-nums text-ink-muted lg:block">
+              <span className="hidden truncate text-ink-muted xl:block">{row.detailed_type || '—'}</span>
+              <span className="hidden text-right tabular-nums text-ink-muted xl:block">
                 {formatWeight(row.weight, row.category_type)}
               </span>
 
-              <div onClick={event => event.stopPropagation()} className="justify-self-end">
+              {/* Row actions recede rather than disappear. Two outlined buttons
+                  on every row of a fifty-row table is a hundred boxes
+                  competing with the money — but hiding them until hover would
+                  make them unreachable on a touchscreen and unfindable for
+                  staff who did not choose this software. Muted, not gone. */}
+              <div
+                onClick={event => event.stopPropagation()}
+                className="justify-self-end opacity-60 transition-opacity focus-within:opacity-100
+                           group-hover:opacity-100"
+              >
                 <RecordRowActions loan={row} />
               </div>
             </div>

@@ -37,6 +37,7 @@
     "check:deps": "node scripts/deps.js",
     "check:env": "node scripts/env.js",
     "check:sql": "node scripts/sql.js",
+    "test:db": "python3 scripts/pgtest.py",
     "check:css": "node scripts/css.js",
     "check:unused": "node scripts/unused.js",
     "check:theme": "node scripts/theme.js",

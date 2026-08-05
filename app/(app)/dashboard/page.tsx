@@ -30,6 +30,15 @@ type TrendRow = {
 
 export const dynamic = 'force-dynamic'
 
+function indiaDate(date = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(date)
+  const value = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find(part => part.type === type)?.value ?? ''
+  return `${value('year')}-${value('month')}-${value('day')}`
+}
+
 export default async function DashboardPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -71,10 +80,69 @@ export default async function DashboardPage() {
     return (data ?? null) as T | null
   }
 
-  const snapshot = unwrap<Json>(0)
+  let snapshot = unwrap<Json>(0)
   const recentLoans = unwrap<RecentLoanRow[]>(1)
   const trend = unwrap<TrendRow[]>(2)
   const settings = withDefaults(unwrap<Json>(3))
+
+  // Migration 032 is the authoritative single-call path. Keep the dashboard
+  // operational while a deployed app and its database migration briefly lag
+  // one another by rebuilding the same shape from older, established RPCs.
+  if (failures.has(0)) {
+    const today = indiaDate()
+    const [metricsResult, stockResult, inventoryResult, todayCashResult] = await Promise.all([
+      supabase.rpc('lending_metrics'),
+      supabase.rpc('jewellery_stock'),
+      supabase.rpc('inventory_report'),
+      supabase.from('daily_cash_summary')
+        .select('deposit_credit, deposit_debit, added_cash, removed_cash, investments, returns, total_cash, left_cash')
+        .eq('date', today).maybeSingle(),
+    ])
+
+    const fallbackError = metricsResult.error || stockResult.error
+      || inventoryResult.error || todayCashResult.error
+
+    if (!fallbackError) {
+      const legacyMetrics = asObject(metricsResult.data)
+      const legacyStock = asObject(stockResult.data)
+      const todayCash = todayCashResult.data
+      const inventory = inventoryResult.data ?? []
+      const groupFor = (category: 'Gold' | 'Silver') => inventory
+        .filter(row => row.category_type === category)
+        .map(row => ({
+          type: row.item_type ?? 'Unknown',
+          amount: Number(row.total_amount ?? 0),
+          count: Number(row.item_count ?? 0),
+        }))
+
+      snapshot = {
+        as_of: today,
+        active_loans: numberAt(legacyMetrics, 'active_loans'),
+        active_principal: numberAt(legacyMetrics, 'active_principal'),
+        cash: {
+          cash_in_hand: numberAt(legacyMetrics, 'cash_balance'),
+          total_deposits: numberAt(legacyMetrics, 'total_deposits'),
+          deposit_credit: Number(todayCash?.deposit_credit ?? 0),
+          deposit_debit: Number(todayCash?.deposit_debit ?? 0),
+          added_cash: Number(todayCash?.added_cash ?? 0),
+          removed_cash: Number(todayCash?.removed_cash ?? 0),
+          investments: Number(todayCash?.investments ?? 0),
+          returns: Number(todayCash?.returns ?? 0),
+          opening_balance: Number(todayCash?.total_cash ?? 0),
+          no_activity: !todayCash,
+        },
+        stock: {
+          ...legacyStock,
+          groups: { gold: groupFor('Gold'), silver: groupFor('Silver') },
+        },
+      }
+      failures.delete(0)
+      console.warn('[dashboard] using compatibility snapshot; apply migration 032')
+    } else {
+      console.error('[dashboard] compatibility snapshot errored:', fallbackError)
+    }
+  }
+
   const formatDate = (date: string | Date) => formatDateSetting(date, settings.date_display_format)
 
   const metrics = asObject(snapshot)

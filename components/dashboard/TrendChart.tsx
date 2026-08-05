@@ -91,7 +91,9 @@ export function TrendChart({ rows, error = false }: { rows: Row[]; error?: boole
             <Summary label="Returned" value={totalReturned} tone="positive" />
           </div>
 
-          <div className="hidden h-[210px] min-h-0 flex-1 sm:block">
+          {/* Keep an explicit height. `flex-1` gave ResponsiveContainer a
+              computed height of zero inside this min-height-only card. */}
+          <div className="hidden h-[260px] w-full shrink-0 sm:block">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={data} margin={{ top: 8, right: 6, bottom: 0, left: 6 }}>
                 <CartesianGrid stroke="rgb(var(--border))" vertical={false} />

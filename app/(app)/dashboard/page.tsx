@@ -10,6 +10,9 @@ import { MetalBadge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { CashSummary } from '@/components/dashboard/CashSummary'
+import {
+  DiagnosticPanel, describeError, type CallFailure,
+} from '@/components/dashboard/DiagnosticPanel'
 import { PeriodCards } from '@/components/dashboard/PeriodCards'
 import { QuickActions } from '@/components/dashboard/QuickActions'
 import { StockChart } from '@/components/dashboard/StockChart'
@@ -39,14 +42,30 @@ function indiaDate(date = new Date()) {
   return `${value('year')}-${value('month')}-${value('day')}`
 }
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ debug?: string }>
+}) {
+  // `?debug=1` shows the diagnostic panel regardless of role. The role gate is
+  // the right default, but it is also a way to see nothing at all if the
+  // account's role is not what you assumed — and a debugging aid that can
+  // silently show nothing is worse than none.
+  const { debug } = await searchParams
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
   const { data: appUser } = await supabase
-    .from('users').select('tenant_id, full_name').eq('auth_id', user.id).single()
+    .from('users').select('tenant_id, full_name, role').eq('auth_id', user.id).single()
   if (!appUser) redirect('/login')
+
+  // Collected as the calls are unwrapped and rendered on the page for owners.
+  // See DiagnosticPanel: the reason this exists is that the widget-level
+  // "could not be loaded" messages are deliberately silent about the cause,
+  // which is right at a shop counter and useless when something is actually
+  // broken.
+  const diagnostics: CallFailure[] = []
 
   // A failed widget must not take down the whole counter workspace or silently
   // turn unavailable money into a believable zero.
@@ -68,12 +87,14 @@ export default async function DashboardPage() {
     const result = settled[index]
     if (result.status === 'rejected') {
       failures.add(index)
+      diagnostics.push(describeError(names[index], result.reason))
       console.error(`[dashboard] ${names[index]} threw:`, result.reason)
       return null
     }
     const { data, error } = result.value as { data: unknown; error: unknown }
     if (error) {
       failures.add(index)
+      diagnostics.push(describeError(names[index], error))
       console.error(`[dashboard] ${names[index]} errored:`, error)
       return null
     }
@@ -99,8 +120,26 @@ export default async function DashboardPage() {
         .eq('date', today).maybeSingle(),
     ])
 
-    const fallbackError = metricsResult.error || stockResult.error
-      || inventoryResult.error || todayCashResult.error
+    // Recorded one by one rather than collapsed with `||`. The previous
+    // version kept only the first error and logged it under a single name, so
+    // when both the primary call and this fallback failed together there was
+    // no way to tell which of the four was responsible — the fact that they
+    // fail together is the most informative thing about the failure, and it
+    // was the part being thrown away.
+    const candidates: Array<{ name: string; error: unknown }> = [
+      { name: 'lending_metrics',    error: metricsResult.error },
+      { name: 'jewellery_stock',    error: stockResult.error },
+      { name: 'inventory_report',   error: inventoryResult.error },
+      { name: 'daily_cash_summary', error: todayCashResult.error },
+    ]
+    const fallbackErrors = candidates.filter(candidate => Boolean(candidate.error))
+
+    for (const { name, error } of fallbackErrors) {
+      diagnostics.push(describeError(`fallback → ${name}`, error))
+      console.error(`[dashboard] fallback ${name} errored:`, error)
+    }
+
+    const fallbackError = fallbackErrors.length > 0
 
     if (!fallbackError) {
       const legacyMetrics = asObject(metricsResult.data)
@@ -138,8 +177,6 @@ export default async function DashboardPage() {
       }
       failures.delete(0)
       console.warn('[dashboard] using compatibility snapshot; apply migration 032')
-    } else {
-      console.error('[dashboard] compatibility snapshot errored:', fallbackError)
     }
   }
 
@@ -185,6 +222,10 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-3">
+      {(appUser.role === 'owner' || debug === '1') && (
+        <DiagnosticPanel failures={diagnostics} />
+      )}
+
       <PeriodCards
         activePrincipal={numberAt(metrics, 'active_principal')}
         activeCount={numberAt(metrics, 'active_loans')}
